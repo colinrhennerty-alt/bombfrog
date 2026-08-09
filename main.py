@@ -128,6 +128,7 @@ class Bomb:
         self.radius = BOMB_RADIUS
         self.timer = BOMB_FUSE_MS
         self.color = (210, 70, 70)
+        self.has_shrapnel = random.random() < 0.05
         self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
     def update(self, dt):
@@ -252,14 +253,16 @@ class ExplosionEffect:
         return self.life > 0
 
 
-def draw_hud(surface, score, high_score, bombs_left):
+def draw_hud(surface, score, high_score, bombs_left, lives):
     score_text = font.render(f"Score: {score}", True, (255, 255, 255))
     high_text = small_font.render(f"High Score: {high_score}", True, (240, 240, 240))
     bomb_text = small_font.render(f"Bombs: {bombs_left}", True, (255, 220, 120))
+    life_text = small_font.render(f"Lives: {lives}", True, (180, 210, 255))
     prompt_text = small_font.render("SPACE = place bomb | avoid shards and enemies", True, (210, 210, 210))
     surface.blit(score_text, (20, 20))
     surface.blit(high_text, (20, 60))
     surface.blit(bomb_text, (20, 100))
+    surface.blit(life_text, (20, 140))
     surface.blit(prompt_text, (20, HEIGHT - 40))
 
 
@@ -284,6 +287,7 @@ def run_game():
     effects = []
     score = 0
     high_score = 0
+    lives = 3
     running = True
     game_over = False
     last_spawn = pygame.time.get_ticks()
@@ -306,6 +310,7 @@ def run_game():
                         enemies = []
                         effects = []
                         score = 0
+                        lives = 3
                         game_over = False
                         last_spawn = pygame.time.get_ticks()
                 if event.key == pygame.K_r and game_over:
@@ -315,6 +320,7 @@ def run_game():
                     enemies = []
                     effects = []
                     score = 0
+                    lives = 3
                     game_over = False
                     last_spawn = pygame.time.get_ticks()
                 if event.key == pygame.K_ESCAPE:
@@ -340,26 +346,55 @@ def run_game():
                     for enemy in enemies:
                         if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
                             enemy.dead = True
-                    shards.extend(Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25) for angle in [i * math.pi * 2 / 10 for i in range(10)])
+                    if bomb.has_shrapnel:
+                        shards.extend(Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25) for angle in [i * math.pi * 2 / 10 for i in range(10)])
                     bombs.remove(bomb)
                     player.bombs_left = min(player.bombs_left + 1, BOMB_LIMIT)
 
             for enemy in enemies[:]:
                 enemy.update(dt)
+                if not enemy.dead:
+                    for shard in shards[:]:
+                        if shard.rect.colliderect(enemy.rect):
+                            enemy.dead = True
+                            if shard in shards:
+                                shards.remove(shard)
+                            break
+
                 if enemy.dead:
                     shards.extend(enemy.get_death_shrapnel())
                     score += 100
                     enemies.remove(enemy)
                 elif enemy.rect.colliderect(player.rect):
-                    game_over = True
-                    high_score = max(high_score, score)
+                    lives -= 1
+                    if lives <= 0:
+                        game_over = True
+                        high_score = max(high_score, score)
+                    else:
+                        player = Player()
+                        bombs = []
+                        shards = []
+                        enemies = []
+                        effects = []
+                        last_spawn = pygame.time.get_ticks()
+                        break
 
             for shard in shards[:]:
                 shard.update(dt)
                 if shard.rect.colliderect(player.rect):
-                    game_over = True
-                    high_score = max(high_score, score)
-                    break
+                    lives -= 1
+                    if lives <= 0:
+                        game_over = True
+                        high_score = max(high_score, score)
+                        break
+                    else:
+                        player = Player()
+                        bombs = []
+                        shards = []
+                        enemies = []
+                        effects = []
+                        last_spawn = pygame.time.get_ticks()
+                        break
                 if not shard.is_alive():
                     shards.remove(shard)
 
@@ -382,7 +417,7 @@ def run_game():
         for effect in effects:
             effect.draw(screen)
 
-        draw_hud(screen, score, high_score, player.bombs_left)
+        draw_hud(screen, score, high_score, player.bombs_left, lives)
 
         if game_over:
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
