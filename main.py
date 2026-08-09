@@ -1,4 +1,6 @@
+import json
 import math
+import os
 import random
 import sys
 import pygame
@@ -12,13 +14,15 @@ GROUND_Y = HEIGHT - GROUND_HEIGHT
 PLAYER_SPEED = 5
 GRAVITY = 0.8
 BOMB_FUSE_MS = 900
-BOMB_RADIUS = 100
+BOMB_RADIUS = 140
 BOMB_FORCE = 24
 BOMB_LIMIT = 2
 SHARD_SPEED = 8
 SHARD_LIFETIME = 1500
+BOMB_COOLDOWN_MS = 1200
 ENEMY_SPAWN_MS = 1800
 MAX_ENEMIES = 5
+SAVE_FILE = "savegame.json"
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -32,6 +36,65 @@ def clamp(value, min_value, max_value):
     return max(min_value, min(max_value, value))
 
 
+def save_game(filename, player, bombs, shards, enemies, score, high_score, lives, last_spawn):
+    state = {
+        "player": {
+            "x": player.x,
+            "y": player.y,
+            "vx": player.vx,
+            "vy": player.vy,
+            "on_ground": player.on_ground,
+            "bombs_left": player.bombs_left,
+            "pending_bomb": player.pending_bomb,
+            "bomb_cooldown": player.bomb_cooldown,
+        },
+        "bombs": [
+            {
+                "x": bomb.x,
+                "y": bomb.y,
+                "timer": bomb.timer,
+                "has_shrapnel": bomb.has_shrapnel,
+            }
+            for bomb in bombs
+        ],
+        "shards": [
+            {
+                "x": shard.x,
+                "y": shard.y,
+                "vx": shard.vx,
+                "vy": shard.vy,
+                "life": shard.life,
+                "color": list(shard.color),
+            }
+            for shard in shards
+        ],
+        "enemies": [
+            {
+                "x": enemy.x,
+                "y": enemy.y,
+                "vx": enemy.vx,
+                "type": enemy.type,
+                "dead": enemy.dead,
+                "hp": enemy.hp,
+            }
+            for enemy in enemies
+        ],
+        "score": score,
+        "high_score": high_score,
+        "lives": lives,
+        "last_spawn": last_spawn,
+    }
+    with open(filename, "w") as handle:
+        json.dump(state, handle)
+
+
+def load_game(filename):
+    if not os.path.exists(filename):
+        return None
+    with open(filename, "r") as handle:
+        return json.load(handle)
+
+
 class Player:
     def __init__(self):
         self.width = 52
@@ -43,6 +106,7 @@ class Player:
         self.on_ground = True
         self.bombs_left = BOMB_LIMIT
         self.pending_bomb = False
+        self.bomb_cooldown = 0
         self.color = (43, 175, 76)
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
 
@@ -69,6 +133,7 @@ class Player:
             self.vy += GRAVITY
 
         self.y += self.vy
+        self.bomb_cooldown = max(0, self.bomb_cooldown - dt)
         spawn_bomb = False
         if self.pending_bomb and old_vy < 0 and self.vy >= 0:
             self.pending_bomb = False
@@ -87,9 +152,10 @@ class Player:
         if self.on_ground:
             self.vy = -GRAVITY * 24
             self.on_ground = False
-            if self.bombs_left > 0:
+            if self.bombs_left > 0 and self.bomb_cooldown <= 0:
                 self.pending_bomb = True
                 self.bombs_left -= 1
+                self.bomb_cooldown = BOMB_COOLDOWN_MS
 
     def create_bomb(self):
         bomb_x = self.centerx
@@ -131,6 +197,13 @@ class Bomb:
         self.has_shrapnel = random.random() < 0.05
         self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
+    @classmethod
+    def from_dict(cls, data):
+        bomb = cls(data["x"], data["y"])
+        bomb.timer = data["timer"]
+        bomb.has_shrapnel = data.get("has_shrapnel", False)
+        return bomb
+
     def update(self, dt):
         self.timer -= dt
         self.rect.center = (self.x, self.y)
@@ -165,6 +238,16 @@ class Shard:
         self.color = color or (255, 220, 100)
         self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
+    @classmethod
+    def from_dict(cls, data):
+        shard = cls(data["x"], data["y"], 0, 0)
+        shard.vx = data["vx"]
+        shard.vy = data["vy"]
+        shard.life = data["life"]
+        shard.color = tuple(data["color"])
+        shard.rect.topleft = (shard.x - shard.radius, shard.y - shard.radius)
+        return shard
+
     def update(self, dt):
         self.vy += GRAVITY * 0.2
         self.x += self.vx
@@ -198,9 +281,17 @@ class Enemy:
         }[self.type]
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.dead = False
+        self.max_hp = {"grunt": 1, "heavy": 2, "elite": 3}[self.type]
+        self.hp = self.max_hp
 
     def update(self, dt):
         self.x += self.vx
+        if self.x <= 0:
+            self.x = 0
+            self.vx *= -1
+        elif self.x + self.width >= WIDTH:
+            self.x = WIDTH - self.width
+            self.vx *= -1
         self.rect.topleft = (self.x, self.y)
 
     def draw(self, surface):
@@ -212,6 +303,29 @@ class Enemy:
         dx = self.rect.centerx - origin_x
         dy = self.rect.centery - origin_y
         return math.hypot(dx, dy) < radius * 0.75
+
+    def take_damage(self, amount=1):
+        self.hp -= amount
+        if self.hp <= 0:
+            self.dead = True
+
+    @classmethod
+    def from_dict(cls, data):
+        enemy = cls("left")
+        enemy.x = data["x"]
+        enemy.y = data["y"]
+        enemy.vx = data["vx"]
+        enemy.type = data["type"]
+        enemy.color = {
+            "grunt": (190, 80, 80),
+            "heavy": (170, 130, 80),
+            "elite": (150, 95, 185),
+        }[enemy.type]
+        enemy.rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+        enemy.dead = data["dead"]
+        enemy.max_hp = {"grunt": 1, "heavy": 2, "elite": 3}[enemy.type]
+        enemy.hp = data.get("hp", enemy.max_hp)
+        return enemy
 
     def get_death_shrapnel(self):
         center_x = self.rect.centerx
@@ -253,16 +367,29 @@ class ExplosionEffect:
         return self.life > 0
 
 
-def draw_hud(surface, score, high_score, bombs_left, lives):
+def draw_hud(surface, score, high_score, bombs_left, lives, bomb_cooldown):
     score_text = font.render(f"Score: {score}", True, (255, 255, 255))
     high_text = small_font.render(f"High Score: {high_score}", True, (240, 240, 240))
     bomb_text = small_font.render(f"Bombs: {bombs_left}", True, (255, 220, 120))
     life_text = small_font.render(f"Lives: {lives}", True, (180, 210, 255))
-    prompt_text = small_font.render("SPACE = place bomb | avoid shards and enemies", True, (210, 210, 210))
+    legend_title = small_font.render("Enemies:", True, (220, 220, 220))
+    grunt_text = small_font.render("Grunt", True, (190, 80, 80))
+    heavy_text = small_font.render("Heavy", True, (170, 130, 80))
+    elite_text = small_font.render("Elite", True, (150, 95, 185))
+    prompt_text = small_font.render("SPACE = jump/save bomb | S=save | L=load | avoid shards", True, (210, 210, 210))
     surface.blit(score_text, (20, 20))
     surface.blit(high_text, (20, 60))
     surface.blit(bomb_text, (20, 100))
+    cooldown_text = small_font.render(f"Bomb CD: {max(0, int(bomb_cooldown / 1000 * 10) / 10):.1f}s", True, (255, 200, 120))
     surface.blit(life_text, (20, 140))
+    surface.blit(cooldown_text, (20, 170))
+    surface.blit(legend_title, (20, 210))
+    pygame.draw.circle(surface, (190, 80, 80), (30, 210), 5)
+    surface.blit(grunt_text, (45, 204))
+    pygame.draw.circle(surface, (170, 130, 80), (30, 232), 5)
+    surface.blit(heavy_text, (45, 226))
+    pygame.draw.circle(surface, (150, 95, 185), (30, 254), 5)
+    surface.blit(elite_text, (45, 248))
     surface.blit(prompt_text, (20, HEIGHT - 40))
 
 
@@ -323,6 +450,27 @@ def run_game():
                     lives = 3
                     game_over = False
                     last_spawn = pygame.time.get_ticks()
+                if event.key == pygame.K_s:
+                    save_game(SAVE_FILE, player, bombs, shards, enemies, score, high_score, lives, last_spawn)
+                if event.key == pygame.K_l:
+                    loaded = load_game(SAVE_FILE)
+                    if loaded:
+                        player.x = loaded["player"]["x"]
+                        player.y = loaded["player"]["y"]
+                        player.vx = loaded["player"]["vx"]
+                        player.vy = loaded["player"]["vy"]
+                        player.on_ground = loaded["player"]["on_ground"]
+                        player.bombs_left = loaded["player"]["bombs_left"]
+                        player.pending_bomb = loaded["player"]["pending_bomb"]
+                        player.bomb_cooldown = loaded["player"].get("bomb_cooldown", 0)
+                        player.rect.topleft = (player.x, player.y)
+                        bombs = [Bomb.from_dict(b) for b in loaded["bombs"]]
+                        shards = [Shard.from_dict(s) for s in loaded["shards"]]
+                        enemies = [Enemy.from_dict(e) for e in loaded["enemies"]]
+                        score = loaded.get("score", score)
+                        high_score = loaded.get("high_score", high_score)
+                        lives = loaded.get("lives", lives)
+                        last_spawn = loaded.get("last_spawn", last_spawn)
                 if event.key == pygame.K_ESCAPE:
                     running = False
 
@@ -345,7 +493,7 @@ def run_game():
                     player.apply_explosion(bomb.x, bomb.y, bomb.radius)
                     for enemy in enemies:
                         if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
-                            enemy.dead = True
+                            enemy.take_damage()
                     if bomb.has_shrapnel:
                         shards.extend(Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25) for angle in [i * math.pi * 2 / 10 for i in range(10)])
                     bombs.remove(bomb)
@@ -356,7 +504,7 @@ def run_game():
                 if not enemy.dead:
                     for shard in shards[:]:
                         if shard.rect.colliderect(enemy.rect):
-                            enemy.dead = True
+                            enemy.take_damage()
                             if shard in shards:
                                 shards.remove(shard)
                             break
@@ -417,7 +565,7 @@ def run_game():
         for effect in effects:
             effect.draw(screen)
 
-        draw_hud(screen, score, high_score, player.bombs_left, lives)
+        draw_hud(screen, score, high_score, player.bombs_left, lives, player.bomb_cooldown)
 
         if game_over:
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
