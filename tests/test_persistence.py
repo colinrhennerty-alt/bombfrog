@@ -1,10 +1,10 @@
-import main
 from game.entities import Player, Bomb, Shard, Enemy
+from game.persistence import save_game, load_game
 
 
 def test_load_game_returns_none_when_file_missing(tmp_path):
     missing_file = tmp_path / "does-not-exist.json"
-    assert main.load_game(str(missing_file)) is None
+    assert load_game(str(missing_file)) is None
 
 
 def test_save_and_load_round_trip(tmp_path):
@@ -21,9 +21,9 @@ def test_save_and_load_round_trip(tmp_path):
     shards = [Shard(30, 40, angle=0, speed=5)]
     enemies = [Enemy("left")]
 
-    main.save_game(str(save_path), player, bombs, shards, enemies, score=42, high_score=99, lives=2, last_spawn=777)
+    save_game(str(save_path), player, bombs, shards, enemies, score=42, high_score=99, lives=2, last_spawn=777)
 
-    loaded = main.load_game(str(save_path))
+    loaded = load_game(str(save_path))
 
     assert loaded["player"]["x"] == 123
     assert loaded["player"]["y"] == 45
