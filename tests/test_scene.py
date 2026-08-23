@@ -9,7 +9,10 @@ from game.entities import Player
 from game.persistence import save_game
 from game.scene import GameApp
 
-NO_KEYS = {pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False}
+NO_KEYS = {
+    pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
+    pygame.K_UP: False, pygame.K_DOWN: False,
+}
 
 
 def test_app_starts_in_menu_with_no_world():
@@ -162,3 +165,16 @@ def test_tick_updates_high_score_once_the_round_is_over():
     app.tick(NO_KEYS, dt=16, now=1000)
 
     assert app.high_score == 555
+
+
+def test_tick_syncs_world_debug_flag_to_the_apps():
+    app = _started_app()
+    assert app.world.debug is False
+
+    app.handle_action("toggle_debug", now=0)
+    app.tick(NO_KEYS, dt=16, now=1000)
+    assert app.world.debug is True
+
+    app.handle_action("toggle_debug", now=0)
+    app.tick(NO_KEYS, dt=16, now=1000)
+    assert app.world.debug is False

@@ -78,6 +78,7 @@ class GameApp:
     def tick(self, keys, dt, now):
         if self.state != "playing":
             return
+        self.world.debug = self.debug
         self.world.update(keys, dt, now)
         if self.world.game_over:
             self.high_score = max(self.high_score, self.world.score)

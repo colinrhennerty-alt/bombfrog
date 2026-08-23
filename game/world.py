@@ -16,6 +16,7 @@ import random
 from game.config import MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
 from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
 from game.depth import same_plane
+from game import debug_log
 
 
 def _load_bombs_shards_enemies(data):
@@ -99,13 +100,20 @@ class World:
         enemy touches it — whichever comes first."""
         if bomb.is_ready():
             return True
-        return any(bomb.rect.colliderect(enemy.rect) for enemy in self.enemies)
+        touching_enemy = next((e for e in self.enemies if bomb.rect.colliderect(e.rect)), None)
+        if touching_enemy is not None:
+            if self.debug:
+                debug_log.log(f"bomb contact-triggered by enemy (type={touching_enemy.type})")
+            return True
+        return False
 
     def _explode_bomb(self, bomb):
         self.effects.append(ExplosionEffect(bomb.x, bomb.y, bomb.radius))
         self.player.apply_explosion(bomb.x, bomb.y, bomb.radius)
         for enemy in self.enemies:
             if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
+                if self.debug:
+                    debug_log.log(f"bomb killed enemy (type={enemy.type}, depth={enemy.depth:.2f})")
                 enemy.take_damage()
         if bomb.has_shrapnel:
             self.shards.extend(
@@ -140,14 +148,22 @@ class World:
 
             if enemy.dead:
                 self._kill_enemy(enemy)
-            elif same_plane(enemy.depth, self.player.depth) and enemy.rect.colliderect(self.player.rect):
-                self._lose_a_life(now)
-                if not self.game_over:
-                    break
+            elif enemy.rect.colliderect(self.player.rect):
+                depth_gap = abs(enemy.depth - self.player.depth)
+                if same_plane(enemy.depth, self.player.depth):
+                    if self.debug:
+                        debug_log.log(f"enemy hit player (Δdepth={depth_gap:.2f})")
+                    self._lose_a_life(now)
+                    if not self.game_over:
+                        break
+                elif self.debug:
+                    debug_log.log(f"enemy-player rect overlap suppressed: different z-plane (Δdepth={depth_gap:.2f})")
 
     def _damage_enemy_with_touching_shard(self, enemy):
         for shard in self.shards[:]:
             if shard.rect.colliderect(enemy.rect):
+                if self.debug:
+                    debug_log.log(f"shard hit enemy (type={enemy.type})")
                 enemy.take_damage()
                 if shard in self.shards:
                     self.shards.remove(shard)
@@ -162,6 +178,8 @@ class World:
         for shard in self.shards[:]:
             shard.update(dt)
             if shard.rect.colliderect(self.player.rect):
+                if self.debug:
+                    debug_log.log("shard hit player")
                 self._lose_a_life(now)
                 break
             if not shard.is_alive():

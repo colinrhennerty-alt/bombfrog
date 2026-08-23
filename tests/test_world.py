@@ -6,7 +6,7 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 import pygame
 
 from game.config import GROUND_NEAR_Y, BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS
-from game.entities import Bomb, Enemy
+from game.entities import Bomb, Enemy, Shard
 from game.world import World
 
 NO_KEYS = {
@@ -275,3 +275,117 @@ def test_bomb_should_not_explode_when_fuse_unready_and_no_contact():
     _place_enemy_at(enemy, 5000, 5000)  # nowhere near the bomb
     world.enemies = [enemy]
     assert world._bomb_should_explode(bomb) is False
+
+
+# --- debug-mode collision logging ------------------------------------------
+# All silent when world.debug is False (the default); with it on, every
+# collision decision — including ones *suppressed* by the z-plane check —
+# gets logged, so issues like the same_plane bug are visible immediately
+# instead of requiring a screenshot and a guessing game.
+
+
+def test_no_log_output_when_debug_is_off(capsys):
+    world = World(now=0)
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=world.player.depth)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert capsys.readouterr().out == ""
+
+
+def test_logs_enemy_player_collision_when_same_plane(capsys):
+    world = World(now=0)
+    world.debug = True
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=world.player.depth)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    out = capsys.readouterr().out
+    assert "[debug]" in out
+    assert "enemy" in out.lower() and "player" in out.lower()
+
+
+def test_logs_suppressed_collision_when_different_plane(capsys):
+    world = World(now=0)
+    world.debug = True
+    world.player.depth = 0.5
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=0.1)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    out = capsys.readouterr().out
+    assert "[debug]" in out
+    assert "suppressed" in out.lower()
+    assert "z-plane" in out.lower() or "plane" in out.lower()
+
+
+def test_logs_bomb_contact_trigger(capsys):
+    world = World(now=0)
+    world.debug = True
+    bomb = Bomb(100, 100)
+    bomb.timer = BOMB_FUSE_MS
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
+    world.bombs = [bomb]
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=1, now=1000)
+
+    out = capsys.readouterr().out
+    assert "[debug]" in out
+    assert "bomb" in out.lower() and "contact" in out.lower()
+
+
+def test_logs_bomb_killing_an_enemy(capsys):
+    world = World(now=0)
+    world.debug = True
+    enemy = Enemy("left")
+    enemy.hp = 1
+    _place_enemy_at(enemy, 80, GROUND_NEAR_Y - enemy.height)
+    world.enemies = [enemy]
+
+    bomb = Bomb(100, GROUND_NEAR_Y - 16)
+    bomb.timer = 0
+    bomb.has_shrapnel = False
+    world.bombs = [bomb]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    out = capsys.readouterr().out
+    assert "[debug]" in out
+    assert "bomb" in out.lower() and "kill" in out.lower()
+
+
+def test_logs_shard_hitting_an_enemy(capsys):
+    world = World(now=0)
+    world.debug = True
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, 100, 100)
+    shard = Shard(enemy.rect.centerx, enemy.rect.centery, angle=0, speed=0)
+    world.enemies = [enemy]
+    world.shards = [shard]
+
+    world.update(NO_KEYS, dt=1, now=1000)
+
+    out = capsys.readouterr().out
+    assert "[debug]" in out
+    assert "shard" in out.lower() and "enemy" in out.lower()
+
+
+def test_logs_shard_hitting_the_player(capsys):
+    world = World(now=0)
+    world.debug = True
+    shard = Shard(world.player.rect.centerx, world.player.rect.centery, angle=0, speed=0)
+    world.shards = [shard]
+
+    world.update(NO_KEYS, dt=1, now=1000)
+
+    out = capsys.readouterr().out
+    assert "[debug]" in out
+    assert "shard" in out.lower() and "player" in out.lower()
