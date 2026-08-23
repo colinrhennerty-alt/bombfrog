@@ -28,3 +28,14 @@ python main.py
 ## Goal
 
 Avoid falling bombs and survive as long as possible.
+
+## Tests
+
+Install dev dependencies and run the test suite with `pytest`:
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Tests run headlessly (no window pops up) via the SDL dummy video driver, configured in `tests/conftest.py`.
