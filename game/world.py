@@ -137,21 +137,27 @@ class World:
         for enemy in self.enemies[:]:
             enemy.update(dt)
             if not enemy.dead:
-                for shard in self.shards[:]:
-                    if shard.rect.colliderect(enemy.rect):
-                        enemy.take_damage()
-                        if shard in self.shards:
-                            self.shards.remove(shard)
-                        break
+                self._damage_enemy_with_touching_shard(enemy)
 
             if enemy.dead:
-                self.shards.extend(enemy.get_death_shrapnel())
-                self.score += 100
-                self.enemies.remove(enemy)
+                self._kill_enemy(enemy)
             elif enemy.rect.colliderect(self.player.rect):
                 self._lose_a_life(now)
                 if not self.game_over:
                     break
+
+    def _damage_enemy_with_touching_shard(self, enemy):
+        for shard in self.shards[:]:
+            if shard.rect.colliderect(enemy.rect):
+                enemy.take_damage()
+                if shard in self.shards:
+                    self.shards.remove(shard)
+                return
+
+    def _kill_enemy(self, enemy):
+        self.shards.extend(enemy.get_death_shrapnel())
+        self.score += 100
+        self.enemies.remove(enemy)
 
     def _update_shards(self, dt, now):
         for shard in self.shards[:]:
