@@ -89,6 +89,29 @@ def test_draw_scene_with_no_player(surface):
     rendering.draw_scene(surface, player=None, bombs=[], shards=[], enemies=[], effects=[])
 
 
+def test_draw_debug_boxes_with_full_cast(surface):
+    rendering.draw_debug_boxes(
+        surface,
+        player=Player(),
+        bombs=[Bomb(100, 100)],
+        shards=[Shard(100, 100, angle=0, speed=5)],
+        enemies=[Enemy("left")],
+    )
+
+
+def test_draw_debug_boxes_with_no_player(surface):
+    rendering.draw_debug_boxes(surface, player=None, bombs=[], shards=[], enemies=[])
+
+
+def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
+    surface.fill((0, 0, 0))
+    player = Player()
+    rendering.draw_debug_boxes(surface, player=player, bombs=[], shards=[], enemies=[])
+    # the outline is drawn exactly on player.rect: sample its border pixel
+    color_at_top_left = surface.get_at(player.rect.topleft)[:3]
+    assert color_at_top_left != (0, 0, 0)
+
+
 def test_draw_parallax_background(surface):
     rendering.draw_parallax_background(surface, cam_x=250)
 

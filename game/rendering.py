@@ -92,6 +92,24 @@ _DRAW_FUNCS = {
     Enemy: draw_enemy,
 }
 
+_DEBUG_BOX_COLORS = {
+    Player: (0, 255, 0),
+    Bomb: (255, 80, 80),
+    Shard: (255, 255, 0),
+    Enemy: (80, 160, 255),
+}
+
+
+def draw_debug_boxes(surface, player, bombs, shards, enemies):
+    """Outlines the exact .rect each entity uses for colliderect checks
+    in game.world — not an approximation, the real hitbox."""
+    entities = list(enemies) + list(bombs) + list(shards)
+    if player:
+        entities.append(player)
+    for entity in entities:
+        color = _DEBUG_BOX_COLORS.get(type(entity), (255, 255, 255))
+        pygame.draw.rect(surface, color, entity.rect, width=2)
+
 
 def draw_scene(surface, player, bombs, shards, enemies, effects):
     """Depth-sort everything by y, draw shadows, then sprites, then effects on top."""
