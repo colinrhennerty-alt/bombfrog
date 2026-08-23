@@ -407,7 +407,12 @@ def draw_overlay(surface, bombs):
 
 
 def run_game():
-    player = Player()
+    # Menu / game state
+    menu_options = ["Start Game", "Load Game", "Quit"]
+    selected = 0
+
+    # game variables (initialized when starting)
+    player = None
     bombs = []
     shards = []
     enemies = []
@@ -418,6 +423,19 @@ def run_game():
     running = True
     game_over = False
     last_spawn = pygame.time.get_ticks()
+    state = "menu"
+
+    def start_new_game():
+        nonlocal player, bombs, shards, enemies, effects, score, lives, game_over, last_spawn
+        player = Player()
+        bombs = []
+        shards = []
+        enemies = []
+        effects = []
+        score = 0
+        lives = 3
+        game_over = False
+        last_spawn = pygame.time.get_ticks()
 
     while running:
         dt = clock.tick(FPS)
@@ -427,154 +445,187 @@ def run_game():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    if not game_over:
-                        player.jump()
-                    else:
-                        player = Player()
-                        bombs = []
-                        shards = []
-                        enemies = []
-                        effects = []
-                        score = 0
-                        lives = 3
-                        game_over = False
-                        last_spawn = pygame.time.get_ticks()
-                if event.key == pygame.K_r and game_over:
-                    player = Player()
-                    bombs = []
-                    shards = []
-                    enemies = []
-                    effects = []
-                    score = 0
-                    lives = 3
-                    game_over = False
-                    last_spawn = pygame.time.get_ticks()
-                if event.key == pygame.K_s:
-                    save_game(SAVE_FILE, player, bombs, shards, enemies, score, high_score, lives, last_spawn)
-                if event.key == pygame.K_l:
-                    loaded = load_game(SAVE_FILE)
-                    if loaded:
-                        player.x = loaded["player"]["x"]
-                        player.y = loaded["player"]["y"]
-                        player.vx = loaded["player"]["vx"]
-                        player.vy = loaded["player"]["vy"]
-                        player.on_ground = loaded["player"]["on_ground"]
-                        player.bombs_left = loaded["player"]["bombs_left"]
-                        player.pending_bomb = loaded["player"]["pending_bomb"]
-                        player.bomb_cooldown = loaded["player"].get("bomb_cooldown", 0)
-                        player.rect.topleft = (player.x, player.y)
-                        bombs = [Bomb.from_dict(b) for b in loaded["bombs"]]
-                        shards = [Shard.from_dict(s) for s in loaded["shards"]]
-                        enemies = [Enemy.from_dict(e) for e in loaded["enemies"]]
-                        score = loaded.get("score", score)
-                        high_score = loaded.get("high_score", high_score)
-                        lives = loaded.get("lives", lives)
-                        last_spawn = loaded.get("last_spawn", last_spawn)
-                if event.key == pygame.K_ESCAPE:
-                    running = False
+                if state == "menu":
+                    if event.key == pygame.K_UP:
+                        selected = (selected - 1) % len(menu_options)
+                    if event.key == pygame.K_DOWN:
+                        selected = (selected + 1) % len(menu_options)
+                    if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                        choice = menu_options[selected]
+                        if choice == "Start Game":
+                            start_new_game()
+                            state = "playing"
+                        elif choice == "Load Game":
+                            loaded = load_game(SAVE_FILE)
+                            if loaded:
+                                player = Player()
+                                player.x = loaded["player"]["x"]
+                                player.y = loaded["player"]["y"]
+                                player.vx = loaded["player"]["vx"]
+                                player.vy = loaded["player"]["vy"]
+                                player.on_ground = loaded["player"]["on_ground"]
+                                player.bombs_left = loaded["player"]["bombs_left"]
+                                player.pending_bomb = loaded["player"]["pending_bomb"]
+                                player.bomb_cooldown = loaded["player"].get("bomb_cooldown", 0)
+                                player.rect.topleft = (player.x, player.y)
+                                bombs = [Bomb.from_dict(b) for b in loaded["bombs"]]
+                                shards = [Shard.from_dict(s) for s in loaded["shards"]]
+                                enemies = [Enemy.from_dict(e) for e in loaded["enemies"]]
+                                score = loaded.get("score", 0)
+                                high_score = loaded.get("high_score", 0)
+                                lives = loaded.get("lives", 3)
+                                last_spawn = loaded.get("last_spawn", pygame.time.get_ticks())
+                                effects = []
+                                state = "playing"
+                        elif choice == "Quit":
+                            running = False
+                else:
+                    # in-game key handling
+                    if event.key == pygame.K_SPACE:
+                        if not game_over:
+                            player.jump()
+                        else:
+                            start_new_game()
+                            state = "playing"
+                    if event.key == pygame.K_r and game_over:
+                        start_new_game()
+                        state = "playing"
+                    if event.key == pygame.K_s:
+                        save_game(SAVE_FILE, player, bombs, shards, enemies, score, high_score, lives, last_spawn)
+                    if event.key == pygame.K_l:
+                        loaded = load_game(SAVE_FILE)
+                        if loaded:
+                            player.x = loaded["player"]["x"]
+                            player.y = loaded["player"]["y"]
+                            player.vx = loaded["player"]["vx"]
+                            player.vy = loaded["player"]["vy"]
+                            player.on_ground = loaded["player"]["on_ground"]
+                            player.bombs_left = loaded["player"]["bombs_left"]
+                            player.pending_bomb = loaded["player"]["pending_bomb"]
+                            player.bomb_cooldown = loaded["player"].get("bomb_cooldown", 0)
+                            player.rect.topleft = (player.x, player.y)
+                            bombs = [Bomb.from_dict(b) for b in loaded["bombs"]]
+                            shards = [Shard.from_dict(s) for s in loaded["shards"]]
+                            enemies = [Enemy.from_dict(e) for e in loaded["enemies"]]
+                            score = loaded.get("score", score)
+                            high_score = loaded.get("high_score", high_score)
+                            lives = loaded.get("lives", lives)
+                            last_spawn = loaded.get("last_spawn", last_spawn)
+                    if event.key == pygame.K_ESCAPE:
+                        # Return to the main menu instead of quitting
+                        state = "menu"
 
-        if not game_over:
-            spawn_bomb = player.update(keys, dt)
-            now = pygame.time.get_ticks()
+        screen.fill((18, 30, 50))
 
-            if spawn_bomb:
-                bombs.append(player.create_bomb())
+        if state == "menu":
+            # draw title and menu
+            title = font.render("Bomb Frog", True, (255, 255, 255))
+            screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 80))
+            subtitle = small_font.render("Leapfrog with bombs — press Enter to select", True, (220, 220, 220))
+            screen.blit(subtitle, (WIDTH // 2 - subtitle.get_width() // 2, 130))
 
-            if len(enemies) < MAX_ENEMIES and now - last_spawn >= ENEMY_SPAWN_MS:
-                side = random.choice(["left", "right"])
-                enemies.append(Enemy(side))
-                last_spawn = now
+            for i, opt in enumerate(menu_options):
+                color = (255, 220, 120) if i == selected else (200, 200, 200)
+                text = font.render(opt, True, color)
+                screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 220 + i * 60))
 
-            for bomb in bombs[:]:
-                bomb.update(dt)
-                if bomb.is_ready():
-                    effects.append(ExplosionEffect(bomb.x, bomb.y, bomb.radius))
-                    player.apply_explosion(bomb.x, bomb.y, bomb.radius)
-                    for enemy in enemies:
-                        if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
-                            enemy.take_damage()
-                    if bomb.has_shrapnel:
-                        shards.extend(Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25) for angle in [i * math.pi * 2 / 10 for i in range(10)])
-                    bombs.remove(bomb)
-                    player.bombs_left = min(player.bombs_left + 1, BOMB_LIMIT)
+            hint = small_font.render("Use UP/DOWN to move, ENTER to confirm", True, (180, 180, 180))
+            screen.blit(hint, (WIDTH // 2 - hint.get_width() // 2, HEIGHT - 80))
 
-            for enemy in enemies[:]:
-                enemy.update(dt)
-                if not enemy.dead:
-                    for shard in shards[:]:
-                        if shard.rect.colliderect(enemy.rect):
-                            enemy.take_damage()
-                            if shard in shards:
-                                shards.remove(shard)
+        elif state == "playing":
+            # main game loop body
+            if not game_over:
+                spawn_bomb = player.update(keys, dt)
+                now = pygame.time.get_ticks()
+
+                if spawn_bomb:
+                    bombs.append(player.create_bomb())
+
+                if len(enemies) < MAX_ENEMIES and now - last_spawn >= ENEMY_SPAWN_MS:
+                    side = random.choice(["left", "right"])
+                    enemies.append(Enemy(side))
+                    last_spawn = now
+
+                for bomb in bombs[:]:
+                    bomb.update(dt)
+                    if bomb.is_ready():
+                        effects.append(ExplosionEffect(bomb.x, bomb.y, bomb.radius))
+                        player.apply_explosion(bomb.x, bomb.y, bomb.radius)
+                        for enemy in enemies:
+                            if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
+                                enemy.take_damage()
+                        if bomb.has_shrapnel:
+                            shards.extend(Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25) for angle in [i * math.pi * 2 / 10 for i in range(10)])
+                        bombs.remove(bomb)
+                        player.bombs_left = min(player.bombs_left + 1, BOMB_LIMIT)
+
+                for enemy in enemies[:]:
+                    enemy.update(dt)
+                    if not enemy.dead:
+                        for shard in shards[:]:
+                            if shard.rect.colliderect(enemy.rect):
+                                enemy.take_damage()
+                                if shard in shards:
+                                    shards.remove(shard)
+                                break
+
+                    if enemy.dead:
+                        shards.extend(enemy.get_death_shrapnel())
+                        score += 100
+                        enemies.remove(enemy)
+                    elif enemy.rect.colliderect(player.rect):
+                        lives -= 1
+                        if lives <= 0:
+                            game_over = True
+                            high_score = max(high_score, score)
+                        else:
+                            start_new_game()
+                            state = "playing"
                             break
 
-                if enemy.dead:
-                    shards.extend(enemy.get_death_shrapnel())
-                    score += 100
-                    enemies.remove(enemy)
-                elif enemy.rect.colliderect(player.rect):
-                    lives -= 1
-                    if lives <= 0:
-                        game_over = True
-                        high_score = max(high_score, score)
-                    else:
-                        player = Player()
-                        bombs = []
-                        shards = []
-                        enemies = []
-                        effects = []
-                        last_spawn = pygame.time.get_ticks()
-                        break
+                for shard in shards[:]:
+                    shard.update(dt)
+                    if shard.rect.colliderect(player.rect):
+                        lives -= 1
+                        if lives <= 0:
+                            game_over = True
+                            high_score = max(high_score, score)
+                            break
+                        else:
+                            start_new_game()
+                            state = "playing"
+                            break
+                    if not shard.is_alive():
+                        shards.remove(shard)
 
-            for shard in shards[:]:
-                shard.update(dt)
-                if shard.rect.colliderect(player.rect):
-                    lives -= 1
-                    if lives <= 0:
-                        game_over = True
-                        high_score = max(high_score, score)
-                        break
-                    else:
-                        player = Player()
-                        bombs = []
-                        shards = []
-                        enemies = []
-                        effects = []
-                        last_spawn = pygame.time.get_ticks()
-                        break
-                if not shard.is_alive():
-                    shards.remove(shard)
+                for effect in effects[:]:
+                    effect.update(dt)
+                    if not effect.is_alive():
+                        effects.remove(effect)
 
-            for effect in effects[:]:
-                effect.update(dt)
-                if not effect.is_alive():
-                    effects.remove(effect)
+                score += 1
 
-            score += 1
+            draw_ground(screen)
+            player.draw(screen)
+            for bomb in bombs:
+                bomb.draw(screen)
+            for shard in shards:
+                shard.draw(screen)
+            for enemy in enemies:
+                enemy.draw(screen)
+            for effect in effects:
+                effect.draw(screen)
 
-        screen.fill((26, 42, 78))
-        draw_ground(screen)
-        player.draw(screen)
-        for bomb in bombs:
-            bomb.draw(screen)
-        for shard in shards:
-            shard.draw(screen)
-        for enemy in enemies:
-            enemy.draw(screen)
-        for effect in effects:
-            effect.draw(screen)
+            draw_hud(screen, score, high_score, player.bombs_left, lives, player.bomb_cooldown)
 
-        draw_hud(screen, score, high_score, player.bombs_left, lives, player.bomb_cooldown)
-
-        if game_over:
-            overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 180))
-            screen.blit(overlay, (0, 0))
-            game_over_text = font.render("Game Over", True, (255, 220, 90))
-            restart_text = small_font.render("Press SPACE or R to restart, ESC to quit.", True, (245, 245, 245))
-            screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 60))
-            screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 10))
+            if game_over:
+                overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 180))
+                screen.blit(overlay, (0, 0))
+                game_over_text = font.render("Game Over", True, (255, 220, 90))
+                restart_text = small_font.render("Press SPACE or R to restart, ESC to quit.", True, (245, 245, 245))
+                screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 60))
+                screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 10))
 
         pygame.display.flip()
 
