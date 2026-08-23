@@ -20,6 +20,7 @@ PLAYING_KEY_ACTIONS = {
     pygame.K_s: "save",
     pygame.K_l: "load",
     pygame.K_ESCAPE: "menu_back",
+    pygame.K_F1: "toggle_debug",
 }
 
 

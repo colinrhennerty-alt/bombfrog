@@ -31,6 +31,10 @@ def test_playing_space_restart_save_load_escape():
     assert map_key("playing", pygame.K_ESCAPE) == "menu_back"
 
 
+def test_playing_f1_toggles_debug():
+    assert map_key("playing", pygame.K_F1) == "toggle_debug"
+
+
 def test_playing_unknown_key_returns_none():
     assert map_key("playing", pygame.K_UP) is None
     assert map_key("playing", pygame.K_RETURN) is None
