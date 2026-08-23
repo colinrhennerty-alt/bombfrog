@@ -20,6 +20,7 @@ class GameApp:
         self.high_score = 0
         self.running = True
         self.state = "menu"
+        self.debug = False
 
     def handle_action(self, action, now):
         if self.state == "menu":
@@ -71,6 +72,8 @@ class GameApp:
                 self.high_score = loaded.get("high_score", self.high_score)
         elif action == "menu_back":
             self.state = "menu"
+        elif action == "toggle_debug":
+            self.debug = not self.debug
 
     def tick(self, keys, dt, now):
         if self.state != "playing":

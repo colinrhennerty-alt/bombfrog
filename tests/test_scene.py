@@ -20,6 +20,7 @@ def test_app_starts_in_menu_with_no_world():
     assert app.selected == 0
     assert app.menu_options == ["Start Game", "Load Game", "Quit"]
     assert app.high_score == 0
+    assert app.debug is False
 
 
 def test_default_save_file_matches_config():
@@ -134,6 +135,17 @@ def test_menu_back_returns_to_menu():
     app = _started_app()
     app.handle_action("menu_back", now=0)
     assert app.state == "menu"
+
+
+def test_toggle_debug_flips_the_flag():
+    app = _started_app()
+    assert app.debug is False
+
+    app.handle_action("toggle_debug", now=0)
+    assert app.debug is True
+
+    app.handle_action("toggle_debug", now=0)
+    assert app.debug is False
 
 
 def test_tick_is_a_noop_in_menu_state():
