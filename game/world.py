@@ -15,6 +15,7 @@ import random
 
 from game.config import MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
 from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
+from game.depth import same_plane
 
 
 def _load_bombs_shards_enemies(data):
@@ -137,7 +138,7 @@ class World:
 
             if enemy.dead:
                 self._kill_enemy(enemy)
-            elif enemy.rect.colliderect(self.player.rect):
+            elif same_plane(enemy.depth, self.player.depth) and enemy.rect.colliderect(self.player.rect):
                 self._lose_a_life(now)
                 if not self.game_over:
                     break

@@ -15,8 +15,10 @@ NO_KEYS = {
 }
 
 
-def _place_enemy_at(enemy, x, y):
+def _place_enemy_at(enemy, x, y, depth=None):
     enemy.x, enemy.y = x, y
+    if depth is not None:
+        enemy.depth = depth
     enemy.rect.topleft = (x, y)
 
 
@@ -69,7 +71,7 @@ def test_enemy_collision_costs_a_life_and_respawns_without_wiping_score():
     world = World(now=0)
     world.score = 500
     enemy = Enemy("left")
-    _place_enemy_at(enemy, world.player.x, world.player.y)
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=world.player.depth)
     world.enemies = [enemy]
 
     world.update(NO_KEYS, dt=16, now=1000)
@@ -84,12 +86,44 @@ def test_losing_the_last_life_ends_the_game():
     world = World(now=0)
     world.lives = 1
     enemy = Enemy("left")
-    _place_enemy_at(enemy, world.player.x, world.player.y)
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=world.player.depth)
     world.enemies = [enemy]
 
     world.update(NO_KEYS, dt=16, now=1000)
 
     assert world.game_over is True
+
+
+def test_enemy_in_a_different_z_plane_does_not_cost_a_life():
+    # Same x/y overlap as the collision tests above, but a far-plane enemy
+    # against a mid-plane player — should pass straight through.
+    world = World(now=0)
+    world.player.depth = 0.5  # mid plane
+    world.score = 500
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=0.1)  # far plane
+
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 3  # untouched
+    assert world.enemies == [enemy]  # no respawn happened, enemy still there
+    assert world.game_over is False
+
+
+def test_enemy_in_the_same_z_plane_still_costs_a_life():
+    world = World(now=0)
+    world.player.depth = 0.5  # mid plane
+    world.score = 500
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=0.6)  # also mid plane
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 2
+    assert world.enemies == []
 
 
 def test_repeated_hits_eventually_end_the_game():
