@@ -26,6 +26,7 @@ from game.config import (
 )
 from game.utils import clamp
 from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
+from game import rendering
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -33,25 +34,6 @@ pygame.display.set_caption("Bomb Frog")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 36)
 small_font = pygame.font.SysFont(None, 24)
-
-
-def world_scale(y, obj_h=0):
-    # returns a simple scale factor based on vertical position (0..GROUND_Y)
-    denom = max(1, GROUND_Y - obj_h)
-    t = clamp(y / denom, 0.0, 1.0)
-    return 0.8 + 0.4 * t
-
-
-def draw_shadow(surface, x, y, base_radius, scale):
-    # Draw a simple blurred shadow projected onto the ground
-    # shadow position anchored near ground under object
-    sx = int(x)
-    sy = GROUND_Y - int(6 * scale)
-    sr = max(6, int(base_radius * scale * 0.6))
-    shadow = pygame.Surface((sr * 2, int(sr * 0.6)), pygame.SRCALPHA)
-    alpha = int(120 * clamp(1.0 - (y / float(GROUND_Y)), 0.3, 1.0))
-    pygame.draw.ellipse(shadow, (0, 0, 0, alpha), (0, 0, sr * 2, int(sr * 0.6)))
-    surface.blit(shadow, (sx - sr, sy - int(sr * 0.3)))
 
 
 def save_game(filename, player, bombs, shards, enemies, score, high_score, lives, last_spawn):
@@ -111,45 +93,6 @@ def load_game(filename):
         return None
     with open(filename, "r") as handle:
         return json.load(handle)
-
-
-def draw_hud(surface, score, high_score, bombs_left, lives, bomb_cooldown):
-    score_text = font.render(f"Score: {score}", True, (255, 255, 255))
-    high_text = small_font.render(f"High Score: {high_score}", True, (240, 240, 240))
-    bomb_text = small_font.render(f"Bombs: {bombs_left}", True, (255, 220, 120))
-    life_text = small_font.render(f"Lives: {lives}", True, (180, 210, 255))
-    legend_title = small_font.render("Enemies:", True, (220, 220, 220))
-    grunt_text = small_font.render("Grunt", True, (190, 80, 80))
-    heavy_text = small_font.render("Heavy", True, (170, 130, 80))
-    elite_text = small_font.render("Elite", True, (150, 95, 185))
-    prompt_text = small_font.render("SPACE = jump/save bomb | S=save | L=load | avoid shards", True, (210, 210, 210))
-    surface.blit(score_text, (20, 20))
-    surface.blit(high_text, (20, 60))
-    surface.blit(bomb_text, (20, 100))
-    cooldown_text = small_font.render(f"Bomb CD: {max(0, int(bomb_cooldown / 1000 * 10) / 10):.1f}s", True, (255, 200, 120))
-    surface.blit(life_text, (20, 140))
-    surface.blit(cooldown_text, (20, 170))
-    surface.blit(legend_title, (20, 210))
-    pygame.draw.circle(surface, (190, 80, 80), (30, 210), 5)
-    surface.blit(grunt_text, (45, 204))
-    pygame.draw.circle(surface, (170, 130, 80), (30, 232), 5)
-    surface.blit(heavy_text, (45, 226))
-    pygame.draw.circle(surface, (150, 95, 185), (30, 254), 5)
-    surface.blit(elite_text, (45, 248))
-    surface.blit(prompt_text, (20, HEIGHT - 40))
-
-
-def draw_ground(surface):
-    pygame.draw.rect(surface, (90, 54, 20), (0, GROUND_Y, WIDTH, GROUND_HEIGHT))
-    for i in range(0, WIDTH, 80):
-        pygame.draw.arc(surface, (77, 45, 16), (i, GROUND_Y - 40, 80, 80), math.pi, 0, 4)
-
-
-def draw_overlay(surface, bombs):
-    for bomb in bombs:
-        if bomb.timer > 0:
-            radius = int(bomb.radius * (1 - bomb.timer / BOMB_FUSE_MS) * 0.5 + 20)
-            pygame.draw.circle(surface, (255, 170, 0, 40), (int(bomb.x), int(bomb.y)), radius, 1)
 
 
 def run_game():
@@ -265,29 +208,10 @@ def run_game():
 
         # simple parallax background using player X as camera when playing
         cam_x = int(player.x - WIDTH // 2) if (player and state == "playing") else 0
-        # far sky / mountains
-        pygame.draw.rect(screen, (18, 30, 50), (0, 0, WIDTH, HEIGHT))
-        m1_x = -int(cam_x * 0.12) % (WIDTH * 2)
-        pygame.draw.ellipse(screen, (50, 60, 90), (m1_x - 300, 40, WIDTH + 600, 180))
-        pygame.draw.ellipse(screen, (60, 70, 110), (m1_x + 200, 100, WIDTH, 140))
-        # near hills
-        m2_x = -int(cam_x * 0.24) % (WIDTH * 2)
-        pygame.draw.ellipse(screen, (70, 50, 30), (m2_x - 200, GROUND_Y - 80, WIDTH + 400, 160))
+        rendering.draw_parallax_background(screen, cam_x)
 
         if state == "menu":
-            # draw title and menu
-            title = font.render("Bomb Frog", True, (255, 255, 255))
-            screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 80))
-            subtitle = small_font.render("Leapfrog with bombs — press Enter to select", True, (220, 220, 220))
-            screen.blit(subtitle, (WIDTH // 2 - subtitle.get_width() // 2, 130))
-
-            for i, opt in enumerate(menu_options):
-                color = (255, 220, 120) if i == selected else (200, 200, 200)
-                text = font.render(opt, True, color)
-                screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 220 + i * 60))
-
-            hint = small_font.render("Use UP/DOWN to move, ENTER to confirm", True, (180, 180, 180))
-            screen.blit(hint, (WIDTH // 2 - hint.get_width() // 2, HEIGHT - 80))
+            rendering.draw_menu(screen, font, small_font, menu_options, selected)
 
         elif state == "playing":
             # main game loop body
@@ -373,54 +297,12 @@ def run_game():
 
                 score += 1
 
-            draw_ground(screen)
-
-            # depth-sorted drawing: shadows first, then sprites
-            drawables = []
-            drawables.extend(enemies)
-            drawables.extend(bombs)
-            drawables.extend(shards)
-            if player:
-                drawables.append(player)
-
-            def depth_key(o):
-                if hasattr(o, "y"):
-                    return o.y
-                if hasattr(o, "rect"):
-                    return o.rect.bottom
-                return 0
-
-            drawables = sorted(drawables, key=depth_key)
-
-            # draw shadows
-            for o in drawables:
-                ox = getattr(o, "x", getattr(o, "rect", pygame.Rect(0, 0, 0, 0)).centerx)
-                oy = getattr(o, "y", getattr(o, "rect", pygame.Rect(0, 0, 0, 0)).centery)
-                base_r = getattr(o, "radius", getattr(o, "width", 20))
-                scale = world_scale(oy, getattr(o, "height", 0))
-                draw_shadow(screen, ox, oy, base_r, scale)
-
-            # draw sprites in depth order
-            for o in drawables:
-                try:
-                    o.draw(screen)
-                except Exception:
-                    pass
-
-            # draw effects on top
-            for effect in effects:
-                effect.draw(screen)
-
-            draw_hud(screen, score, high_score, player.bombs_left, lives, player.bomb_cooldown)
+            rendering.draw_ground(screen)
+            rendering.draw_scene(screen, player, bombs, shards, enemies, effects)
+            rendering.draw_hud(screen, font, small_font, score, high_score, player.bombs_left, lives, player.bomb_cooldown)
 
             if game_over:
-                overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-                overlay.fill((0, 0, 0, 180))
-                screen.blit(overlay, (0, 0))
-                game_over_text = font.render("Game Over", True, (255, 220, 90))
-                restart_text = small_font.render("Press SPACE or R to restart, ESC to quit.", True, (245, 245, 245))
-                screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 60))
-                screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 10))
+                rendering.draw_game_over_overlay(screen, font, small_font)
 
         pygame.display.flip()
 
