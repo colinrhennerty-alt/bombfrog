@@ -27,6 +27,7 @@ def _load_bombs_shards_enemies(data):
 
 class World:
     def __init__(self, now=0):
+        self.debug = False
         self.reset(now)
 
     def reset(self, now=0):
@@ -49,6 +50,7 @@ class World:
     def from_save_data(cls, data, now=0):
         """Build a fresh World from a save dict (the menu's "Load Game")."""
         world = cls.__new__(cls)
+        world.debug = False
         world.player = Player.from_dict(data["player"])
         world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
         world.score = data.get("score", 0)

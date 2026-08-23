@@ -30,6 +30,15 @@ def test_world_starts_with_full_lives_and_zero_score():
     assert world.bombs == [] and world.enemies == [] and world.shards == []
 
 
+def test_world_debug_starts_off_and_survives_a_respawn():
+    world = World(now=0)
+    assert world.debug is False
+
+    world.debug = True
+    world._respawn(now=0)
+    assert world.debug is True  # not a round-specific setting
+
+
 def test_bomb_explosion_on_fuse_damages_nearby_enemy_and_scores():
     world = World(now=0)
     # Kept far from the player: the killed enemy's own death shrapnel spawns
