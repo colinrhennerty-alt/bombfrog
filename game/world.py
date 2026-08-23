@@ -74,43 +74,66 @@ class World:
         if self.game_over:
             return
 
-        spawn_bomb = self.player.update(keys, dt)
+        self._update_player(keys, dt)
+        self._maybe_spawn_enemy(now)
+        self._update_bombs(dt)
+        self._update_enemies(dt, now)
+        self._update_shards(dt, now)
+        self._update_effects(dt)
 
+        self.score += 1
+
+    # --- per-frame stages, one responsibility each ------------------------
+
+    def _update_player(self, keys, dt):
+        spawn_bomb = self.player.update(keys, dt)
         if spawn_bomb:
             self.bombs.append(self.player.create_bomb())
 
+    def _maybe_spawn_enemy(self, now):
         if len(self.enemies) < MAX_ENEMIES and now - self.last_spawn >= ENEMY_SPAWN_MS:
             side = random.choice(["left", "right"])
             self.enemies.append(Enemy(side))
             self.last_spawn = now
 
+    def _bomb_should_explode(self, bomb):
+        """A bomb detonates once its fuse expires, or the instant any
+        enemy touches it — whichever comes first."""
+        if bomb.is_ready():
+            return True
+        return any(bomb.rect.colliderect(enemy.rect) for enemy in self.enemies)
+
+    def _explode_bomb(self, bomb):
+        self.effects.append(ExplosionEffect(bomb.x, bomb.y, bomb.radius))
+        self.player.apply_explosion(bomb.x, bomb.y, bomb.radius)
+        for enemy in self.enemies:
+            if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
+                enemy.take_damage()
+        if bomb.has_shrapnel:
+            self.shards.extend(
+                Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25)
+                for angle in [i * math.pi * 2 / 10 for i in range(10)]
+            )
+        if bomb in self.bombs:
+            self.bombs.remove(bomb)
+        self.player.bombs_left = min(self.player.bombs_left + 1, BOMB_LIMIT)
+
+    def _update_bombs(self, dt):
         for bomb in self.bombs[:]:
             bomb.update(dt)
-            # explode if fuse ready OR if any enemy touches the bomb
-            triggered = False
-            if bomb.is_ready():
-                triggered = True
-            else:
-                for e in self.enemies:
-                    if bomb.rect.colliderect(e.rect):
-                        triggered = True
-                        break
+            if self._bomb_should_explode(bomb):
+                self._explode_bomb(bomb)
 
-            if triggered:
-                self.effects.append(ExplosionEffect(bomb.x, bomb.y, bomb.radius))
-                self.player.apply_explosion(bomb.x, bomb.y, bomb.radius)
-                for enemy in self.enemies:
-                    if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
-                        enemy.take_damage()
-                if bomb.has_shrapnel:
-                    self.shards.extend(
-                        Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25)
-                        for angle in [i * math.pi * 2 / 10 for i in range(10)]
-                    )
-                if bomb in self.bombs:
-                    self.bombs.remove(bomb)
-                self.player.bombs_left = min(self.player.bombs_left + 1, BOMB_LIMIT)
+    def _lose_a_life(self, now):
+        """Shared by enemy- and shard-collision handling: deduct a life,
+        end the game if that was the last one, otherwise reset the round."""
+        self.lives -= 1
+        if self.lives <= 0:
+            self.game_over = True
+        else:
+            self.reset(now)
 
+    def _update_enemies(self, dt, now):
         for enemy in self.enemies[:]:
             enemy.update(dt)
             if not enemy.dead:
@@ -126,29 +149,21 @@ class World:
                 self.score += 100
                 self.enemies.remove(enemy)
             elif enemy.rect.colliderect(self.player.rect):
-                self.lives -= 1
-                if self.lives <= 0:
-                    self.game_over = True
-                else:
-                    self.reset(now)
+                self._lose_a_life(now)
+                if not self.game_over:
                     break
 
+    def _update_shards(self, dt, now):
         for shard in self.shards[:]:
             shard.update(dt)
             if shard.rect.colliderect(self.player.rect):
-                self.lives -= 1
-                if self.lives <= 0:
-                    self.game_over = True
-                    break
-                else:
-                    self.reset(now)
-                    break
+                self._lose_a_life(now)
+                break
             if not shard.is_alive():
                 self.shards.remove(shard)
 
+    def _update_effects(self, dt):
         for effect in self.effects[:]:
             effect.update(dt)
             if not effect.is_alive():
                 self.effects.remove(effect)
-
-        self.score += 1

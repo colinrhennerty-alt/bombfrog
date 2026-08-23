@@ -154,3 +154,61 @@ def test_merge_save_data_keeps_current_value_when_missing_from_save():
 
     assert world.score == 77  # fell back to the current value
     assert world.last_spawn == 999
+
+
+# --- extracted single-responsibility seams -------------------------------
+# These were duplicated (life-loss/reset) or buried inline (the bomb-trigger
+# rule) inside the old monolithic update(). Testing them directly is what
+# makes the extraction worth doing rather than just internal shuffling.
+
+
+def test_lose_a_life_resets_the_round_when_lives_remain():
+    world = World(now=0)
+    world.lives = 3
+    world.score = 500
+
+    world._lose_a_life(now=1234)
+
+    assert world.lives == 3  # reset() restores full lives
+    assert world.score == 0  # ...and clears score
+    assert world.game_over is False
+    assert world.last_spawn == 1234
+
+
+def test_lose_a_life_ends_the_game_at_zero_lives():
+    world = World(now=0)
+    world.lives = 1
+    world.score = 500
+
+    world._lose_a_life(now=1234)
+
+    assert world.lives == 0
+    assert world.game_over is True
+    assert world.score == 500  # no reset once it's game over
+
+
+def test_bomb_should_explode_when_fuse_is_ready():
+    world = World(now=0)
+    bomb = Bomb(100, 100)
+    bomb.timer = 0
+    assert world._bomb_should_explode(bomb) is True
+
+
+def test_bomb_should_explode_on_enemy_contact_even_with_fuse_unready():
+    world = World(now=0)
+    bomb = Bomb(100, 100)
+    bomb.timer = BOMB_FUSE_MS
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
+    world.enemies = [enemy]
+    assert world._bomb_should_explode(bomb) is True
+
+
+def test_bomb_should_not_explode_when_fuse_unready_and_no_contact():
+    world = World(now=0)
+    bomb = Bomb(100, 100)
+    bomb.timer = BOMB_FUSE_MS
+    enemy = Enemy("left")
+    _place_enemy_at(enemy, 5000, 5000)  # nowhere near the bomb
+    world.enemies = [enemy]
+    assert world._bomb_should_explode(bomb) is False
