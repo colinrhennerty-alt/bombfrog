@@ -29,13 +29,18 @@ class World:
         self.reset(now)
 
     def reset(self, now=0):
+        """Start a brand new round: clears the arena and zeroes score/lives."""
+        self._respawn(now)
+        self.score = 0
+        self.lives = 3
+
+    def _respawn(self, now=0):
+        """Clear the arena and place a fresh player, leaving score/lives as-is."""
         self.player = Player()
         self.bombs = []
         self.shards = []
         self.enemies = []
         self.effects = []
-        self.score = 0
-        self.lives = 3
         self.game_over = False
         self.last_spawn = now
 
@@ -116,12 +121,13 @@ class World:
 
     def _lose_a_life(self, now):
         """Shared by enemy- and shard-collision handling: deduct a life,
-        end the game if that was the last one, otherwise reset the round."""
+        end the game if that was the last one, otherwise respawn — the
+        remaining lives and the score earned so far both survive."""
         self.lives -= 1
         if self.lives <= 0:
             self.game_over = True
         else:
-            self.reset(now)
+            self._respawn(now)
 
     def _update_enemies(self, dt, now):
         for enemy in self.enemies[:]:

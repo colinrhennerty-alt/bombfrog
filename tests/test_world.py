@@ -62,7 +62,7 @@ def test_bomb_explodes_on_enemy_contact_even_before_fuse_expires():
     assert world.bombs == []  # detonated on contact, not from the fuse
 
 
-def test_enemy_collision_costs_a_life_and_resets_the_round_when_lives_remain():
+def test_enemy_collision_costs_a_life_and_respawns_without_wiping_score():
     world = World(now=0)
     world.score = 500
     enemy = Enemy("left")
@@ -71,9 +71,10 @@ def test_enemy_collision_costs_a_life_and_resets_the_round_when_lives_remain():
 
     world.update(NO_KEYS, dt=16, now=1000)
 
-    assert world.lives == 3  # reset() restores full lives...
-    assert world.score == 1  # ...and score, then this frame's +1 still applies
+    assert world.lives == 2  # actually decremented, not reset back to 3
+    assert world.score == 501  # score survives a respawn, plus this frame's +1
     assert world.game_over is False
+    assert world.enemies == []  # arena cleared by the respawn
 
 
 def test_losing_the_last_life_ends_the_game():
@@ -85,6 +86,17 @@ def test_losing_the_last_life_ends_the_game():
 
     world.update(NO_KEYS, dt=16, now=1000)
 
+    assert world.game_over is True
+
+
+def test_repeated_hits_eventually_end_the_game():
+    # Regression test: _lose_a_life used to call reset(), which set lives
+    # back to 3 on every non-fatal hit — making lives always == 3 at the
+    # moment of collision, so game_over could never actually be reached.
+    world = World(now=0)
+    for i in range(3):
+        world._lose_a_life(now=1000 + i)
+    assert world.lives == 0
     assert world.game_over is True
 
 
@@ -162,17 +174,21 @@ def test_merge_save_data_keeps_current_value_when_missing_from_save():
 # makes the extraction worth doing rather than just internal shuffling.
 
 
-def test_lose_a_life_resets_the_round_when_lives_remain():
+def test_lose_a_life_respawns_without_wiping_score_or_remaining_lives():
     world = World(now=0)
     world.lives = 3
     world.score = 500
+    old_player = world.player
+    world.enemies = [Enemy("left")]
 
     world._lose_a_life(now=1234)
 
-    assert world.lives == 3  # reset() restores full lives
-    assert world.score == 0  # ...and clears score
+    assert world.lives == 2  # actually decremented, not reset back to 3
+    assert world.score == 500  # score survives a respawn
     assert world.game_over is False
     assert world.last_spawn == 1234
+    assert world.player is not old_player  # fresh player placed back at spawn
+    assert world.enemies == []  # arena cleared
 
 
 def test_lose_a_life_ends_the_game_at_zero_lives():
