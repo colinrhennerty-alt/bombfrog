@@ -41,11 +41,10 @@ def draw_player(surface, player):
     if player.facing > 0:
         frame = pygame.transform.flip(frame, True, False)
 
-    size = (max(1, int(frame.get_width() * player.scale)), max(1, int(frame.get_height() * player.scale)))
-    frame = pygame.transform.smoothscale(frame, size)
-
-    sprite_rect = frame.get_rect(midbottom=(player.centerx, player.y + player.height))
-    surface.blit(frame, sprite_rect)
+    # Scale to the collision rect's own size, not the spritesheet's native
+    # cell size, so the drawn sprite and the hitbox always match exactly.
+    frame = pygame.transform.smoothscale(frame, player.rect.size)
+    surface.blit(frame, player.rect.topleft)
 
 
 def draw_bomb(surface, bomb):
@@ -68,14 +67,12 @@ def draw_shard(surface, shard):
 
 
 def draw_enemy(surface, enemy):
+    # enemy.rect is already sized/positioned for the current depth scale —
+    # draw exactly into it so the body and the hitbox always match.
     scale = scale_for_depth(enemy.depth)
-    w = max(1, int(enemy.width * scale))
-    h = max(1, int(enemy.height * scale))
-    draw_rect = pygame.Rect(0, 0, w, h)
-    draw_rect.midbottom = enemy.rect.midbottom
-    pygame.draw.rect(surface, enemy.color, draw_rect, border_radius=max(2, int(8 * scale)))
+    pygame.draw.rect(surface, enemy.color, enemy.rect, border_radius=max(2, int(8 * scale)))
     if enemy.type == "elite":
-        pygame.draw.circle(surface, (255, 255, 255), draw_rect.center, max(3, int(6 * scale)))
+        pygame.draw.circle(surface, (255, 255, 255), enemy.rect.center, max(3, int(6 * scale)))
 
 
 def draw_explosion_effect(surface, effect):

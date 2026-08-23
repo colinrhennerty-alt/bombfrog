@@ -51,6 +51,45 @@ def test_draw_player_idle_animation_frame_and_facing_flip(surface):
     rendering.draw_player(surface, player)
 
 
+class _BlitRecordingSurface:
+    """Duck-typed stand-in for pygame.Surface: real Surface.blit can't be
+    monkeypatched (it's a C extension type), so this just records what it
+    was asked to blit instead of a real target."""
+
+    def __init__(self):
+        self.captured = None
+
+    def blit(self, source, dest):
+        dest_rect = pygame.Rect(dest, source.get_size()) if not isinstance(dest, pygame.Rect) else dest
+        self.captured = (source.get_size(), dest_rect.topleft)
+
+
+def test_draw_player_blits_sprite_sized_and_positioned_to_match_the_collision_rect():
+    player = Player()
+    fake_surface = _BlitRecordingSurface()
+
+    rendering.draw_player(fake_surface, player)
+
+    size, topleft = fake_surface.captured
+    assert size == player.rect.size
+    assert topleft == player.rect.topleft
+
+
+def test_draw_enemy_draws_exactly_the_collision_rect(surface, monkeypatch):
+    enemy = Enemy("left")
+    captured = {}
+    original_rect = pygame.draw.rect
+
+    def fake_rect(surface_, color, rect, *args, **kwargs):
+        captured["rect"] = pygame.Rect(rect)
+        return original_rect(surface_, color, rect, *args, **kwargs)
+
+    monkeypatch.setattr(pygame.draw, "rect", fake_rect)
+    rendering.draw_enemy(surface, enemy)
+
+    assert captured["rect"] == enemy.rect
+
+
 def test_draw_bomb(surface):
     rendering.draw_bomb(surface, Bomb(100, 100))
 

@@ -47,11 +47,12 @@ class Player:
         self.pending_bomb = False
         self.bomb_cooldown = 0
         self.color = (43, 175, 76)
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.rect = pygame.Rect(0, 0, self.width, self.height)
         self.facing = 1
         self.anim_timer = 0
         self.anim_index = 0
         self.land_timer = 0
+        self._sync_rect()
 
     @property
     def centerx(self):
@@ -60,6 +61,15 @@ class Player:
     @property
     def centery(self):
         return self.y + self.height / 2
+
+    def _sync_rect(self):
+        """Collision box tracks the depth-scaled visual size, anchored at
+        the same bottom-center point rendering draws the sprite at — so
+        the hitbox always matches what's on screen, at any depth."""
+        w = max(1, int(self.width * self.scale))
+        h = max(1, int(self.height * self.scale))
+        self.rect = pygame.Rect(0, 0, w, h)
+        self.rect.midbottom = (self.centerx, self.y + self.height)
 
     def update(self, keys, dt):
         self.vx = 0
@@ -116,7 +126,7 @@ class Player:
             self.anim_timer = 0
             self.anim_index = 0
 
-        self.rect.topleft = (self.x, self.y)
+        self._sync_rect()
         return spawn_bomb
 
     def jump(self):
@@ -151,7 +161,7 @@ class Player:
         self.bombs_left = data["bombs_left"]
         self.pending_bomb = data["pending_bomb"]
         self.bomb_cooldown = data.get("bomb_cooldown", 0)
-        self.rect.topleft = (self.x, self.y)
+        self._sync_rect()
 
     def apply_explosion(self, origin_x, origin_y, radius):
         dx = self.centerx - origin_x
@@ -245,10 +255,21 @@ class Enemy:
         self.ground_y = ground_y_for_depth(self.depth)
         self.y = self.ground_y - self.height
         self.color = ENEMY_TYPES[self.type].color
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.rect = pygame.Rect(0, 0, self.width, self.height)
         self.dead = False
         self.max_hp = ENEMY_TYPES[self.type].max_hp
         self.hp = self.max_hp
+        self._sync_rect()
+
+    def _sync_rect(self):
+        """Collision box tracks the depth-scaled visual size, anchored at
+        the same bottom-center point rendering draws the body at — so
+        the hitbox always matches what's on screen, at any depth."""
+        scale = scale_for_depth(self.depth)
+        w = max(1, int(self.width * scale))
+        h = max(1, int(self.height * scale))
+        self.rect = pygame.Rect(0, 0, w, h)
+        self.rect.midbottom = (self.x + self.width / 2, self.y + self.height)
 
     def update(self, dt):
         self.x += self.vx
@@ -259,7 +280,7 @@ class Enemy:
         elif self.x + self.width >= WIDTH - margin:
             self.x = WIDTH - margin - self.width
             self.vx *= -1
-        self.rect.topleft = (self.x, self.y)
+        self._sync_rect()
 
     def killed_by_explosion(self, origin_x, origin_y, radius):
         dx = self.rect.centerx - origin_x
@@ -281,7 +302,7 @@ class Enemy:
         enemy.depth = data.get("depth", enemy.depth)
         enemy.ground_y = ground_y_for_depth(enemy.depth)
         enemy.color = ENEMY_TYPES[enemy.type].color
-        enemy.rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
+        enemy._sync_rect()
         enemy.dead = data["dead"]
         enemy.max_hp = ENEMY_TYPES[enemy.type].max_hp
         enemy.hp = data.get("hp", enemy.max_hp)

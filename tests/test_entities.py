@@ -20,7 +20,7 @@ def test_player_from_dict_builds_a_player_matching_the_dict():
     assert player.bombs_left == 1
     assert player.pending_bomb is True
     assert player.bomb_cooldown == 250
-    assert player.rect.topleft == (111, 222)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
 
 
 def test_player_from_dict_defaults_missing_bomb_cooldown_to_zero():
@@ -34,7 +34,31 @@ def test_player_apply_dict_overwrites_an_existing_player_in_place():
     player = Player()
     player.apply_dict(_player_dict())
     assert (player.x, player.y) == (111, 222)
-    assert player.rect.topleft == (111, 222)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
+
+
+def test_player_rect_matches_depth_scaled_size():
+    player = Player()
+    expected_w = max(1, int(player.width * player.scale))
+    expected_h = max(1, int(player.height * player.scale))
+    assert player.rect.size == (expected_w, expected_h)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
+
+
+def test_player_rect_resizes_when_depth_changes():
+    import pygame
+
+    player = Player()
+    keys = {
+        pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
+        pygame.K_UP: True, pygame.K_DOWN: False,
+    }
+    player.update(keys, dt=16)
+
+    expected_w = max(1, int(player.width * player.scale))
+    expected_h = max(1, int(player.height * player.scale))
+    assert player.rect.size == (expected_w, expected_h)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
 
 
 def test_bomb_not_ready_before_fuse_expires():
@@ -120,6 +144,25 @@ def test_enemy_spawns_with_depth_in_expected_range():
     for _ in range(20):
         enemy = Enemy("left")
         assert 0.1 <= enemy.depth <= 0.95
+
+
+def test_enemy_rect_matches_depth_scaled_size():
+    enemy = Enemy("left")
+    scale = scale_for_depth(enemy.depth)
+    expected_w = max(1, int(enemy.width * scale))
+    expected_h = max(1, int(enemy.height * scale))
+    assert enemy.rect.size == (expected_w, expected_h)
+    assert enemy.rect.midbottom == (round(enemy.x + enemy.width / 2), round(enemy.y + enemy.height))
+
+
+def test_enemy_rect_resizes_after_update():
+    enemy = Enemy("left")
+    enemy.depth = 0.0  # force a different scale than spawn
+    enemy.update(dt=16)
+    scale = scale_for_depth(0.0)
+    expected_w = max(1, int(enemy.width * scale))
+    expected_h = max(1, int(enemy.height * scale))
+    assert enemy.rect.size == (expected_w, expected_h)
 
 
 def test_enemy_killed_by_explosion_within_range():
