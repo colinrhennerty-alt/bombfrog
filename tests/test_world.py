@@ -5,11 +5,14 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 
 import pygame
 
-from game.config import GROUND_Y, BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS
+from game.config import GROUND_NEAR_Y, BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS
 from game.entities import Bomb, Enemy
 from game.world import World
 
-NO_KEYS = {pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False}
+NO_KEYS = {
+    pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
+    pygame.K_UP: False, pygame.K_DOWN: False,
+}
 
 
 def _place_enemy_at(enemy, x, y):
@@ -32,10 +35,10 @@ def test_bomb_explosion_on_fuse_damages_nearby_enemy_and_scores():
     # in this same frame, masking the score assertion below with a reset.
     enemy = Enemy("left")
     enemy.hp = 1
-    _place_enemy_at(enemy, 80, GROUND_Y - enemy.height)
+    _place_enemy_at(enemy, 80, GROUND_NEAR_Y - enemy.height)
     world.enemies = [enemy]
 
-    bomb = Bomb(100, GROUND_Y - 16)
+    bomb = Bomb(100, GROUND_NEAR_Y - 16)
     bomb.timer = 0  # ready to explode this frame
     bomb.has_shrapnel = False
     world.bombs = [bomb]
@@ -131,7 +134,7 @@ def test_enemy_spawn_capped_at_max_enemies():
 def _save_dict(**overrides):
     data = {
         "player": {
-            "x": 10, "y": 20, "vx": 0, "vy": 0, "on_ground": True,
+            "x": 10, "y": 20, "vx": 0, "vy": 0, "depth": 0.3, "on_ground": True,
             "bombs_left": 1, "pending_bomb": False, "bomb_cooldown": 0,
         },
         "bombs": [],
@@ -149,6 +152,7 @@ def test_from_save_data_round_trips_and_starts_fresh_on_game_state():
     loaded = World.from_save_data(_save_dict(), now=0)
     assert loaded.player.x == 10
     assert loaded.player.y == 20
+    assert loaded.player.depth == 0.3
     assert loaded.score == 55
     assert loaded.lives == 2
     assert loaded.last_spawn == 999

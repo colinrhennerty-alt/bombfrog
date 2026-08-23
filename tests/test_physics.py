@@ -1,7 +1,19 @@
 import pygame
 
-from game.config import WIDTH, GROUND_Y, GRAVITY
+from game.config import WIDTH, GRAVITY, DEPTH_SPEED
+from game.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
 from game.entities import Player
+
+NO_MOVE_KEYS = {
+    pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
+    pygame.K_UP: False, pygame.K_DOWN: False,
+}
+
+
+def _keys(overrides):
+    keys = dict(NO_MOVE_KEYS)
+    keys.update(overrides)
+    return keys
 
 
 def test_player_starts_on_ground():
@@ -10,38 +22,81 @@ def test_player_starts_on_ground():
     assert player.vy == 0
 
 
+def test_player_spawns_at_default_depth_with_matching_ground_and_scale():
+    player = Player()
+    assert player.depth == 0.55
+    assert player.ground_y == ground_y_for_depth(0.55)
+    assert player.scale == scale_for_depth(0.55)
+    assert player.y == player.ground_y - player.height
+
+
 def test_player_move_left_right_clamped_to_screen():
     player = Player()
-    keys = {pygame.K_LEFT: True, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False}
-    player.x = 0
-    player.update(keys, dt=16)
-    assert player.x == 0  # clamped, can't go past the left edge
+    margin = margin_for_depth(player.depth)
 
-    keys = {pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: True, pygame.K_d: False}
+    player.x = 0
+    player.update(_keys({pygame.K_LEFT: True}), dt=16)
+    assert player.x == margin  # clamped at the depth-appropriate left bound
+
     player.x = WIDTH - player.width
-    player.update(keys, dt=16)
-    assert player.x == WIDTH - player.width  # clamped, can't go past the right edge
+    player.update(_keys({pygame.K_RIGHT: True}), dt=16)
+    assert player.x == WIDTH - margin - player.width
 
 
 def test_player_falls_under_gravity_when_airborne():
     player = Player()
     player.on_ground = False
     player.y = 0
-    keys = {pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False}
-    player.update(keys, dt=16)
+    player.update(NO_MOVE_KEYS, dt=16)
     assert player.vy == GRAVITY
 
 
 def test_player_lands_and_resets_vertical_velocity():
     player = Player()
     player.on_ground = False
-    player.y = GROUND_Y - player.height + 5
+    player.y = player.ground_y - player.height + 5
     player.vy = 10
-    keys = {pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False}
-    player.update(keys, dt=16)
+    player.update(NO_MOVE_KEYS, dt=16)
     assert player.on_ground is True
     assert player.vy == 0
-    assert player.y == GROUND_Y - player.height
+    assert player.y == player.ground_y - player.height
+
+
+def test_depth_movement_is_clamped_between_zero_and_one():
+    player = Player()
+    player.depth = 0.005
+    for _ in range(10):
+        player.update(_keys({pygame.K_UP: True}), dt=16)
+    assert player.depth == 0.0
+
+    player.depth = 0.995
+    for _ in range(10):
+        player.update(_keys({pygame.K_DOWN: True}), dt=16)
+    assert player.depth == 1.0
+
+
+def test_depth_movement_updates_ground_y_and_scale():
+    player = Player()
+    player.update(_keys({pygame.K_UP: True}), dt=16)
+    assert player.depth == 0.55 - DEPTH_SPEED
+    assert player.ground_y == ground_y_for_depth(player.depth)
+    assert player.scale == scale_for_depth(player.depth)
+
+
+def test_moving_toward_far_edge_narrows_x_bounds():
+    player = Player()
+    player.depth = 0.0  # far edge: widest margin, narrowest walkable area
+    player.x = 0
+    player.update(NO_MOVE_KEYS, dt=16)
+    assert player.x == margin_for_depth(0.0)
+    assert margin_for_depth(0.0) > margin_for_depth(1.0)
+
+
+def test_landing_snaps_y_to_ground_when_depth_changes_while_grounded():
+    player = Player()
+    assert player.on_ground is True
+    player.update(_keys({pygame.K_DOWN: True}), dt=16)
+    assert player.y == player.ground_y - player.height
 
 
 def test_jump_launches_player_and_consumes_a_bomb():
@@ -73,13 +128,12 @@ def test_jump_skips_bomb_when_out_of_bombs():
 
 def test_pending_bomb_spawns_at_the_apex_of_the_jump():
     player = Player()
-    keys = {pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False}
     player.jump()
     assert player.pending_bomb is True
 
     spawned_at_apex = False
     for _ in range(200):
-        spawn_bomb = player.update(keys, dt=16)
+        spawn_bomb = player.update(NO_MOVE_KEYS, dt=16)
         if spawn_bomb:
             spawned_at_apex = True
             break
@@ -88,6 +142,17 @@ def test_pending_bomb_spawns_at_the_apex_of_the_jump():
 
     assert spawned_at_apex
     assert player.pending_bomb is False
+
+
+def test_create_bomb_inherits_players_depth_and_sits_on_its_ground():
+    player = Player()
+    player.depth = 0.2
+    player.ground_y = ground_y_for_depth(0.2)
+
+    bomb = player.create_bomb()
+
+    assert bomb.depth == 0.2
+    assert bomb.y == player.ground_y - 16
 
 
 def test_explosion_outside_radius_has_no_effect():
@@ -103,7 +168,7 @@ def test_explosion_outside_radius_has_no_effect():
 
 def test_explosion_inside_radius_launches_player_away():
     player = Player()
-    player.x, player.y = 200, GROUND_Y - player.height
+    player.x, player.y = 200, player.ground_y - player.height
     player.vx, player.vy = 0, 0
     player.on_ground = True
 

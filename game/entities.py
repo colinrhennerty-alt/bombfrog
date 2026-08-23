@@ -11,7 +11,6 @@ import pygame
 
 from game.config import (
     WIDTH,
-    GROUND_Y,
     PLAYER_SPEED,
     GRAVITY,
     BOMB_FUSE_MS,
@@ -22,17 +21,25 @@ from game.config import (
     SHARD_SPEED,
     SHARD_LIFETIME,
     HEIGHT,
+    DEPTH_SPEED,
+    FROG_ANIM_MS,
+    FROG_IDLE_FRAME_COUNT,
 )
 from game.utils import clamp
 from game.enemy_types import ENEMY_TYPES
+from game.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
 
 
 class Player:
     def __init__(self):
         self.width = 52
         self.height = 40
-        self.x = WIDTH // 2 - self.width // 2
-        self.y = GROUND_Y - self.height
+        self.depth = 0.55
+        self.ground_y = ground_y_for_depth(self.depth)
+        self.scale = scale_for_depth(self.depth)
+        margin = margin_for_depth(self.depth)
+        self.x = clamp(WIDTH // 2 - self.width // 2, margin, WIDTH - margin - self.width)
+        self.y = self.ground_y - self.height
         self.vx = 0
         self.vy = 0
         self.on_ground = True
@@ -41,6 +48,10 @@ class Player:
         self.bomb_cooldown = 0
         self.color = (43, 175, 76)
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        self.facing = 1
+        self.anim_timer = 0
+        self.anim_index = 0
+        self.land_timer = 0
 
     @property
     def centerx(self):
@@ -56,13 +67,28 @@ class Player:
             self.vx = -PLAYER_SPEED
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.vx = PLAYER_SPEED
+        if self.vx != 0:
+            self.facing = 1 if self.vx > 0 else -1
+
+        vdepth = 0
+        if keys[pygame.K_UP]:
+            vdepth -= DEPTH_SPEED
+        if keys[pygame.K_DOWN]:
+            vdepth += DEPTH_SPEED
+        self.depth = clamp(self.depth + vdepth, 0.0, 1.0)
+        self.ground_y = ground_y_for_depth(self.depth)
+        self.scale = scale_for_depth(self.depth)
 
         self.x += self.vx
-        self.x = clamp(self.x, 0, WIDTH - self.width)
+        margin = margin_for_depth(self.depth)
+        self.x = clamp(self.x, margin, WIDTH - margin - self.width)
 
         old_vy = self.vy
+        was_on_ground = self.on_ground
         if not self.on_ground:
             self.vy += GRAVITY
+        else:
+            self.y = self.ground_y - self.height
 
         self.y += self.vy
         self.bomb_cooldown = max(0, self.bomb_cooldown - dt)
@@ -71,11 +97,24 @@ class Player:
             self.pending_bomb = False
             spawn_bomb = True
 
-        if self.y >= GROUND_Y - self.height:
-            self.y = GROUND_Y - self.height
+        if self.y >= self.ground_y - self.height:
+            self.y = self.ground_y - self.height
             self.vy = 0
             self.on_ground = True
             self.pending_bomb = False
+            if not was_on_ground:
+                self.land_timer = 120
+
+        self.land_timer = max(0, self.land_timer - dt)
+
+        if self.on_ground and (self.vx != 0 or vdepth != 0):
+            self.anim_timer += dt
+            if self.anim_timer >= FROG_ANIM_MS:
+                self.anim_timer = 0
+                self.anim_index = (self.anim_index + 1) % FROG_IDLE_FRAME_COUNT
+        else:
+            self.anim_timer = 0
+            self.anim_index = 0
 
         self.rect.topleft = (self.x, self.y)
         return spawn_bomb
@@ -91,8 +130,8 @@ class Player:
 
     def create_bomb(self):
         bomb_x = self.centerx
-        bomb_y = GROUND_Y - 16
-        return Bomb(bomb_x, bomb_y)
+        bomb_y = self.ground_y - 16
+        return Bomb(bomb_x, bomb_y, self.depth)
 
     @classmethod
     def from_dict(cls, data):
@@ -105,6 +144,9 @@ class Player:
         self.y = data["y"]
         self.vx = data["vx"]
         self.vy = data["vy"]
+        self.depth = data.get("depth", self.depth)
+        self.ground_y = ground_y_for_depth(self.depth)
+        self.scale = scale_for_depth(self.depth)
         self.on_ground = data["on_ground"]
         self.bombs_left = data["bombs_left"]
         self.pending_bomb = data["pending_bomb"]
@@ -128,9 +170,11 @@ class Player:
 
 
 class Bomb:
-    def __init__(self, x, y):
+    def __init__(self, x, y, depth=1.0):
         self.x = x
         self.y = y
+        self.depth = depth
+        self.scale = scale_for_depth(depth)
         self.radius = BOMB_RADIUS
         self.timer = BOMB_FUSE_MS
         self.color = (210, 70, 70)
@@ -139,7 +183,7 @@ class Bomb:
 
     @classmethod
     def from_dict(cls, data):
-        bomb = cls(data["x"], data["y"])
+        bomb = cls(data["x"], data["y"], data.get("depth", 1.0))
         bomb.timer = data["timer"]
         bomb.has_shrapnel = data.get("has_shrapnel", False)
         return bomb
@@ -191,13 +235,15 @@ class Enemy:
         self.type = random.choices(
             list(ENEMY_TYPES.keys()), [t.spawn_weight for t in ENEMY_TYPES.values()]
         )[0]
+        self.depth = random.uniform(0.1, 0.95)
         if spawn_side == "left":
             self.x = -self.width - 20
             self.vx = 2.2
         else:
             self.x = WIDTH + 20
             self.vx = -2.2
-        self.y = GROUND_Y - self.height
+        self.ground_y = ground_y_for_depth(self.depth)
+        self.y = self.ground_y - self.height
         self.color = ENEMY_TYPES[self.type].color
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         self.dead = False
@@ -206,11 +252,12 @@ class Enemy:
 
     def update(self, dt):
         self.x += self.vx
-        if self.x <= 0:
-            self.x = 0
+        margin = margin_for_depth(self.depth)
+        if self.x <= margin:
+            self.x = margin
             self.vx *= -1
-        elif self.x + self.width >= WIDTH:
-            self.x = WIDTH - self.width
+        elif self.x + self.width >= WIDTH - margin:
+            self.x = WIDTH - margin - self.width
             self.vx *= -1
         self.rect.topleft = (self.x, self.y)
 
@@ -231,6 +278,8 @@ class Enemy:
         enemy.y = data["y"]
         enemy.vx = data["vx"]
         enemy.type = data["type"]
+        enemy.depth = data.get("depth", enemy.depth)
+        enemy.ground_y = ground_y_for_depth(enemy.depth)
         enemy.color = ENEMY_TYPES[enemy.type].color
         enemy.rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
         enemy.dead = data["dead"]

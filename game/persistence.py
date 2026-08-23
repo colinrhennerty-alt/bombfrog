@@ -9,6 +9,7 @@ def save_game(filename, player, bombs, shards, enemies, score, high_score, lives
             "y": player.y,
             "vx": player.vx,
             "vy": player.vy,
+            "depth": player.depth,
             "on_ground": player.on_ground,
             "bombs_left": player.bombs_left,
             "pending_bomb": player.pending_bomb,
@@ -18,6 +19,7 @@ def save_game(filename, player, bombs, shards, enemies, score, high_score, lives
             {
                 "x": bomb.x,
                 "y": bomb.y,
+                "depth": bomb.depth,
                 "timer": bomb.timer,
                 "has_shrapnel": bomb.has_shrapnel,
             }
@@ -40,6 +42,7 @@ def save_game(filename, player, bombs, shards, enemies, score, high_score, lives
                 "y": enemy.y,
                 "vx": enemy.vx,
                 "type": enemy.type,
+                "depth": enemy.depth,
                 "dead": enemy.dead,
                 "hp": enemy.hp,
             }

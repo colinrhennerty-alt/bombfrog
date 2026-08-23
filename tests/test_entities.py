@@ -1,4 +1,5 @@
-from game.config import WIDTH, HEIGHT, GROUND_Y, BOMB_FUSE_MS
+from game.config import WIDTH, HEIGHT, BOMB_FUSE_MS
+from game.depth import margin_for_depth, scale_for_depth
 from game.entities import Player, Bomb, Shard, Enemy
 
 
@@ -49,16 +50,32 @@ def test_bomb_ready_after_fuse_expires():
 
 
 def test_bomb_from_dict_round_trips_fields():
-    original = Bomb(50, 60)
+    original = Bomb(50, 60, depth=0.3)
     original.timer = 321
     original.has_shrapnel = True
     restored = Bomb.from_dict(
-        {"x": original.x, "y": original.y, "timer": original.timer, "has_shrapnel": original.has_shrapnel}
+        {
+            "x": original.x, "y": original.y, "timer": original.timer,
+            "has_shrapnel": original.has_shrapnel, "depth": original.depth,
+        }
     )
     assert restored.x == original.x
     assert restored.y == original.y
     assert restored.timer == original.timer
     assert restored.has_shrapnel is True
+    assert restored.depth == 0.3
+
+
+def test_bomb_defaults_to_near_depth_and_full_scale():
+    bomb = Bomb(50, 60)
+    assert bomb.depth == 1.0
+    assert bomb.scale == scale_for_depth(1.0)
+
+
+def test_bomb_from_dict_defaults_missing_depth_to_one():
+    data = {"x": 1, "y": 2, "timer": 100}
+    bomb = Bomb.from_dict(data)
+    assert bomb.depth == 1.0
 
 
 def test_shard_is_alive_within_bounds_and_lifetime():
@@ -88,28 +105,47 @@ def test_enemy_takes_damage_and_dies_at_zero_hp():
     assert enemy.dead is True
 
 
-def test_enemy_bounces_off_screen_edges():
+def test_enemy_bounces_off_screen_edges_at_its_own_depth_margin():
     enemy = Enemy("left")
-    enemy.x = 0
+    enemy.depth = 0.5
+    margin = margin_for_depth(0.5)
+    enemy.x = margin
     enemy.vx = -3
     enemy.update(dt=16)
-    assert enemy.x == 0
+    assert enemy.x == margin
     assert enemy.vx == 3
+
+
+def test_enemy_spawns_with_depth_in_expected_range():
+    for _ in range(20):
+        enemy = Enemy("left")
+        assert 0.1 <= enemy.depth <= 0.95
 
 
 def test_enemy_killed_by_explosion_within_range():
     enemy = Enemy("left")
-    enemy.x, enemy.y = 100, GROUND_Y - enemy.height
+    enemy.x = 100
     origin_x, origin_y = enemy.rect.centerx, enemy.rect.centery
     assert enemy.killed_by_explosion(origin_x, origin_y, radius=100) is True
 
 
 def test_enemy_not_killed_by_distant_explosion():
     enemy = Enemy("left")
-    enemy.x, enemy.y = 100, GROUND_Y - enemy.height
+    enemy.x = 100
     origin_x = enemy.rect.centerx + 1000
     origin_y = enemy.rect.centery
     assert enemy.killed_by_explosion(origin_x, origin_y, radius=100) is False
+
+
+def test_enemy_from_dict_round_trips_depth():
+    enemy = Enemy("left")
+    restored = Enemy.from_dict(
+        {
+            "x": enemy.x, "y": enemy.y, "vx": enemy.vx, "type": enemy.type,
+            "dead": enemy.dead, "depth": 0.42,
+        }
+    )
+    assert restored.depth == 0.42
 
 
 def test_death_shrapnel_count_matches_enemy_type():
