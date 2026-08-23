@@ -4,7 +4,7 @@ simulation (game.entities, for movement bounds) and rendering (for
 scale/ground position).
 """
 
-from game.config import GROUND_NEAR_Y, GROUND_FAR_Y, FAR_MARGIN, NEAR_SCALE, FAR_SCALE
+from game.config import GROUND_NEAR_Y, GROUND_FAR_Y, FAR_MARGIN, NEAR_SCALE, FAR_SCALE, DEPTH_COLLISION_TOLERANCE
 
 
 def ground_y_for_depth(depth):
@@ -19,20 +19,18 @@ def scale_for_depth(depth):
     return FAR_SCALE + depth * (NEAR_SCALE - FAR_SCALE)
 
 
-PLANE_COUNT = 3  # matches the two gridlines game.rendering.draw_ground draws (t=0.33/0.66)
-
-
-def depth_plane(depth):
-    """Which of the three visual bands (far/mid/near) a depth falls in.
+def same_plane(depth_a, depth_b, tolerance=DEPTH_COLLISION_TOLERANCE):
+    """Are two entities close enough in depth to interact for collision
+    purposes?
 
     Collision detection uses this instead of comparing raw pixel
     y-positions: a large hitbox (e.g. a bomb's full blast radius) can
     span most of the depth range in pixel terms, which would otherwise
-    let it "see" entities several planes away.
+    let it "see" entities far away in depth. A continuous tolerance
+    rather than discrete bucket/plane numbers — bucketing has two
+    failure modes at once: two entities deep inside the same wide
+    bucket can still be too far apart to look adjacent, while two
+    entities right next to each other can land on opposite sides of a
+    bucket boundary and wrongly be treated as unrelated.
     """
-    plane = int(depth * PLANE_COUNT)
-    return min(plane, PLANE_COUNT - 1)  # depth == 1.0 must stay in the last plane
-
-
-def same_plane(depth_a, depth_b):
-    return depth_plane(depth_a) == depth_plane(depth_b)
+    return abs(depth_a - depth_b) <= tolerance
