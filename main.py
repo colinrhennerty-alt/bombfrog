@@ -45,6 +45,8 @@ def run_game():
 
             rendering.draw_ground(screen)
             rendering.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects)
+            if app.debug:
+                rendering.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies)
             rendering.draw_hud(screen, font, small_font, world.score, app.high_score, world.player.bombs_left, world.lives, world.player.bomb_cooldown)
 
             if world.game_over:
