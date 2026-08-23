@@ -6,6 +6,7 @@ import pygame
 import pytest
 
 from game.config import WIDTH, HEIGHT
+from game.depth import ground_y_for_depth
 from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
 from game import rendering
 
@@ -21,17 +22,33 @@ def fonts():
     return pygame.font.SysFont(None, 36), pygame.font.SysFont(None, 24)
 
 
-def test_world_scale_is_bounded():
-    assert 0.8 <= rendering.world_scale(0) <= 1.2001
-    assert 0.8 <= rendering.world_scale(10_000) <= 1.2001
-
-
 def test_draw_shadow(surface):
-    rendering.draw_shadow(surface, 100, 100, base_radius=20, scale=1.0)
+    rendering.draw_shadow(surface, 100, 100, ground_y=ground_y_for_depth(1.0), base_radius=20, scale=1.0)
 
 
 def test_draw_player(surface):
     rendering.draw_player(surface, Player())
+
+
+def test_draw_player_jump_pose(surface):
+    player = Player()
+    player.on_ground = False
+    rendering.draw_player(surface, player)
+
+
+def test_draw_player_landing_pose(surface):
+    player = Player()
+    player.land_timer = 60
+    rendering.draw_player(surface, player)
+
+
+def test_draw_player_idle_animation_frame_and_facing_flip(surface):
+    player = Player()
+    player.anim_index = 3
+    player.facing = -1
+    rendering.draw_player(surface, player)
+    player.facing = 1
+    rendering.draw_player(surface, player)
 
 
 def test_draw_bomb(surface):
