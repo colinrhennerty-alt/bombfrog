@@ -1,4 +1,5 @@
 import main
+from game.entities import Player, Bomb, Shard, Enemy
 
 
 def test_load_game_returns_none_when_file_missing(tmp_path):
@@ -9,16 +10,16 @@ def test_load_game_returns_none_when_file_missing(tmp_path):
 def test_save_and_load_round_trip(tmp_path):
     save_path = tmp_path / "save.json"
 
-    player = main.Player()
+    player = Player()
     player.x, player.y = 123, 45
     player.vx, player.vy = 1, -2
     player.bombs_left = 1
     player.pending_bomb = True
     player.bomb_cooldown = 250
 
-    bombs = [main.Bomb(10, 20)]
-    shards = [main.Shard(30, 40, angle=0, speed=5)]
-    enemies = [main.Enemy("left")]
+    bombs = [Bomb(10, 20)]
+    shards = [Shard(30, 40, angle=0, speed=5)]
+    enemies = [Enemy("left")]
 
     main.save_game(str(save_path), player, bombs, shards, enemies, score=42, high_score=99, lives=2, last_spawn=777)
 
@@ -47,12 +48,12 @@ def test_save_and_load_round_trip(tmp_path):
 
 
 def test_enemy_from_dict_restores_state():
-    enemy = main.Enemy("left")
+    enemy = Enemy("left")
     enemy.x, enemy.y, enemy.vx = 111, 222, -2.2
     enemy.dead = False
     enemy.hp = 2
 
-    restored = main.Enemy.from_dict(
+    restored = Enemy.from_dict(
         {
             "x": enemy.x,
             "y": enemy.y,

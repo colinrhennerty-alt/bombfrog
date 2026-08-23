@@ -5,24 +5,27 @@ import random
 import sys
 import pygame
 
-# Game settings
-WIDTH = 1700
-HEIGHT = 900
-FPS = 60
-GROUND_HEIGHT = 80
-GROUND_Y = HEIGHT - GROUND_HEIGHT
-PLAYER_SPEED = 5
-GRAVITY = 0.8
-BOMB_FUSE_MS = 900
-BOMB_RADIUS = 140
-BOMB_FORCE = 24
-BOMB_LIMIT = 2
-SHARD_SPEED = 8
-SHARD_LIFETIME = 1500
-BOMB_COOLDOWN_MS = 1200
-ENEMY_SPAWN_MS = 1800
-MAX_ENEMIES = 5
-SAVE_FILE = "savegame.json"
+from game.config import (
+    WIDTH,
+    HEIGHT,
+    FPS,
+    GROUND_HEIGHT,
+    GROUND_Y,
+    PLAYER_SPEED,
+    GRAVITY,
+    BOMB_FUSE_MS,
+    BOMB_RADIUS,
+    BOMB_FORCE,
+    BOMB_LIMIT,
+    SHARD_SPEED,
+    SHARD_LIFETIME,
+    BOMB_COOLDOWN_MS,
+    ENEMY_SPAWN_MS,
+    MAX_ENEMIES,
+    SAVE_FILE,
+)
+from game.utils import clamp
+from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -30,10 +33,6 @@ pygame.display.set_caption("Bomb Frog")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 36)
 small_font = pygame.font.SysFont(None, 24)
-
-
-def clamp(value, min_value, max_value):
-    return max(min_value, min(max_value, value))
 
 
 def world_scale(y, obj_h=0):
@@ -112,291 +111,6 @@ def load_game(filename):
         return None
     with open(filename, "r") as handle:
         return json.load(handle)
-
-
-class Player:
-    def __init__(self):
-        self.width = 52
-        self.height = 40
-        self.x = WIDTH // 2 - self.width // 2
-        self.y = GROUND_Y - self.height
-        self.vx = 0
-        self.vy = 0
-        self.on_ground = True
-        self.bombs_left = BOMB_LIMIT
-        self.pending_bomb = False
-        self.bomb_cooldown = 0
-        self.color = (43, 175, 76)
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
-
-    @property
-    def centerx(self):
-        return self.x + self.width / 2
-
-    @property
-    def centery(self):
-        return self.y + self.height / 2
-
-    def update(self, keys, dt):
-        self.vx = 0
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.vx = -PLAYER_SPEED
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.vx = PLAYER_SPEED
-
-        self.x += self.vx
-        self.x = clamp(self.x, 0, WIDTH - self.width)
-
-        old_vy = self.vy
-        if not self.on_ground:
-            self.vy += GRAVITY
-
-        self.y += self.vy
-        self.bomb_cooldown = max(0, self.bomb_cooldown - dt)
-        spawn_bomb = False
-        if self.pending_bomb and old_vy < 0 and self.vy >= 0:
-            self.pending_bomb = False
-            spawn_bomb = True
-
-        if self.y >= GROUND_Y - self.height:
-            self.y = GROUND_Y - self.height
-            self.vy = 0
-            self.on_ground = True
-            self.pending_bomb = False
-
-        self.rect.topleft = (self.x, self.y)
-        return spawn_bomb
-
-    def jump(self):
-        if self.on_ground:
-            self.vy = -GRAVITY * 24
-            self.on_ground = False
-            if self.bombs_left > 0 and self.bomb_cooldown <= 0:
-                self.pending_bomb = True
-                self.bombs_left -= 1
-                self.bomb_cooldown = BOMB_COOLDOWN_MS
-
-    def create_bomb(self):
-        bomb_x = self.centerx
-        bomb_y = GROUND_Y - 16
-        return Bomb(bomb_x, bomb_y)
-
-    def apply_explosion(self, origin_x, origin_y, radius):
-        dx = self.centerx - origin_x
-        dy = self.centery - origin_y
-        dist = math.hypot(dx, dy)
-        if dist >= radius:
-            return
-
-        strength = (radius - dist) / radius
-        push_x = dx / dist if dist else 0
-        self.vx += push_x * BOMB_FORCE * strength
-        upward = -BOMB_FORCE * 0.7 * strength
-        if self.vy > upward:
-            self.vy = upward
-        self.on_ground = False
-
-    def draw(self, surface):
-        scale = world_scale(self.y, self.height)
-        w = int(self.width * scale)
-        h = int(self.height * scale)
-        draw_x = int(self.x + self.width / 2 - w / 2)
-        draw_y = int(self.y + self.height - h)
-        body = pygame.Rect(draw_x, draw_y, w, h)
-        pygame.draw.ellipse(surface, self.color, body)
-        eye_w = max(4, int(10 * scale))
-        eye = pygame.Rect(draw_x + int(w * 0.55), draw_y + int(10 * scale), eye_w, eye_w)
-        pygame.draw.ellipse(surface, (255, 255, 255), eye)
-        inner = eye.inflate(-max(2, int(6 * scale)), -max(2, int(6 * scale)))
-        pygame.draw.ellipse(surface, (0, 0, 0), inner)
-        bomb_icon_center = (draw_x + int(8 * scale) + int(max(6, int(12 * scale)) / 2), draw_y + h - int(8 * scale))
-        pygame.draw.circle(surface, (200, 200, 50), bomb_icon_center, max(3, int(6 * scale)))
-
-
-class Bomb:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.radius = BOMB_RADIUS
-        self.timer = BOMB_FUSE_MS
-        self.color = (210, 70, 70)
-        self.has_shrapnel = random.random() < 0.05
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
-
-    @classmethod
-    def from_dict(cls, data):
-        bomb = cls(data["x"], data["y"])
-        bomb.timer = data["timer"]
-        bomb.has_shrapnel = data.get("has_shrapnel", False)
-        return bomb
-
-    def update(self, dt):
-        self.timer -= dt
-        self.rect.center = (self.x, self.y)
-
-    def draw(self, surface):
-        scale = world_scale(self.y, 14)
-        r = max(4, int(14 * scale))
-        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), r)
-        fuse_ratio = max(0, self.timer / BOMB_FUSE_MS)
-        arc_rect = (self.x - r * 1.5, self.y - r * 1.5, r * 3, r * 3)
-        pygame.draw.arc(surface, (255, 240, 120), arc_rect, math.pi * 0.5, math.pi * 0.5 + math.pi * 2 * fuse_ratio, max(1, int(4 * scale)))
-
-    def is_ready(self):
-        return self.timer <= 0
-
-    def draw_explosion_radius(self, surface):
-        scale = world_scale(self.y, 0)
-        pygame.draw.circle(surface, (255, 180, 0, 40), (int(self.x), int(self.y)), int(self.radius * scale), max(1, int(2 * scale)))
-
-
-class Shard:
-    def __init__(self, x, y, angle, speed, color=None):
-        self.x = x
-        self.y = y
-        self.vx = math.cos(angle) * speed
-        self.vy = math.sin(angle) * speed
-        self.life = SHARD_LIFETIME
-        self.radius = 4
-        self.color = color or (255, 220, 100)
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
-
-    @classmethod
-    def from_dict(cls, data):
-        shard = cls(data["x"], data["y"], 0, 0)
-        shard.vx = data["vx"]
-        shard.vy = data["vy"]
-        shard.life = data["life"]
-        shard.color = tuple(data["color"])
-        shard.rect.topleft = (shard.x - shard.radius, shard.y - shard.radius)
-        return shard
-
-    def update(self, dt):
-        self.vy += GRAVITY * 0.2
-        self.x += self.vx
-        self.y += self.vy
-        self.life -= dt
-        self.rect.topleft = (self.x - self.radius, self.y - self.radius)
-
-    def draw(self, surface):
-        scale = world_scale(self.y, self.radius)
-        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), max(2, int(self.radius * scale)))
-
-    def is_alive(self):
-        return self.life > 0 and 0 <= self.x <= WIDTH and 0 <= self.y <= HEIGHT
-
-
-class Enemy:
-    def __init__(self, spawn_side):
-        self.width = 40
-        self.height = 34
-        self.type = random.choices(["grunt", "heavy", "elite"], [0.55, 0.30, 0.15])[0]
-        if spawn_side == "left":
-            self.x = -self.width - 20
-            self.vx = 2.2
-        else:
-            self.x = WIDTH + 20
-            self.vx = -2.2
-        self.y = GROUND_Y - self.height
-        self.color = {
-            "grunt": (190, 80, 80),
-            "heavy": (170, 130, 80),
-            "elite": (150, 95, 185),
-        }[self.type]
-        self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
-        self.dead = False
-        self.max_hp = {"grunt": 1, "heavy": 2, "elite": 3}[self.type]
-        self.hp = self.max_hp
-
-    def update(self, dt):
-        self.x += self.vx
-        if self.x <= 0:
-            self.x = 0
-            self.vx *= -1
-        elif self.x + self.width >= WIDTH:
-            self.x = WIDTH - self.width
-            self.vx *= -1
-        self.rect.topleft = (self.x, self.y)
-
-    def draw(self, surface):
-        # scale enemy drawing by depth (y)
-        scale = world_scale(self.y, self.height)
-        w = int(self.width * scale)
-        h = int(self.height * scale)
-        draw_x = int(self.x + self.width / 2 - w / 2)
-        draw_y = int(self.y + self.height - h)
-        draw_rect = pygame.Rect(draw_x, draw_y, w, h)
-        pygame.draw.rect(surface, self.color, draw_rect, border_radius=max(2, int(8 * scale)))
-        if self.type == "elite":
-            pygame.draw.circle(surface, (255, 255, 255), draw_rect.center, max(3, int(6 * scale)))
-
-    def killed_by_explosion(self, origin_x, origin_y, radius):
-        dx = self.rect.centerx - origin_x
-        dy = self.rect.centery - origin_y
-        return math.hypot(dx, dy) < radius * 0.75
-
-    def take_damage(self, amount=1):
-        self.hp -= amount
-        if self.hp <= 0:
-            self.dead = True
-
-    @classmethod
-    def from_dict(cls, data):
-        enemy = cls("left")
-        enemy.x = data["x"]
-        enemy.y = data["y"]
-        enemy.vx = data["vx"]
-        enemy.type = data["type"]
-        enemy.color = {
-            "grunt": (190, 80, 80),
-            "heavy": (170, 130, 80),
-            "elite": (150, 95, 185),
-        }[enemy.type]
-        enemy.rect = pygame.Rect(enemy.x, enemy.y, enemy.width, enemy.height)
-        enemy.dead = data["dead"]
-        enemy.max_hp = {"grunt": 1, "heavy": 2, "elite": 3}[enemy.type]
-        enemy.hp = data.get("hp", enemy.max_hp)
-        return enemy
-
-    def get_death_shrapnel(self):
-        center_x = self.rect.centerx
-        center_y = self.rect.centery
-        shards = []
-        if self.type == "grunt":
-            for i in range(6):
-                angle = math.pi * 2 * i / 6
-                shards.append(Shard(center_x, center_y, angle, SHARD_SPEED * 1.1))
-        elif self.type == "heavy":
-            direction = 0 if self.vx > 0 else math.pi
-            for i in range(-2, 3):
-                angle = direction + i * 0.3
-                shards.append(Shard(center_x, center_y, angle, SHARD_SPEED * 1.3, (220, 140, 80)))
-        else:  # elite
-            for i in range(8):
-                angle = math.pi * 2 * i / 8
-                shards.append(Shard(center_x, center_y, angle, SHARD_SPEED * 0.9, (200, 140, 240)))
-        return shards
-
-
-class ExplosionEffect:
-    def __init__(self, x, y, radius):
-        self.x = x
-        self.y = y
-        self.radius = radius
-        self.life = 260
-
-    def update(self, dt):
-        self.life -= dt
-
-    def draw(self, surface):
-        alpha = int(180 * max(0, self.life / 260))
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        scale = world_scale(self.y, self.radius)
-        pygame.draw.circle(overlay, (255, 180, 60, alpha), (int(self.x), int(self.y)), max(4, int(self.radius * scale)), max(1, int(4 * scale)))
-        surface.blit(overlay, (0, 0))
-
-    def is_alive(self):
-        return self.life > 0
 
 
 def draw_hud(surface, score, high_score, bombs_left, lives, bomb_cooldown):
