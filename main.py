@@ -6,8 +6,8 @@ import sys
 import pygame
 
 # Game settings
-WIDTH = 900
-HEIGHT = 600
+WIDTH = 1700
+HEIGHT = 900
 FPS = 60
 GROUND_HEIGHT = 80
 GROUND_Y = HEIGHT - GROUND_HEIGHT
@@ -34,6 +34,25 @@ small_font = pygame.font.SysFont(None, 24)
 
 def clamp(value, min_value, max_value):
     return max(min_value, min(max_value, value))
+
+
+def world_scale(y, obj_h=0):
+    # returns a simple scale factor based on vertical position (0..GROUND_Y)
+    denom = max(1, GROUND_Y - obj_h)
+    t = clamp(y / denom, 0.0, 1.0)
+    return 0.8 + 0.4 * t
+
+
+def draw_shadow(surface, x, y, base_radius, scale):
+    # Draw a simple blurred shadow projected onto the ground
+    # shadow position anchored near ground under object
+    sx = int(x)
+    sy = GROUND_Y - int(6 * scale)
+    sr = max(6, int(base_radius * scale * 0.6))
+    shadow = pygame.Surface((sr * 2, int(sr * 0.6)), pygame.SRCALPHA)
+    alpha = int(120 * clamp(1.0 - (y / float(GROUND_Y)), 0.3, 1.0))
+    pygame.draw.ellipse(shadow, (0, 0, 0, alpha), (0, 0, sr * 2, int(sr * 0.6)))
+    surface.blit(shadow, (sx - sr, sy - int(sr * 0.3)))
 
 
 def save_game(filename, player, bombs, shards, enemies, score, high_score, lives, last_spawn):
@@ -178,13 +197,20 @@ class Player:
         self.on_ground = False
 
     def draw(self, surface):
-        body = pygame.Rect(self.x, self.y, self.width, self.height)
+        scale = world_scale(self.y, self.height)
+        w = int(self.width * scale)
+        h = int(self.height * scale)
+        draw_x = int(self.x + self.width / 2 - w / 2)
+        draw_y = int(self.y + self.height - h)
+        body = pygame.Rect(draw_x, draw_y, w, h)
         pygame.draw.ellipse(surface, self.color, body)
-        eye = pygame.Rect(self.x + self.width * 0.55, self.y + 10, 10, 10)
+        eye_w = max(4, int(10 * scale))
+        eye = pygame.Rect(draw_x + int(w * 0.55), draw_y + int(10 * scale), eye_w, eye_w)
         pygame.draw.ellipse(surface, (255, 255, 255), eye)
-        pygame.draw.ellipse(surface, (0, 0, 0), eye.inflate(-6, -6))
-        bomb_icon = pygame.Rect(self.x + 8, self.y + self.height - 16, 12, 12)
-        pygame.draw.circle(surface, (200, 200, 50), bomb_icon.center, 6)
+        inner = eye.inflate(-max(2, int(6 * scale)), -max(2, int(6 * scale)))
+        pygame.draw.ellipse(surface, (0, 0, 0), inner)
+        bomb_icon_center = (draw_x + int(8 * scale) + int(max(6, int(12 * scale)) / 2), draw_y + h - int(8 * scale))
+        pygame.draw.circle(surface, (200, 200, 50), bomb_icon_center, max(3, int(6 * scale)))
 
 
 class Bomb:
@@ -209,22 +235,19 @@ class Bomb:
         self.rect.center = (self.x, self.y)
 
     def draw(self, surface):
-        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), 14)
+        scale = world_scale(self.y, 14)
+        r = max(4, int(14 * scale))
+        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), r)
         fuse_ratio = max(0, self.timer / BOMB_FUSE_MS)
-        pygame.draw.arc(
-            surface,
-            (255, 240, 120),
-            (self.x - 20, self.y - 20, 40, 40),
-            math.pi * 0.5,
-            math.pi * 0.5 + math.pi * 2 * fuse_ratio,
-            4,
-        )
+        arc_rect = (self.x - r * 1.5, self.y - r * 1.5, r * 3, r * 3)
+        pygame.draw.arc(surface, (255, 240, 120), arc_rect, math.pi * 0.5, math.pi * 0.5 + math.pi * 2 * fuse_ratio, max(1, int(4 * scale)))
 
     def is_ready(self):
         return self.timer <= 0
 
     def draw_explosion_radius(self, surface):
-        pygame.draw.circle(surface, (255, 180, 0, 40), (int(self.x), int(self.y)), self.radius, 2)
+        scale = world_scale(self.y, 0)
+        pygame.draw.circle(surface, (255, 180, 0, 40), (int(self.x), int(self.y)), int(self.radius * scale), max(1, int(2 * scale)))
 
 
 class Shard:
@@ -256,7 +279,8 @@ class Shard:
         self.rect.topleft = (self.x - self.radius, self.y - self.radius)
 
     def draw(self, surface):
-        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
+        scale = world_scale(self.y, self.radius)
+        pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), max(2, int(self.radius * scale)))
 
     def is_alive(self):
         return self.life > 0 and 0 <= self.x <= WIDTH and 0 <= self.y <= HEIGHT
@@ -295,9 +319,16 @@ class Enemy:
         self.rect.topleft = (self.x, self.y)
 
     def draw(self, surface):
-        pygame.draw.rect(surface, self.color, self.rect, border_radius=8)
+        # scale enemy drawing by depth (y)
+        scale = world_scale(self.y, self.height)
+        w = int(self.width * scale)
+        h = int(self.height * scale)
+        draw_x = int(self.x + self.width / 2 - w / 2)
+        draw_y = int(self.y + self.height - h)
+        draw_rect = pygame.Rect(draw_x, draw_y, w, h)
+        pygame.draw.rect(surface, self.color, draw_rect, border_radius=max(2, int(8 * scale)))
         if self.type == "elite":
-            pygame.draw.circle(surface, (255, 255, 255), self.rect.center, 6)
+            pygame.draw.circle(surface, (255, 255, 255), draw_rect.center, max(3, int(6 * scale)))
 
     def killed_by_explosion(self, origin_x, origin_y, radius):
         dx = self.rect.centerx - origin_x
@@ -360,7 +391,8 @@ class ExplosionEffect:
     def draw(self, surface):
         alpha = int(180 * max(0, self.life / 260))
         overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        pygame.draw.circle(overlay, (255, 180, 60, alpha), (int(self.x), int(self.y)), int(self.radius), 4)
+        scale = world_scale(self.y, self.radius)
+        pygame.draw.circle(overlay, (255, 180, 60, alpha), (int(self.x), int(self.y)), max(4, int(self.radius * scale)), max(1, int(4 * scale)))
         surface.blit(overlay, (0, 0))
 
     def is_alive(self):
@@ -517,6 +549,17 @@ def run_game():
 
         screen.fill((18, 30, 50))
 
+        # simple parallax background using player X as camera when playing
+        cam_x = int(player.x - WIDTH // 2) if (player and state == "playing") else 0
+        # far sky / mountains
+        pygame.draw.rect(screen, (18, 30, 50), (0, 0, WIDTH, HEIGHT))
+        m1_x = -int(cam_x * 0.12) % (WIDTH * 2)
+        pygame.draw.ellipse(screen, (50, 60, 90), (m1_x - 300, 40, WIDTH + 600, 180))
+        pygame.draw.ellipse(screen, (60, 70, 110), (m1_x + 200, 100, WIDTH, 140))
+        # near hills
+        m2_x = -int(cam_x * 0.24) % (WIDTH * 2)
+        pygame.draw.ellipse(screen, (70, 50, 30), (m2_x - 200, GROUND_Y - 80, WIDTH + 400, 160))
+
         if state == "menu":
             # draw title and menu
             title = font.render("Bomb Frog", True, (255, 255, 255))
@@ -548,7 +591,17 @@ def run_game():
 
                 for bomb in bombs[:]:
                     bomb.update(dt)
+                    # explode if fuse ready OR if any enemy touches the bomb
+                    triggered = False
                     if bomb.is_ready():
+                        triggered = True
+                    else:
+                        for e in enemies:
+                            if bomb.rect.colliderect(e.rect):
+                                triggered = True
+                                break
+
+                    if triggered:
                         effects.append(ExplosionEffect(bomb.x, bomb.y, bomb.radius))
                         player.apply_explosion(bomb.x, bomb.y, bomb.radius)
                         for enemy in enemies:
@@ -556,7 +609,8 @@ def run_game():
                                 enemy.take_damage()
                         if bomb.has_shrapnel:
                             shards.extend(Shard(bomb.x, bomb.y, angle, SHARD_SPEED * 1.25) for angle in [i * math.pi * 2 / 10 for i in range(10)])
-                        bombs.remove(bomb)
+                        if bomb in bombs:
+                            bombs.remove(bomb)
                         player.bombs_left = min(player.bombs_left + 1, BOMB_LIMIT)
 
                 for enemy in enemies[:]:
@@ -606,13 +660,40 @@ def run_game():
                 score += 1
 
             draw_ground(screen)
-            player.draw(screen)
-            for bomb in bombs:
-                bomb.draw(screen)
-            for shard in shards:
-                shard.draw(screen)
-            for enemy in enemies:
-                enemy.draw(screen)
+
+            # depth-sorted drawing: shadows first, then sprites
+            drawables = []
+            drawables.extend(enemies)
+            drawables.extend(bombs)
+            drawables.extend(shards)
+            if player:
+                drawables.append(player)
+
+            def depth_key(o):
+                if hasattr(o, "y"):
+                    return o.y
+                if hasattr(o, "rect"):
+                    return o.rect.bottom
+                return 0
+
+            drawables = sorted(drawables, key=depth_key)
+
+            # draw shadows
+            for o in drawables:
+                ox = getattr(o, "x", getattr(o, "rect", pygame.Rect(0, 0, 0, 0)).centerx)
+                oy = getattr(o, "y", getattr(o, "rect", pygame.Rect(0, 0, 0, 0)).centery)
+                base_r = getattr(o, "radius", getattr(o, "width", 20))
+                scale = world_scale(oy, getattr(o, "height", 0))
+                draw_shadow(screen, ox, oy, base_r, scale)
+
+            # draw sprites in depth order
+            for o in drawables:
+                try:
+                    o.draw(screen)
+                except Exception:
+                    pass
+
+            # draw effects on top
             for effect in effects:
                 effect.draw(screen)
 
