@@ -94,6 +94,23 @@ class Player:
         bomb_y = GROUND_Y - 16
         return Bomb(bomb_x, bomb_y)
 
+    @classmethod
+    def from_dict(cls, data):
+        player = cls()
+        player.apply_dict(data)
+        return player
+
+    def apply_dict(self, data):
+        self.x = data["x"]
+        self.y = data["y"]
+        self.vx = data["vx"]
+        self.vy = data["vy"]
+        self.on_ground = data["on_ground"]
+        self.bombs_left = data["bombs_left"]
+        self.pending_bomb = data["pending_bomb"]
+        self.bomb_cooldown = data.get("bomb_cooldown", 0)
+        self.rect.topleft = (self.x, self.y)
+
     def apply_explosion(self, origin_x, origin_y, radius):
         dx = self.centerx - origin_x
         dy = self.centery - origin_y

@@ -17,16 +17,11 @@ from game.config import MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
 from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
 
 
-def _apply_player_dict(player, data):
-    player.x = data["x"]
-    player.y = data["y"]
-    player.vx = data["vx"]
-    player.vy = data["vy"]
-    player.on_ground = data["on_ground"]
-    player.bombs_left = data["bombs_left"]
-    player.pending_bomb = data["pending_bomb"]
-    player.bomb_cooldown = data.get("bomb_cooldown", 0)
-    player.rect.topleft = (player.x, player.y)
+def _load_bombs_shards_enemies(data):
+    bombs = [Bomb.from_dict(b) for b in data["bombs"]]
+    shards = [Shard.from_dict(s) for s in data["shards"]]
+    enemies = [Enemy.from_dict(e) for e in data["enemies"]]
+    return bombs, shards, enemies
 
 
 class World:
@@ -48,11 +43,8 @@ class World:
     def from_save_data(cls, data, now=0):
         """Build a fresh World from a save dict (the menu's "Load Game")."""
         world = cls.__new__(cls)
-        world.player = Player()
-        _apply_player_dict(world.player, data["player"])
-        world.bombs = [Bomb.from_dict(b) for b in data["bombs"]]
-        world.shards = [Shard.from_dict(s) for s in data["shards"]]
-        world.enemies = [Enemy.from_dict(e) for e in data["enemies"]]
+        world.player = Player.from_dict(data["player"])
+        world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
         world.score = data.get("score", 0)
         world.lives = data.get("lives", 3)
         world.last_spawn = data.get("last_spawn", now)
@@ -62,10 +54,8 @@ class World:
 
     def merge_save_data(self, data):
         """Overlay a save dict onto this in-progress round (in-game load)."""
-        _apply_player_dict(self.player, data["player"])
-        self.bombs = [Bomb.from_dict(b) for b in data["bombs"]]
-        self.shards = [Shard.from_dict(s) for s in data["shards"]]
-        self.enemies = [Enemy.from_dict(e) for e in data["enemies"]]
+        self.player.apply_dict(data["player"])
+        self.bombs, self.shards, self.enemies = _load_bombs_shards_enemies(data)
         self.score = data.get("score", self.score)
         self.lives = data.get("lives", self.lives)
         self.last_spawn = data.get("last_spawn", self.last_spawn)

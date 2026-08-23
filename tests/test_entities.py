@@ -1,5 +1,39 @@
 from game.config import WIDTH, HEIGHT, GROUND_Y, BOMB_FUSE_MS
-from game.entities import Bomb, Shard, Enemy
+from game.entities import Player, Bomb, Shard, Enemy
+
+
+def _player_dict(**overrides):
+    data = {
+        "x": 111, "y": 222, "vx": 3, "vy": -4, "on_ground": False,
+        "bombs_left": 1, "pending_bomb": True, "bomb_cooldown": 250,
+    }
+    data.update(overrides)
+    return data
+
+
+def test_player_from_dict_builds_a_player_matching_the_dict():
+    player = Player.from_dict(_player_dict())
+    assert (player.x, player.y) == (111, 222)
+    assert (player.vx, player.vy) == (3, -4)
+    assert player.on_ground is False
+    assert player.bombs_left == 1
+    assert player.pending_bomb is True
+    assert player.bomb_cooldown == 250
+    assert player.rect.topleft == (111, 222)
+
+
+def test_player_from_dict_defaults_missing_bomb_cooldown_to_zero():
+    data = _player_dict()
+    del data["bomb_cooldown"]
+    player = Player.from_dict(data)
+    assert player.bomb_cooldown == 0
+
+
+def test_player_apply_dict_overwrites_an_existing_player_in_place():
+    player = Player()
+    player.apply_dict(_player_dict())
+    assert (player.x, player.y) == (111, 222)
+    assert player.rect.topleft == (111, 222)
 
 
 def test_bomb_not_ready_before_fuse_expires():
