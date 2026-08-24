@@ -44,14 +44,26 @@ def test_same_plane_true_within_the_tolerance():
 
 def test_same_plane_false_beyond_the_tolerance():
     assert same_plane(0.5, 0.5 + DEPTH_COLLISION_TOLERANCE + 0.01) is False
-    assert same_plane(0.1, 0.9) is False
+    # opposite ends of the walkway: always different planes for any sane
+    # (i.e. < 1.0) tolerance, no derivation needed — these are the actual
+    # bounds of the depth axis itself, not arbitrary picks.
+    assert same_plane(0.0, 1.0) is False
 
 
 def test_same_plane_handles_entities_adjacent_across_a_wide_bucket():
-    # The old discrete-bucket design could call these "same plane" even
-    # though they're ~54px of ground_y apart (about 0.32 of the axis) —
-    # farther apart than either entity is tall.
-    assert same_plane(0.34, 0.66) is False
+    # Regression test pinning the exact scenario that broke under the old
+    # discrete-bucket design: these two were called "same plane" despite
+    # being ~54px of ground_y apart (about 0.32 of the axis) — farther
+    # apart than either entity is tall. The values are deliberately fixed
+    # (this is what shipped and broke), but the assertion below makes the
+    # coupling to DEPTH_COLLISION_TOLERANCE explicit and self-checking:
+    # if tolerance is ever raised close to this gap, this test fails with
+    # a clear reason instead of a confusing, unrelated-looking failure.
+    depth_a, depth_b = 0.34, 0.66
+    assert abs(depth_a - depth_b) > DEPTH_COLLISION_TOLERANCE, (
+        "DEPTH_COLLISION_TOLERANCE grew too close to this regression case's gap"
+    )
+    assert same_plane(depth_a, depth_b) is False
 
 
 def test_same_plane_symmetric():

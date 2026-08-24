@@ -5,7 +5,7 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 
 import pygame
 
-from game.config import GROUND_NEAR_Y, BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS
+from game.config import GROUND_NEAR_Y, BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, DEPTH_COLLISION_TOLERANCE
 from game.entities import Bomb, Enemy, Shard
 from game.world import World
 
@@ -104,13 +104,16 @@ def test_losing_the_last_life_ends_the_game():
 
 
 def test_enemy_in_a_different_z_plane_does_not_cost_a_life():
-    # Same x/y overlap as the collision tests above, but a far-plane enemy
-    # against a mid-plane player — should pass straight through.
+    # Same x/y overlap as the collision tests above, but the enemy's depth
+    # is placed comfortably beyond DEPTH_COLLISION_TOLERANCE from the
+    # player's — derived from the constant, not a magic number, so this
+    # keeps testing "beyond tolerance" even if the tolerance is retuned.
     world = World(now=0)
-    world.player.depth = 0.5  # mid plane
+    world.player.depth = 0.5
     world.score = 500
     enemy = Enemy("left")
-    _place_enemy_at(enemy, world.player.x, world.player.y, depth=0.1)  # far plane
+    different_plane_depth = world.player.depth - DEPTH_COLLISION_TOLERANCE - 0.05
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=different_plane_depth)
 
     world.enemies = [enemy]
 
@@ -122,11 +125,14 @@ def test_enemy_in_a_different_z_plane_does_not_cost_a_life():
 
 
 def test_enemy_in_the_same_z_plane_still_costs_a_life():
+    # Depth placed comfortably within DEPTH_COLLISION_TOLERANCE of the
+    # player's — derived, so this stays meaningful under retuning too.
     world = World(now=0)
-    world.player.depth = 0.5  # mid plane
+    world.player.depth = 0.5
     world.score = 500
     enemy = Enemy("left")
-    _place_enemy_at(enemy, world.player.x, world.player.y, depth=0.6)  # also mid plane
+    same_plane_depth = world.player.depth + DEPTH_COLLISION_TOLERANCE - 0.05
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=same_plane_depth)
     world.enemies = [enemy]
 
     world.update(NO_KEYS, dt=16, now=1000)
@@ -314,7 +320,8 @@ def test_logs_suppressed_collision_when_different_plane(capsys):
     world.debug = True
     world.player.depth = 0.5
     enemy = Enemy("left")
-    _place_enemy_at(enemy, world.player.x, world.player.y, depth=0.1)
+    different_plane_depth = world.player.depth - DEPTH_COLLISION_TOLERANCE - 0.05
+    _place_enemy_at(enemy, world.player.x, world.player.y, depth=different_plane_depth)
     world.enemies = [enemy]
 
     world.update(NO_KEYS, dt=16, now=1000)
