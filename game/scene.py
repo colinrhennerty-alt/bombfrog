@@ -12,7 +12,7 @@ from game.world import World
 
 
 class GameApp:
-    def __init__(self, now=0, save_file=SAVE_FILE):
+    def __init__(self, now=0, save_file=SAVE_FILE, debug=False):
         self.save_file = save_file
         self.menu_options = ["Start Game", "Load Game", "Quit"]
         self.selected = 0
@@ -20,7 +20,7 @@ class GameApp:
         self.high_score = 0
         self.running = True
         self.state = "menu"
-        self.debug = False
+        self.debug = debug
 
     def handle_action(self, action, now):
         if self.state == "menu":

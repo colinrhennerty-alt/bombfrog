@@ -30,6 +30,12 @@ def test_default_save_file_matches_config():
     assert GameApp().save_file == SAVE_FILE
 
 
+def test_debug_can_be_set_at_construction():
+    assert GameApp(debug=True).debug is True
+    assert GameApp(debug=False).debug is False
+    assert GameApp().debug is False  # default unchanged
+
+
 def test_menu_navigation_wraps_in_both_directions():
     app = GameApp()
     app.handle_action("menu_up", now=0)
