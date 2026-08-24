@@ -19,6 +19,7 @@ from game.config import (
 )
 from game.utils import clamp
 from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
+from game.simulation.hitbox import sync_rect_for_depth
 from game.simulation.bomb import Bomb
 from game.simulation.bomb_launcher import BombLauncher
 
@@ -78,13 +79,7 @@ class Player:
         self.bomb_launcher.cooldown = value
 
     def _sync_rect(self):
-        """Collision box tracks the depth-scaled visual size, anchored at
-        the same bottom-center point rendering draws the sprite at — so
-        the hitbox always matches what's on screen, at any depth."""
-        w = max(1, int(self.width * self.scale))
-        h = max(1, int(self.height * self.scale))
-        self.rect = pygame.Rect(0, 0, w, h)
-        self.rect.midbottom = (self.centerx, self.y + self.height)
+        self.rect = sync_rect_for_depth(self.x, self.y, self.width, self.height, self.depth)
 
     def update(self, keys, dt):
         self._apply_horizontal_movement(keys)

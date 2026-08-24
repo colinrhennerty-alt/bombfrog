@@ -4,8 +4,9 @@ import random
 import pygame
 
 from game.config import WIDTH, SHARD_SPEED
-from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
+from game.simulation.depth import ground_y_for_depth, margin_for_depth
 from game.simulation.enemy_types import ENEMY_TYPES
+from game.simulation.hitbox import sync_rect_for_depth
 from game.simulation.shard import Shard
 
 
@@ -33,14 +34,7 @@ class Enemy:
         self._sync_rect()
 
     def _sync_rect(self):
-        """Collision box tracks the depth-scaled visual size, anchored at
-        the same bottom-center point rendering draws the body at — so
-        the hitbox always matches what's on screen, at any depth."""
-        scale = scale_for_depth(self.depth)
-        w = max(1, int(self.width * scale))
-        h = max(1, int(self.height * scale))
-        self.rect = pygame.Rect(0, 0, w, h)
-        self.rect.midbottom = (self.x + self.width / 2, self.y + self.height)
+        self.rect = sync_rect_for_depth(self.x, self.y, self.width, self.height, self.depth)
 
     def update(self, dt):
         self.x += self.vx
