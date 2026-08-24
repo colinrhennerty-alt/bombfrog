@@ -366,7 +366,9 @@ def test_logs_shard_hitting_an_enemy(capsys):
     world = World(now=0)
     world.debug = True
     enemy = Enemy("left")
-    _place_enemy_at(enemy, 100, 100)
+    enemy.vx = 0  # stays put, so this frame's enemy.update() doesn't drift it off the shard
+    _place_enemy_at(enemy, 100, 100, depth=0.5)  # fixed depth: deterministic size/scale
+    enemy._sync_rect()  # matches what enemy.update() will do, so the shard lands exactly on it
     shard = Shard(enemy.rect.centerx, enemy.rect.centery, angle=0, speed=0)
     world.enemies = [enemy]
     world.shards = [shard]
