@@ -2,7 +2,7 @@
 
 Deliberately dumb: this only knows "what key, in what context (menu vs.
 playing)". Decisions that depend on game state — e.g. whether "space"
-means jump or restart — belong to game.scene.GameApp, not here.
+means jump or restart — belong to game.scene.game_app.GameApp, not here.
 """
 
 import pygame

@@ -5,9 +5,9 @@ that used to live as loose local variables inside main.py's run_game().
 import pygame
 
 from game.config import SAVE_FILE
-from game.entities import Player
-from game.persistence import save_game
-from game.scene import GameApp
+from game.simulation.player import Player
+from game.persistence.save_load import save_game
+from game.scene.game_app import GameApp
 
 NO_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,

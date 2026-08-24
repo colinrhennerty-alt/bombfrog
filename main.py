@@ -2,9 +2,9 @@ import sys
 import pygame
 
 from game.config import WIDTH, HEIGHT, FPS, DEBUG_ENV_VAR
-from game import rendering
-from game import input as game_input
-from game.scene import GameApp
+from game.rendering import renderer as rendering
+from game.input import key_mapping as game_input
+from game.scene.game_app import GameApp
 from game.utils import env_flag
 
 pygame.init()

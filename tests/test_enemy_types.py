@@ -1,6 +1,6 @@
 import math
 
-from game.enemy_types import ENEMY_TYPES
+from game.simulation.enemy_types import ENEMY_TYPES
 
 # Regression pins matching today's hardcoded values, so the registry can't
 # silently drift from the original game balance during refactors.

@@ -14,9 +14,13 @@ import math
 import random
 
 from game.config import MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
-from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
-from game.depth import same_plane
-from game import debug_log
+from game.simulation.player import Player
+from game.simulation.bomb import Bomb
+from game.simulation.shard import Shard
+from game.simulation.enemy import Enemy
+from game.simulation.explosion_effect import ExplosionEffect
+from game.simulation.depth import same_plane
+from game.simulation import debug_log
 
 
 def _load_bombs_shards_enemies(data):

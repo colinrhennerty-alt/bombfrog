@@ -6,8 +6,10 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 import pygame
 
 from game.config import GROUND_NEAR_Y, BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, DEPTH_COLLISION_TOLERANCE
-from game.entities import Bomb, Enemy, Shard
-from game.world import World
+from game.simulation.bomb import Bomb
+from game.simulation.enemy import Enemy
+from game.simulation.shard import Shard
+from game.simulation.world import World
 
 NO_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,

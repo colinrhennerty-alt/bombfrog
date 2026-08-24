@@ -7,8 +7,8 @@ pump and handing frames to game.rendering.
 """
 
 from game.config import SAVE_FILE
-from game.persistence import save_game, load_game
-from game.world import World
+from game.persistence.save_load import save_game, load_game
+from game.simulation.world import World
 
 
 class GameApp:

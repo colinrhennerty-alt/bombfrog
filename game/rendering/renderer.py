@@ -1,6 +1,6 @@
 """Pixel output for the game: "surface + state -> pixels" only.
 
-Nothing here mutates game state; game.entities/game.world own that. Keeping
+Nothing here mutates game state; game.simulation owns that. Keeping
 drawing separate means entity/world logic tests never need a display
 surface, and this module can change purely visual behavior (parallax,
 depth scaling, shadows) without risking gameplay logic.
@@ -12,9 +12,12 @@ import pygame
 
 from game.config import WIDTH, HEIGHT, GROUND_NEAR_Y, GROUND_FAR_Y, FAR_MARGIN, GROUND_HEIGHT, BOMB_FUSE_MS
 from game.utils import clamp
-from game.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
-from game.entities import Player, Bomb, Shard, Enemy
-from game.assets import get_frog_frames
+from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
+from game.simulation.player import Player
+from game.simulation.bomb import Bomb
+from game.simulation.shard import Shard
+from game.simulation.enemy import Enemy
+from game.rendering.assets import get_frog_frames
 
 
 def draw_shadow(surface, x, y, ground_y, base_radius, scale):

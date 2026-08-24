@@ -1,5 +1,8 @@
-from game.entities import Player, Bomb, Shard, Enemy
-from game.persistence import save_game, load_game
+from game.simulation.player import Player
+from game.simulation.bomb import Bomb
+from game.simulation.shard import Shard
+from game.simulation.enemy import Enemy
+from game.persistence.save_load import save_game, load_game
 
 
 def test_load_game_returns_none_when_file_missing(tmp_path):

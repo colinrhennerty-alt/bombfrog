@@ -5,7 +5,7 @@ only knows about pygame key constants and which UI context ("menu" vs.
 
 import pygame
 
-from game.input import map_key
+from game.input.key_mapping import map_key
 
 
 def test_menu_up_and_down():

@@ -6,9 +6,13 @@ import pygame
 import pytest
 
 from game.config import WIDTH, HEIGHT
-from game.depth import ground_y_for_depth
-from game.entities import Player, Bomb, Shard, Enemy, ExplosionEffect
-from game import rendering
+from game.simulation.depth import ground_y_for_depth
+from game.simulation.player import Player
+from game.simulation.bomb import Bomb
+from game.simulation.shard import Shard
+from game.simulation.enemy import Enemy
+from game.simulation.explosion_effect import ExplosionEffect
+from game.rendering import renderer as rendering
 
 
 @pytest.fixture

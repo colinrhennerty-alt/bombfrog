@@ -1,7 +1,7 @@
 """Pure depth-axis math: 0.0 = far edge of the walkway, 1.0 = near edge."""
 
 from game.config import GROUND_NEAR_Y, GROUND_FAR_Y, FAR_MARGIN, NEAR_SCALE, FAR_SCALE, DEPTH_COLLISION_TOLERANCE
-from game.depth import ground_y_for_depth, margin_for_depth, scale_for_depth, same_plane
+from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth, same_plane
 
 
 def test_ground_y_at_extremes():

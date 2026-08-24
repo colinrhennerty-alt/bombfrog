@@ -1,8 +1,8 @@
 import pygame
 
 from game.config import WIDTH, GRAVITY, DEPTH_SPEED
-from game.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
-from game.entities import Player
+from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
+from game.simulation.player import Player
 
 NO_MOVE_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
@@ -178,3 +178,55 @@ def test_explosion_inside_radius_launches_player_away():
     assert player.vx > 0  # pushed away from the origin, to the right
     assert player.vy < 0  # launched upward
     assert player.on_ground is False
+
+
+def _player_dict(**overrides):
+    data = {
+        "x": 111, "y": 222, "vx": 3, "vy": -4, "on_ground": False,
+        "bombs_left": 1, "pending_bomb": True, "bomb_cooldown": 250,
+    }
+    data.update(overrides)
+    return data
+
+
+def test_player_from_dict_builds_a_player_matching_the_dict():
+    player = Player.from_dict(_player_dict())
+    assert (player.x, player.y) == (111, 222)
+    assert (player.vx, player.vy) == (3, -4)
+    assert player.on_ground is False
+    assert player.bombs_left == 1
+    assert player.pending_bomb is True
+    assert player.bomb_cooldown == 250
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
+
+
+def test_player_from_dict_defaults_missing_bomb_cooldown_to_zero():
+    data = _player_dict()
+    del data["bomb_cooldown"]
+    player = Player.from_dict(data)
+    assert player.bomb_cooldown == 0
+
+
+def test_player_apply_dict_overwrites_an_existing_player_in_place():
+    player = Player()
+    player.apply_dict(_player_dict())
+    assert (player.x, player.y) == (111, 222)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
+
+
+def test_player_rect_matches_depth_scaled_size():
+    player = Player()
+    expected_w = max(1, int(player.width * player.scale))
+    expected_h = max(1, int(player.height * player.scale))
+    assert player.rect.size == (expected_w, expected_h)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
+
+
+def test_player_rect_resizes_when_depth_changes():
+    player = Player()
+    player.update(_keys({pygame.K_UP: True}), dt=16)
+
+    expected_w = max(1, int(player.width * player.scale))
+    expected_h = max(1, int(player.height * player.scale))
+    assert player.rect.size == (expected_w, expected_h)
+    assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))

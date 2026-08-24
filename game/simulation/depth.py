@@ -1,7 +1,7 @@
 """Pure math for the depth axis: depth 0.0 is the far edge of the
 walkway, 1.0 is the near edge. No pygame dependency — used by both
-simulation (game.entities, for movement bounds) and rendering (for
-scale/ground position).
+simulation (game.simulation.player/enemy, for movement bounds) and
+rendering (for scale/ground position).
 """
 
 from game.config import GROUND_NEAR_Y, GROUND_FAR_Y, FAR_MARGIN, NEAR_SCALE, FAR_SCALE, DEPTH_COLLISION_TOLERANCE

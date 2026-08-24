@@ -1,6 +1,6 @@
 import pygame
 
-from game.assets import get_frog_frames
+from game.rendering.assets import get_frog_frames
 from game.config import FROG_IDLE_FRAME_COUNT
 
 
@@ -13,7 +13,7 @@ def test_get_frog_frames_returns_the_expected_frame_set():
 
 
 def test_frog_frames_are_scaled_to_sprite_size():
-    from game.assets import SPRITE_SIZE
+    from game.rendering.assets import SPRITE_SIZE
 
     frames = get_frog_frames()
     assert frames["idle"][0].get_size() == (SPRITE_SIZE, SPRITE_SIZE)

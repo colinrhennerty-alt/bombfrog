@@ -1,4 +1,4 @@
-from game.debug_log import log
+from game.simulation.debug_log import log
 
 
 def test_log_prints_with_a_debug_prefix(capsys):
