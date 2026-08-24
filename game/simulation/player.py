@@ -13,8 +13,6 @@ from game.config import (
     PLAYER_SPEED,
     GRAVITY,
     BOMB_FORCE,
-    BOMB_LIMIT,
-    BOMB_COOLDOWN_MS,
     DEPTH_SPEED,
     FROG_ANIM_MS,
     FROG_IDLE_FRAME_COUNT,
@@ -22,6 +20,7 @@ from game.config import (
 from game.utils import clamp
 from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
 from game.simulation.bomb import Bomb
+from game.simulation.bomb_launcher import BombLauncher
 
 
 class Player:
@@ -37,9 +36,7 @@ class Player:
         self.vx = 0
         self.vy = 0
         self.on_ground = True
-        self.bombs_left = BOMB_LIMIT
-        self.pending_bomb = False
-        self.bomb_cooldown = 0
+        self.bomb_launcher = BombLauncher()
         self.color = (43, 175, 76)
         self.rect = pygame.Rect(0, 0, self.width, self.height)
         self.facing = 1
@@ -56,6 +53,30 @@ class Player:
     def centery(self):
         return self.y + self.height / 2
 
+    @property
+    def bombs_left(self):
+        return self.bomb_launcher.bombs_left
+
+    @bombs_left.setter
+    def bombs_left(self, value):
+        self.bomb_launcher.bombs_left = value
+
+    @property
+    def pending_bomb(self):
+        return self.bomb_launcher.pending_bomb
+
+    @pending_bomb.setter
+    def pending_bomb(self, value):
+        self.bomb_launcher.pending_bomb = value
+
+    @property
+    def bomb_cooldown(self):
+        return self.bomb_launcher.cooldown
+
+    @bomb_cooldown.setter
+    def bomb_cooldown(self, value):
+        self.bomb_launcher.cooldown = value
+
     def _sync_rect(self):
         """Collision box tracks the depth-scaled visual size, anchored at
         the same bottom-center point rendering draws the sprite at — so
@@ -68,7 +89,7 @@ class Player:
     def update(self, keys, dt):
         self._apply_horizontal_movement(keys)
         vdepth = self._apply_depth_movement(keys)
-        self.bomb_cooldown = max(0, self.bomb_cooldown - dt)
+        self.bomb_launcher.tick_cooldown(dt)
         spawn_bomb = self._apply_vertical_physics(dt)
         self._update_animation(dt, vdepth)
         self._sync_rect()
@@ -107,16 +128,13 @@ class Player:
             self.y = self.ground_y - self.height
 
         self.y += self.vy
-        spawn_bomb = False
-        if self.pending_bomb and old_vy < 0 and self.vy >= 0:
-            self.pending_bomb = False
-            spawn_bomb = True
+        spawn_bomb = self.bomb_launcher.check_apex(old_vy, self.vy)
 
         if self.y >= self.ground_y - self.height:
             self.y = self.ground_y - self.height
             self.vy = 0
             self.on_ground = True
-            self.pending_bomb = False
+            self.bomb_launcher.cancel_pending()
             if not was_on_ground:
                 self.land_timer = 120
 
@@ -137,10 +155,7 @@ class Player:
         if self.on_ground:
             self.vy = -GRAVITY * 24
             self.on_ground = False
-            if self.bombs_left > 0 and self.bomb_cooldown <= 0:
-                self.pending_bomb = True
-                self.bombs_left -= 1
-                self.bomb_cooldown = BOMB_COOLDOWN_MS
+            self.bomb_launcher.try_launch()
 
     def create_bomb(self):
         bomb_x = self.centerx
@@ -162,9 +177,7 @@ class Player:
         self.ground_y = ground_y_for_depth(self.depth)
         self.scale = scale_for_depth(self.depth)
         self.on_ground = data["on_ground"]
-        self.bombs_left = data["bombs_left"]
-        self.pending_bomb = data["pending_bomb"]
-        self.bomb_cooldown = data.get("bomb_cooldown", 0)
+        self.bomb_launcher.apply_dict(data)
         self._sync_rect()
 
     def apply_explosion(self, origin_x, origin_y, radius):
