@@ -66,6 +66,15 @@ class Player:
         self.rect.midbottom = (self.centerx, self.y + self.height)
 
     def update(self, keys, dt):
+        self._apply_horizontal_movement(keys)
+        vdepth = self._apply_depth_movement(keys)
+        self.bomb_cooldown = max(0, self.bomb_cooldown - dt)
+        spawn_bomb = self._apply_vertical_physics(dt)
+        self._update_animation(dt, vdepth)
+        self._sync_rect()
+        return spawn_bomb
+
+    def _apply_horizontal_movement(self, keys):
         self.vx = 0
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.vx = -PLAYER_SPEED
@@ -74,6 +83,11 @@ class Player:
         if self.vx != 0:
             self.facing = 1 if self.vx > 0 else -1
 
+        self.x += self.vx
+        margin = margin_for_depth(self.depth)
+        self.x = clamp(self.x, margin, WIDTH - margin - self.width)
+
+    def _apply_depth_movement(self, keys):
         vdepth = 0
         if keys[pygame.K_UP]:
             vdepth -= DEPTH_SPEED
@@ -82,11 +96,9 @@ class Player:
         self.depth = clamp(self.depth + vdepth, 0.0, 1.0)
         self.ground_y = ground_y_for_depth(self.depth)
         self.scale = scale_for_depth(self.depth)
+        return vdepth
 
-        self.x += self.vx
-        margin = margin_for_depth(self.depth)
-        self.x = clamp(self.x, margin, WIDTH - margin - self.width)
-
+    def _apply_vertical_physics(self, dt):
         old_vy = self.vy
         was_on_ground = self.on_ground
         if not self.on_ground:
@@ -95,7 +107,6 @@ class Player:
             self.y = self.ground_y - self.height
 
         self.y += self.vy
-        self.bomb_cooldown = max(0, self.bomb_cooldown - dt)
         spawn_bomb = False
         if self.pending_bomb and old_vy < 0 and self.vy >= 0:
             self.pending_bomb = False
@@ -110,7 +121,9 @@ class Player:
                 self.land_timer = 120
 
         self.land_timer = max(0, self.land_timer - dt)
+        return spawn_bomb
 
+    def _update_animation(self, dt, vdepth):
         if self.on_ground and (self.vx != 0 or vdepth != 0):
             self.anim_timer += dt
             if self.anim_timer >= FROG_ANIM_MS:
@@ -119,9 +132,6 @@ class Player:
         else:
             self.anim_timer = 0
             self.anim_index = 0
-
-        self._sync_rect()
-        return spawn_bomb
 
     def jump(self):
         if self.on_ground:
