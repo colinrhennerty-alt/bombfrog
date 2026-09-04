@@ -144,6 +144,15 @@ def test_create_bomb_spawns_at_players_feet():
     assert bomb.y == player.y + player.height
 
 
+def test_create_bomb_passes_players_jump_offset_as_fall_offset():
+    player = Player()
+    player.jump_offset = -63
+
+    bomb = player.create_bomb()
+
+    assert bomb.fall_offset == -63
+
+
 def test_explosion_outside_radius_has_no_effect():
     player = Player()
     player.x, player.y = 500, 500

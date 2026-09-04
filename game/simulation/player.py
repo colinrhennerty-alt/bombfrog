@@ -147,7 +147,7 @@ class Player:
     def create_bomb(self):
         bomb_x = self.centerx
         bomb_y = self.y + self.height
-        return Bomb(bomb_x, bomb_y)
+        return Bomb(bomb_x, bomb_y, fall_offset=self.jump_offset)
 
     @classmethod
     def from_dict(cls, data):
