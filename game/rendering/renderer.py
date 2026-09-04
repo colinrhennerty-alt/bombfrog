@@ -49,6 +49,7 @@ def draw_player(surface, player, camera):
 
 def draw_bomb(surface, bomb, camera):
     sx, sy = camera.apply(bomb.x, bomb.y)
+    sy -= bomb.fall_offset
     r = 14
     pygame.draw.circle(surface, bomb.color, (int(sx), int(sy)), r)
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)

@@ -103,6 +103,23 @@ def test_draw_bomb(surface, camera):
     rendering.draw_bomb(surface, Bomb(100, 100), camera)
 
 
+def test_draw_bomb_subtracts_fall_offset_from_screen_y(surface, camera, monkeypatch):
+    bomb = Bomb(100, 100, fall_offset=-30)
+    captured = {}
+    original_circle = pygame.draw.circle
+
+    def fake_circle(surface_, color, center, *args, **kwargs):
+        captured.setdefault("centers", []).append(center)
+        return original_circle(surface_, color, center, *args, **kwargs)
+
+    monkeypatch.setattr(pygame.draw, "circle", fake_circle)
+    rendering.draw_bomb(surface, bomb, camera)
+
+    expected_x, expected_y = camera.apply(bomb.x, bomb.y)
+    expected_y -= bomb.fall_offset
+    assert captured["centers"][0] == (int(expected_x), int(expected_y))
+
+
 def test_draw_bomb_explosion_radius(surface, camera):
     rendering.draw_bomb_explosion_radius(surface, Bomb(100, 100), camera)
 
