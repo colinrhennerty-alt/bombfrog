@@ -39,6 +39,7 @@ def test_save_and_load_round_trip(tmp_path):
     assert len(loaded["bombs"]) == 1
     assert loaded["bombs"][0]["x"] == 10
     assert loaded["bombs"][0]["y"] == 20
+    assert loaded["bombs"][0]["fall_offset"] == 0
 
     assert len(loaded["shards"]) == 1
     assert len(loaded["enemies"]) == 1
@@ -48,6 +49,18 @@ def test_save_and_load_round_trip(tmp_path):
     assert loaded["high_score"] == 99
     assert loaded["lives"] == 2
     assert loaded["last_spawn"] == 777
+
+
+def test_save_and_load_round_trips_bomb_fall_offset(tmp_path):
+    save_path = tmp_path / "save.json"
+    player = Player()
+    bombs = [Bomb(10, 20, fall_offset=-55)]
+
+    save_game(str(save_path), player, bombs, shards=[], enemies=[], score=0, high_score=0, lives=3, last_spawn=0)
+    loaded = load_game(str(save_path))
+    restored = Bomb.from_dict(loaded["bombs"][0])
+
+    assert restored.fall_offset == -55
 
 
 def test_enemy_from_dict_restores_state():

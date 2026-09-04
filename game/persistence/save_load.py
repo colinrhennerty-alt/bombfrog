@@ -20,6 +20,7 @@ def save_game(filename, player, bombs, shards, enemies, score, high_score, lives
                 "y": bomb.y,
                 "timer": bomb.timer,
                 "has_shrapnel": bomb.has_shrapnel,
+                "fall_offset": bomb.fall_offset,
             }
             for bomb in bombs
         ],
