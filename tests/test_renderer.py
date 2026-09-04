@@ -84,6 +84,22 @@ def test_draw_player_blits_sprite_sized_and_positioned_to_match_the_collision_re
     assert topleft == camera.apply_rect(player.rect).topleft
 
 
+def test_draw_player_moves_up_the_screen_while_airborne(camera):
+    # jump_offset accumulates negative while rising (Player._apply_jump_physics
+    # adds a negative vy each tick) — the drawn sprite must move to a smaller
+    # screen y (up), not a larger one (down), as it climbs.
+    player = Player()
+    player.on_ground = False
+    player.jump_offset = -50
+    fake_surface = _BlitRecordingSurface()
+
+    rendering.draw_player(fake_surface, player, camera)
+
+    _, topleft = fake_surface.captured
+    grounded_y = camera.apply_rect(player.rect).topleft[1]
+    assert topleft[1] < grounded_y
+
+
 def test_draw_enemy_draws_exactly_the_camera_translated_collision_rect(surface, camera, monkeypatch):
     enemy = Enemy("left", 500, 500)
     captured = {}
@@ -103,7 +119,10 @@ def test_draw_bomb(surface, camera):
     rendering.draw_bomb(surface, Bomb(100, 100), camera)
 
 
-def test_draw_bomb_subtracts_fall_offset_from_screen_y(surface, camera, monkeypatch):
+def test_draw_bomb_draws_above_ground_while_falling(surface, camera, monkeypatch):
+    # fall_offset is negative while the bomb is above the ground (it's seeded
+    # from the player's jump_offset, which uses the same convention) — the
+    # drawn position must be a smaller screen y (up), not larger (down).
     bomb = Bomb(100, 100, fall_offset=-30)
     captured = {}
     original_circle = pygame.draw.circle
@@ -115,9 +134,10 @@ def test_draw_bomb_subtracts_fall_offset_from_screen_y(surface, camera, monkeypa
     monkeypatch.setattr(pygame.draw, "circle", fake_circle)
     rendering.draw_bomb(surface, bomb, camera)
 
-    expected_x, expected_y = camera.apply(bomb.x, bomb.y)
-    expected_y -= bomb.fall_offset
-    assert captured["centers"][0] == (int(expected_x), int(expected_y))
+    ground_x, ground_y = camera.apply(bomb.x, bomb.y)
+    drawn_x, drawn_y = captured["centers"][0]
+    assert drawn_x == int(ground_x)
+    assert drawn_y < ground_y
 
 
 def test_draw_bomb_explosion_radius(surface, camera):

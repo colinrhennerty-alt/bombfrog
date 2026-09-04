@@ -43,13 +43,13 @@ def draw_player(surface, player, camera):
     # cell size, so the drawn sprite and the hitbox always match exactly.
     frame = pygame.transform.smoothscale(frame, player.rect.size)
     screen_rect = camera.apply_rect(player.rect)
-    screen_rect.y -= int(player.jump_offset)
+    screen_rect.y += int(player.jump_offset)
     surface.blit(frame, screen_rect.topleft)
 
 
 def draw_bomb(surface, bomb, camera):
     sx, sy = camera.apply(bomb.x, bomb.y)
-    sy -= bomb.fall_offset
+    sy += bomb.fall_offset
     r = 14
     pygame.draw.circle(surface, bomb.color, (int(sx), int(sy)), r)
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)
