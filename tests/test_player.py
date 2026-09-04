@@ -1,7 +1,6 @@
 import pygame
 
-from game.config import WIDTH, GRAVITY, DEPTH_SPEED
-from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
+from game.config import WORLD_WIDTH, WORLD_HEIGHT, PLAYER_SPEED, GRAVITY
 from game.simulation.player import Player
 
 NO_MOVE_KEYS = {
@@ -20,83 +19,66 @@ def test_player_starts_on_ground():
     player = Player()
     assert player.on_ground is True
     assert player.vy == 0
+    assert player.jump_offset == 0
 
 
-def test_player_spawns_at_default_depth_with_matching_ground_and_scale():
+def test_player_spawns_within_world_bounds():
     player = Player()
-    assert player.depth == 0.55
-    assert player.ground_y == ground_y_for_depth(0.55)
-    assert player.scale == scale_for_depth(0.55)
-    assert player.y == player.ground_y - player.height
+    assert 0 <= player.x <= WORLD_WIDTH - player.width
+    assert 0 <= player.y <= WORLD_HEIGHT - player.height
 
 
-def test_player_move_left_right_clamped_to_screen():
+def test_player_move_left_right_clamped_to_world():
     player = Player()
-    margin = margin_for_depth(player.depth)
 
     player.x = 0
     player.update(_keys({pygame.K_LEFT: True}), dt=16)
-    assert player.x == margin  # clamped at the depth-appropriate left bound
+    assert player.x == 0
 
-    player.x = WIDTH - player.width
+    player.x = WORLD_WIDTH - player.width
     player.update(_keys({pygame.K_RIGHT: True}), dt=16)
-    assert player.x == WIDTH - margin - player.width
+    assert player.x == WORLD_WIDTH - player.width
+
+
+def test_player_move_up_down_clamped_to_world():
+    player = Player()
+
+    player.y = 0
+    player.update(_keys({pygame.K_UP: True}), dt=16)
+    assert player.y == 0
+
+    player.y = WORLD_HEIGHT - player.height
+    player.update(_keys({pygame.K_DOWN: True}), dt=16)
+    assert player.y == WORLD_HEIGHT - player.height
+
+
+def test_player_moves_up_and_down_by_player_speed():
+    player = Player()
+    start_y = player.y
+    player.update(_keys({pygame.K_DOWN: True}), dt=16)
+    assert player.y == start_y + PLAYER_SPEED
+
+    player.update(_keys({pygame.K_UP: True}), dt=16)
+    assert player.y == start_y
 
 
 def test_player_falls_under_gravity_when_airborne():
     player = Player()
     player.on_ground = False
-    player.y = 0
+    player.vy = -5
     player.update(NO_MOVE_KEYS, dt=16)
-    assert player.vy == GRAVITY
+    assert player.vy == -5 + GRAVITY
 
 
-def test_player_lands_and_resets_vertical_velocity():
+def test_player_lands_and_resets_jump_offset():
     player = Player()
     player.on_ground = False
-    player.y = player.ground_y - player.height + 5
+    player.jump_offset = -5
     player.vy = 10
     player.update(NO_MOVE_KEYS, dt=16)
     assert player.on_ground is True
     assert player.vy == 0
-    assert player.y == player.ground_y - player.height
-
-
-def test_depth_movement_is_clamped_between_zero_and_one():
-    player = Player()
-    player.depth = 0.005
-    for _ in range(10):
-        player.update(_keys({pygame.K_UP: True}), dt=16)
-    assert player.depth == 0.0
-
-    player.depth = 0.995
-    for _ in range(10):
-        player.update(_keys({pygame.K_DOWN: True}), dt=16)
-    assert player.depth == 1.0
-
-
-def test_depth_movement_updates_ground_y_and_scale():
-    player = Player()
-    player.update(_keys({pygame.K_UP: True}), dt=16)
-    assert player.depth == 0.55 - DEPTH_SPEED
-    assert player.ground_y == ground_y_for_depth(player.depth)
-    assert player.scale == scale_for_depth(player.depth)
-
-
-def test_moving_toward_far_edge_narrows_x_bounds():
-    player = Player()
-    player.depth = 0.0  # far edge: widest margin, narrowest walkable area
-    player.x = 0
-    player.update(NO_MOVE_KEYS, dt=16)
-    assert player.x == margin_for_depth(0.0)
-    assert margin_for_depth(0.0) > margin_for_depth(1.0)
-
-
-def test_landing_snaps_y_to_ground_when_depth_changes_while_grounded():
-    player = Player()
-    assert player.on_ground is True
-    player.update(_keys({pygame.K_DOWN: True}), dt=16)
-    assert player.y == player.ground_y - player.height
+    assert player.jump_offset == 0
 
 
 def test_jump_launches_player_and_consumes_a_bomb():
@@ -126,6 +108,14 @@ def test_jump_skips_bomb_when_out_of_bombs():
     assert player.pending_bomb is False
 
 
+def test_jump_does_not_move_world_position():
+    player = Player()
+    start_x, start_y = player.x, player.y
+    player.jump()
+    player.update(NO_MOVE_KEYS, dt=16)
+    assert (player.x, player.y) == (start_x, start_y)
+
+
 def test_pending_bomb_spawns_at_the_apex_of_the_jump():
     player = Player()
     player.jump()
@@ -144,15 +134,14 @@ def test_pending_bomb_spawns_at_the_apex_of_the_jump():
     assert player.pending_bomb is False
 
 
-def test_create_bomb_inherits_players_depth_and_sits_on_its_ground():
+def test_create_bomb_spawns_at_players_feet():
     player = Player()
-    player.depth = 0.2
-    player.ground_y = ground_y_for_depth(0.2)
+    player.x, player.y = 300, 400
 
     bomb = player.create_bomb()
 
-    assert bomb.depth == 0.2
-    assert bomb.y == player.ground_y - 16
+    assert bomb.x == player.centerx
+    assert bomb.y == player.y + player.height
 
 
 def test_explosion_outside_radius_has_no_effect():
@@ -168,7 +157,7 @@ def test_explosion_outside_radius_has_no_effect():
 
 def test_explosion_inside_radius_launches_player_away():
     player = Player()
-    player.x, player.y = 200, player.ground_y - player.height
+    player.x, player.y = 200, 400
     player.vx, player.vy = 0, 0
     player.on_ground = True
 
@@ -214,19 +203,15 @@ def test_player_apply_dict_overwrites_an_existing_player_in_place():
     assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
 
 
-def test_player_rect_matches_depth_scaled_size():
+def test_player_rect_matches_fixed_size():
     player = Player()
-    expected_w = max(1, int(player.width * player.scale))
-    expected_h = max(1, int(player.height * player.scale))
-    assert player.rect.size == (expected_w, expected_h)
+    assert player.rect.size == (player.width, player.height)
     assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
 
 
-def test_player_rect_resizes_when_depth_changes():
+def test_player_rect_tracks_world_position_after_move():
     player = Player()
-    player.update(_keys({pygame.K_UP: True}), dt=16)
+    player.update(_keys({pygame.K_DOWN: True}), dt=16)
 
-    expected_w = max(1, int(player.width * player.scale))
-    expected_h = max(1, int(player.height * player.scale))
-    assert player.rect.size == (expected_w, expected_h)
+    assert player.rect.size == (player.width, player.height)
     assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))

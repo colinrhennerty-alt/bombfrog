@@ -33,10 +33,6 @@ def run_game():
 
         screen.fill((18, 30, 50))
 
-        # simple parallax background using player X as camera when playing
-        cam_x = int(app.world.player.x - WIDTH // 2) if (app.world and app.state == "playing") else 0
-        rendering.draw_parallax_background(screen, cam_x)
-
         if app.state == "menu":
             rendering.draw_menu(screen, font, small_font, app.menu_options, app.selected)
 
@@ -44,10 +40,10 @@ def run_game():
             app.tick(keys, dt, now)
             world = app.world
 
-            rendering.draw_ground(screen)
-            rendering.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects)
+            rendering.draw_ground(screen, world.camera)
+            rendering.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects, world.camera)
             if app.debug:
-                rendering.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies)
+                rendering.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies, world.camera)
             rendering.draw_hud(screen, font, small_font, world.score, app.high_score, world.player.bombs_left, world.lives, world.player.bomb_cooldown)
 
             if world.game_over:

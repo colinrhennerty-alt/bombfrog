@@ -13,13 +13,13 @@ was a variable in run_game() that start_new_game() never touched.
 import math
 import random
 
-from game.config import MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.simulation.explosion_effect import ExplosionEffect
-from game.simulation.depth import same_plane
+from game.simulation.camera import Camera
 from game.simulation import debug_log
 
 
@@ -33,6 +33,7 @@ def _load_bombs_shards_enemies(data):
 class World:
     def __init__(self, now=0):
         self.debug = False
+        self.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         self.reset(now)
 
     def reset(self, now=0):
@@ -50,12 +51,14 @@ class World:
         self.effects = []
         self.game_over = False
         self.last_spawn = now
+        self.camera.follow(self.player.centerx, self.player.centery)
 
     @classmethod
     def from_save_data(cls, data, now=0):
         """Build a fresh World from a save dict (the menu's "Load Game")."""
         world = cls.__new__(cls)
         world.debug = False
+        world.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         world.player = Player.from_dict(data["player"])
         world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
         world.score = data.get("score", 0)
@@ -63,6 +66,7 @@ class World:
         world.last_spawn = data.get("last_spawn", now)
         world.effects = []
         world.game_over = False
+        world.camera.follow(world.player.centerx, world.player.centery)
         return world
 
     def merge_save_data(self, data):
@@ -72,12 +76,14 @@ class World:
         self.score = data.get("score", self.score)
         self.lives = data.get("lives", self.lives)
         self.last_spawn = data.get("last_spawn", self.last_spawn)
+        self.camera.follow(self.player.centerx, self.player.centery)
 
     def update(self, keys, dt, now):
         if self.game_over:
             return
 
         self._update_player(keys, dt)
+        self._update_camera()
         self._maybe_spawn_enemy(now)
         self._update_bombs(dt)
         self._update_enemies(dt, now)
@@ -93,10 +99,15 @@ class World:
         if spawn_bomb:
             self.bombs.append(self.player.create_bomb())
 
+    def _update_camera(self):
+        self.camera.follow(self.player.centerx, self.player.centery)
+
     def _maybe_spawn_enemy(self, now):
         if len(self.enemies) < MAX_ENEMIES and now - self.last_spawn >= ENEMY_SPAWN_MS:
             side = random.choice(["left", "right"])
-            self.enemies.append(Enemy(side))
+            self.enemies.append(
+                Enemy(side, self.player.centerx, self.player.centery, camera=self.camera)
+            )
             self.last_spawn = now
 
     def _bomb_should_explode(self, bomb):
@@ -117,7 +128,7 @@ class World:
         for enemy in self.enemies:
             if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
                 if self.debug:
-                    debug_log.log(f"bomb killed enemy (type={enemy.type}, depth={enemy.depth:.2f})")
+                    debug_log.log(f"bomb killed enemy (type={enemy.type})")
                 enemy.take_damage()
         if bomb.has_shrapnel:
             self.shards.extend(
@@ -153,15 +164,11 @@ class World:
             if enemy.dead:
                 self._kill_enemy(enemy)
             elif enemy.rect.colliderect(self.player.rect):
-                depth_gap = abs(enemy.depth - self.player.depth)
-                if same_plane(enemy.depth, self.player.depth):
-                    if self.debug:
-                        debug_log.log(f"enemy hit player (Δdepth={depth_gap:.2f})")
-                    self._lose_a_life(now)
-                    if not self.game_over:
-                        break
-                elif self.debug:
-                    debug_log.log(f"enemy-player rect overlap suppressed: different z-plane (Δdepth={depth_gap:.2f})")
+                if self.debug:
+                    debug_log.log("enemy hit player")
+                self._lose_a_life(now)
+                if not self.game_over:
+                    break
 
     def _damage_enemy_with_touching_shard(self, enemy):
         for shard in self.shards[:]:

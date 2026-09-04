@@ -16,14 +16,13 @@ def test_save_and_load_round_trip(tmp_path):
     player = Player()
     player.x, player.y = 123, 45
     player.vx, player.vy = 1, -2
-    player.depth = 0.4
     player.bombs_left = 1
     player.pending_bomb = True
     player.bomb_cooldown = 250
 
-    bombs = [Bomb(10, 20, depth=0.7)]
+    bombs = [Bomb(10, 20)]
     shards = [Shard(30, 40, angle=0, speed=5)]
-    enemies = [Enemy("left")]
+    enemies = [Enemy("left", 500, 500)]
 
     save_game(str(save_path), player, bombs, shards, enemies, score=42, high_score=99, lives=2, last_spawn=777)
 
@@ -37,17 +36,13 @@ def test_save_and_load_round_trip(tmp_path):
     assert loaded["player"]["pending_bomb"] is True
     assert loaded["player"]["bomb_cooldown"] == 250
 
-    assert loaded["player"]["depth"] == 0.4
-
     assert len(loaded["bombs"]) == 1
     assert loaded["bombs"][0]["x"] == 10
     assert loaded["bombs"][0]["y"] == 20
-    assert loaded["bombs"][0]["depth"] == 0.7
 
     assert len(loaded["shards"]) == 1
     assert len(loaded["enemies"]) == 1
     assert loaded["enemies"][0]["type"] == enemies[0].type
-    assert loaded["enemies"][0]["depth"] == enemies[0].depth
 
     assert loaded["score"] == 42
     assert loaded["high_score"] == 99
@@ -56,7 +51,7 @@ def test_save_and_load_round_trip(tmp_path):
 
 
 def test_enemy_from_dict_restores_state():
-    enemy = Enemy("left")
+    enemy = Enemy("left", 500, 500)
     enemy.x, enemy.y, enemy.vx = 111, 222, -2.2
     enemy.dead = False
     enemy.hp = 2

@@ -2,7 +2,7 @@ import math
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, GRAVITY, SHARD_LIFETIME
+from game.config import WORLD_WIDTH, WORLD_HEIGHT, GRAVITY, SHARD_LIFETIME
 
 
 class Shard:
@@ -34,4 +34,4 @@ class Shard:
         self.rect.topleft = (self.x - self.radius, self.y - self.radius)
 
     def is_alive(self):
-        return self.life > 0 and 0 <= self.x <= WIDTH and 0 <= self.y <= HEIGHT
+        return self.life > 0 and 0 <= self.x <= WORLD_WIDTH and 0 <= self.y <= WORLD_HEIGHT

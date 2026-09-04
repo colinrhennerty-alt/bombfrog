@@ -9,17 +9,16 @@ import math
 import pygame
 
 from game.config import (
-    WIDTH,
+    WORLD_WIDTH,
+    WORLD_HEIGHT,
     PLAYER_SPEED,
     GRAVITY,
     BOMB_FORCE,
-    DEPTH_SPEED,
     FROG_ANIM_MS,
     FROG_IDLE_FRAME_COUNT,
 )
 from game.utils import clamp
-from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
-from game.simulation.hitbox import sync_rect_for_depth
+from game.simulation.hitbox import sync_rect
 from game.simulation.bomb import Bomb
 from game.simulation.bomb_launcher import BombLauncher
 
@@ -28,14 +27,11 @@ class Player:
     def __init__(self):
         self.width = 52
         self.height = 40
-        self.depth = 0.55
-        self.ground_y = ground_y_for_depth(self.depth)
-        self.scale = scale_for_depth(self.depth)
-        margin = margin_for_depth(self.depth)
-        self.x = clamp(WIDTH // 2 - self.width // 2, margin, WIDTH - margin - self.width)
-        self.y = self.ground_y - self.height
+        self.x = clamp(WORLD_WIDTH // 2 - self.width // 2, 0, WORLD_WIDTH - self.width)
+        self.y = clamp(WORLD_HEIGHT // 2 - self.height // 2, 0, WORLD_HEIGHT - self.height)
         self.vx = 0
         self.vy = 0
+        self.jump_offset = 0
         self.on_ground = True
         self.bomb_launcher = BombLauncher()
         self.color = (43, 175, 76)
@@ -79,14 +75,14 @@ class Player:
         self.bomb_launcher.cooldown = value
 
     def _sync_rect(self):
-        self.rect = sync_rect_for_depth(self.x, self.y, self.width, self.height, self.depth)
+        self.rect = sync_rect(self.x, self.y, self.width, self.height)
 
     def update(self, keys, dt):
         self._apply_horizontal_movement(keys)
-        vdepth = self._apply_depth_movement(keys)
+        vy_input = self._apply_vertical_movement(keys)
         self.bomb_launcher.tick_cooldown(dt)
-        spawn_bomb = self._apply_vertical_physics(dt)
-        self._update_animation(dt, vdepth)
+        spawn_bomb = self._apply_jump_physics(dt)
+        self._update_animation(dt, vy_input)
         self._sync_rect()
         return spawn_bomb
 
@@ -100,33 +96,29 @@ class Player:
             self.facing = 1 if self.vx > 0 else -1
 
         self.x += self.vx
-        margin = margin_for_depth(self.depth)
-        self.x = clamp(self.x, margin, WIDTH - margin - self.width)
+        self.x = clamp(self.x, 0, WORLD_WIDTH - self.width)
 
-    def _apply_depth_movement(self, keys):
-        vdepth = 0
+    def _apply_vertical_movement(self, keys):
+        vy_input = 0
         if keys[pygame.K_UP]:
-            vdepth -= DEPTH_SPEED
+            vy_input = -PLAYER_SPEED
         if keys[pygame.K_DOWN]:
-            vdepth += DEPTH_SPEED
-        self.depth = clamp(self.depth + vdepth, 0.0, 1.0)
-        self.ground_y = ground_y_for_depth(self.depth)
-        self.scale = scale_for_depth(self.depth)
-        return vdepth
+            vy_input = PLAYER_SPEED
+        self.y += vy_input
+        self.y = clamp(self.y, 0, WORLD_HEIGHT - self.height)
+        return vy_input
 
-    def _apply_vertical_physics(self, dt):
+    def _apply_jump_physics(self, dt):
         old_vy = self.vy
         was_on_ground = self.on_ground
         if not self.on_ground:
             self.vy += GRAVITY
-        else:
-            self.y = self.ground_y - self.height
+            self.jump_offset += self.vy
 
-        self.y += self.vy
         spawn_bomb = self.bomb_launcher.check_apex(old_vy, self.vy)
 
-        if self.y >= self.ground_y - self.height:
-            self.y = self.ground_y - self.height
+        if self.jump_offset >= 0:
+            self.jump_offset = 0
             self.vy = 0
             self.on_ground = True
             self.bomb_launcher.cancel_pending()
@@ -136,8 +128,8 @@ class Player:
         self.land_timer = max(0, self.land_timer - dt)
         return spawn_bomb
 
-    def _update_animation(self, dt, vdepth):
-        if self.on_ground and (self.vx != 0 or vdepth != 0):
+    def _update_animation(self, dt, vy_input):
+        if self.on_ground and (self.vx != 0 or vy_input != 0):
             self.anim_timer += dt
             if self.anim_timer >= FROG_ANIM_MS:
                 self.anim_timer = 0
@@ -154,8 +146,8 @@ class Player:
 
     def create_bomb(self):
         bomb_x = self.centerx
-        bomb_y = self.ground_y - 16
-        return Bomb(bomb_x, bomb_y, self.depth)
+        bomb_y = self.y + self.height
+        return Bomb(bomb_x, bomb_y)
 
     @classmethod
     def from_dict(cls, data):
@@ -168,9 +160,6 @@ class Player:
         self.y = data["y"]
         self.vx = data["vx"]
         self.vy = data["vy"]
-        self.depth = data.get("depth", self.depth)
-        self.ground_y = ground_y_for_depth(self.depth)
-        self.scale = scale_for_depth(self.depth)
         self.on_ground = data["on_ground"]
         self.bomb_launcher.apply_dict(data)
         self._sync_rect()
