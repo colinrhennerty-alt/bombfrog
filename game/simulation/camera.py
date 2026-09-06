@@ -1,9 +1,17 @@
 """Pure math for the camera: tracks a target in world space and produces
 a world -> screen translation, clamped so the viewport never shows past
-the world's edges. No pygame dependency — used by both simulation
-(game.simulation.world, to own/update it) and rendering (to translate
-entity positions before drawing).
+the world's edges. Used by both simulation (game.simulation.world, to
+own/update it) and rendering (to translate entity positions before
+drawing).
+
+The one deliberate exception to "no pygame dependency": apply_rect
+translates a domain Rect (game.simulation.rect) into a pygame.Rect for
+drawing — this is the anti-corruption-layer boundary where pygame enters
+the simulation package, kept to this one function rather than leaking
+into Player/Enemy/Bomb/Shard.
 """
+
+import pygame
 
 from game.utils import clamp
 
@@ -64,7 +72,6 @@ class Camera:
         return world_x - self.x, world_y - self.y
 
     def apply_rect(self, rect):
-        screen_rect = rect.copy()
-        screen_rect.x -= int(self.x)
-        screen_rect.y -= int(self.y)
-        return screen_rect
+        """Translate a domain Rect to a pygame.Rect in screen space —
+        the ACL boundary between game.simulation and pygame."""
+        return pygame.Rect(rect.x - int(self.x), rect.y - int(self.y), rect.width, rect.height)

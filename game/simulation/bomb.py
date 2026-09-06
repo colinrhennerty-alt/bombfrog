@@ -1,8 +1,7 @@
 import random
 
-import pygame
-
 from game.config import BOMB_RADIUS, BOMB_FUSE_MS, BOMB_FALL_SPEED, BOMB_CONTACT_GRACE_MS
+from game.simulation.rect import Rect
 
 
 class Bomb:
@@ -15,7 +14,7 @@ class Bomb:
         self.has_shrapnel = rng.random() < 0.05
         self.fall_offset = fall_offset
         self.age_ms = 0
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+        self.rect = Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
     @property
     def shadow_anchor(self):
@@ -60,7 +59,7 @@ class Bomb:
 
     def update(self, dt):
         self.timer -= dt
-        self.rect.center = (self.x, self.y)
+        self.rect = self.rect.recentered(self.x, self.y)
         self._ease_fall_offset(dt)
         self.age_ms += dt
 

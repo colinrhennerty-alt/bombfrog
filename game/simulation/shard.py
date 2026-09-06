@@ -1,8 +1,7 @@
 import math
 
-import pygame
-
 from game.config import WORLD_WIDTH, WORLD_HEIGHT, GRAVITY, SHARD_LIFETIME
+from game.simulation.rect import Rect
 
 
 class Shard:
@@ -14,7 +13,7 @@ class Shard:
         self.life = SHARD_LIFETIME
         self.radius = 4
         self.color = color or (255, 220, 100)
-        self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
+        self.rect = Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
     @classmethod
     def from_dict(cls, data):
@@ -23,7 +22,7 @@ class Shard:
         shard.vy = data["vy"]
         shard.life = data["life"]
         shard.color = tuple(data["color"])
-        shard.rect.topleft = (shard.x - shard.radius, shard.y - shard.radius)
+        shard.rect = shard.rect.moved_topleft(shard.x - shard.radius, shard.y - shard.radius)
         return shard
 
     def to_dict(self):
@@ -41,7 +40,7 @@ class Shard:
         self.x += self.vx
         self.y += self.vy
         self.life -= dt
-        self.rect.topleft = (self.x - self.radius, self.y - self.radius)
+        self.rect = self.rect.moved_topleft(self.x - self.radius, self.y - self.radius)
 
     def is_alive(self):
         return self.life > 0 and 0 <= self.x <= WORLD_WIDTH and 0 <= self.y <= WORLD_HEIGHT

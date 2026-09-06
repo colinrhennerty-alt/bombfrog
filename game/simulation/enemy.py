@@ -1,12 +1,11 @@
 import math
 import random
 
-import pygame
-
 from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
 from game.simulation.hitbox import sync_rect
+from game.simulation.rect import Rect
 from game.simulation.shard import Shard
 
 
@@ -42,7 +41,7 @@ class Enemy:
             WORLD_HEIGHT - WORLD_BORDER - self.height,
         )
         self.color = ENEMY_TYPES[self.type].color
-        self.rect = pygame.Rect(0, 0, self.width, self.height)
+        self.rect = Rect(0, 0, self.width, self.height)
         self.dead = False
         self.max_hp = ENEMY_TYPES[self.type].max_hp
         self.hp = self.max_hp
@@ -100,7 +99,7 @@ class Enemy:
         enemy.vx = data["vx"]
         enemy.type = data["type"]
         enemy.color = ENEMY_TYPES[enemy.type].color
-        enemy.rect = pygame.Rect(0, 0, enemy.width, enemy.height)
+        enemy.rect = Rect(0, 0, enemy.width, enemy.height)
         enemy._sync_rect()
         enemy.dead = data["dead"]
         enemy.max_hp = ENEMY_TYPES[enemy.type].max_hp

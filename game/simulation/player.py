@@ -19,6 +19,8 @@ from game.config import (
     FROG_IDLE_FRAME_COUNT,
 )
 from game.utils import clamp
+from game.simulation.position import Position
+from game.simulation.rect import Rect
 from game.simulation.hitbox import sync_rect
 from game.simulation.bomb import Bomb
 from game.simulation.bomb_launcher import BombLauncher
@@ -28,15 +30,19 @@ class Player:
     def __init__(self):
         self.width = 52
         self.height = 40
-        self.x = clamp(WORLD_WIDTH // 2 - self.width // 2, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
-        self.y = clamp(WORLD_HEIGHT // 2 - self.height // 2, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
+        spawn = Position(WORLD_WIDTH // 2 - self.width // 2, WORLD_HEIGHT // 2 - self.height // 2).clamped(
+            WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width,
+            WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height,
+        )
+        self.x = spawn.x
+        self.y = spawn.y
         self.vx = 0
         self.vy = 0
         self.jump_offset = 0
         self.on_ground = True
         self.bomb_launcher = BombLauncher()
         self.color = (43, 175, 76)
-        self.rect = pygame.Rect(0, 0, self.width, self.height)
+        self.rect = Rect(0, 0, self.width, self.height)
         self.facing = 1
         self.anim_timer = 0
         self.anim_index = 0

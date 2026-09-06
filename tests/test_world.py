@@ -19,7 +19,7 @@ NO_KEYS = {
 
 def _place_enemy_at(enemy, x, y):
     enemy.x, enemy.y = x, y
-    enemy.rect.topleft = (x, y)
+    enemy.rect = enemy.rect.moved_topleft(x, y)
 
 
 def _new_enemy(x=500, y=500):

@@ -6,14 +6,14 @@ game.rendering.renderer's getattr/hasattr fallbacks.
 
 from typing import Protocol, Tuple, runtime_checkable
 
-import pygame
+from game.simulation.rect import Rect
 
 
 @runtime_checkable
 class Entity(Protocol):
     x: float
     y: float
-    rect: pygame.Rect
+    rect: Rect
 
     @property
     def shadow_anchor(self) -> Tuple[float, float]:
