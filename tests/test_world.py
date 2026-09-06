@@ -65,6 +65,27 @@ def test_bomb_explosion_on_fuse_damages_nearby_enemy_and_scores():
     assert world.score == 100 + 1  # kill bonus + this frame's score tick
 
 
+def test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy():
+    # Reported bug: "I don't see the bomb drop when I am over an enemy."
+    # A bomb created via Player.create_bomb() at the jump apex directly
+    # above an enemy would previously spawn and contact-explode in the
+    # same world.update() call — the bomb never rendered for even one
+    # frame. A bomb must survive the tick it's created on regardless of
+    # what it's overlapping, then behave normally afterward.
+    world = World(now=0)
+    enemy = _new_enemy()
+    bomb = Bomb(enemy.x, enemy.y)  # spawned already overlapping the enemy
+    _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
+    world.bombs = [bomb]
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+    assert world.bombs == [bomb]  # still alive after its first tick
+
+    world.update(NO_KEYS, dt=16, now=1016)
+    assert world.bombs == []  # now detonates, same as always
+
+
 def test_bomb_explodes_on_enemy_contact_even_before_fuse_expires():
     bomb = Bomb(100, 100)
     bomb.timer = BOMB_FUSE_MS  # nowhere near its own fuse
@@ -75,7 +96,11 @@ def test_bomb_explodes_on_enemy_contact_even_before_fuse_expires():
     world.bombs = [bomb]
     world.enemies = [enemy]
 
+    # A bomb always survives the very first tick after it's placed (see
+    # test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy),
+    # so contact-triggering shows up starting on the second tick here.
     world.update(NO_KEYS, dt=1, now=1000)
+    world.update(NO_KEYS, dt=1, now=1001)
 
     assert world.bombs == []  # detonated on contact, not from the fuse
 
@@ -257,7 +282,7 @@ def test_bomb_should_explode_when_fuse_is_ready():
     world = World(now=0)
     bomb = Bomb(100, 100)
     bomb.timer = 0
-    assert world._bomb_should_explode(bomb) is True
+    assert world._bomb_should_explode(bomb, contact_armed=False) is True
 
 
 def test_bomb_should_explode_on_enemy_contact_even_with_fuse_unready():
@@ -267,7 +292,21 @@ def test_bomb_should_explode_on_enemy_contact_even_with_fuse_unready():
     enemy = _new_enemy()
     _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
     world.enemies = [enemy]
-    assert world._bomb_should_explode(bomb) is True
+    assert world._bomb_should_explode(bomb, contact_armed=True) is True
+
+
+def test_bomb_does_not_contact_explode_before_its_first_tick():
+    # A bomb that hasn't survived a tick yet (contact_armed=False) must
+    # not contact-explode even while overlapping an enemy — see
+    # test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy
+    # for the end-to-end version of this via world.update().
+    world = World(now=0)
+    bomb = Bomb(100, 100)
+    bomb.timer = BOMB_FUSE_MS
+    enemy = _new_enemy()
+    _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
+    world.enemies = [enemy]
+    assert world._bomb_should_explode(bomb, contact_armed=False) is False
 
 
 def test_bomb_should_not_explode_when_fuse_unready_and_no_contact():
@@ -277,7 +316,7 @@ def test_bomb_should_not_explode_when_fuse_unready_and_no_contact():
     enemy = _new_enemy()
     _place_enemy_at(enemy, 5000, 5000)  # nowhere near the bomb
     world.enemies = [enemy]
-    assert world._bomb_should_explode(bomb) is False
+    assert world._bomb_should_explode(bomb, contact_armed=True) is False
 
 
 # --- debug-mode collision logging ------------------------------------------
@@ -321,7 +360,9 @@ def test_logs_bomb_contact_trigger(capsys):
     world.bombs = [bomb]
     world.enemies = [enemy]
 
-    world.update(NO_KEYS, dt=1, now=1000)
+    world.update(NO_KEYS, dt=1, now=1000)  # bomb survives its first tick
+    capsys.readouterr()  # discard this tick's output
+    world.update(NO_KEYS, dt=1, now=1001)
 
     out = capsys.readouterr().out
     assert "[debug]" in out

@@ -2,6 +2,29 @@ from game.config import BOMB_FUSE_MS, BOMB_FALL_SPEED
 from game.simulation.bomb import Bomb
 
 
+def test_bomb_starts_unarmed():
+    # A freshly spawned bomb must survive at least one rendered frame
+    # before it can contact-explode — otherwise a bomb dropped directly
+    # on an enemy (e.g. jumping right over one) explodes in the same
+    # simulation tick it's created, so the player never sees it exist.
+    bomb = Bomb(100, 100)
+    assert bomb.armed is False
+
+
+def test_bomb_becomes_armed_after_its_first_update():
+    bomb = Bomb(100, 100)
+    bomb.update(dt=16)
+    assert bomb.armed is True
+
+
+def test_bomb_loaded_from_a_save_is_already_armed():
+    # A bomb round-tripped through save/load already existed in the world
+    # for at least one tick before saving — it must not get a fresh
+    # one-tick contact-immunity grace period every time a save is loaded.
+    bomb = Bomb.from_dict({"x": 100, "y": 100, "timer": 500})
+    assert bomb.armed is True
+
+
 def test_bomb_not_ready_before_fuse_expires():
     bomb = Bomb(100, 100)
     bomb.update(dt=BOMB_FUSE_MS - 1)

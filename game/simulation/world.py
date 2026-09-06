@@ -110,11 +110,18 @@ class World:
             )
             self.last_spawn = now
 
-    def _bomb_should_explode(self, bomb):
+    def _bomb_should_explode(self, bomb, contact_armed):
         """A bomb detonates once its fuse expires, or the instant any
-        enemy touches it — whichever comes first."""
+        enemy touches it — whichever comes first. Contact-triggering is
+        gated by contact_armed (whether the bomb existed before this
+        tick) so a bomb spawned already overlapping an enemy — e.g.
+        dropped at the apex of a jump directly over one — always
+        survives its first tick instead of exploding before ever being
+        rendered."""
         if bomb.is_ready():
             return True
+        if not contact_armed:
+            return False
         touching_enemy = next((e for e in self.enemies if bomb.rect.colliderect(e.rect)), None)
         if touching_enemy is not None:
             if self.debug:
@@ -141,8 +148,9 @@ class World:
 
     def _update_bombs(self, dt):
         for bomb in self.bombs[:]:
+            contact_armed = bomb.armed
             bomb.update(dt)
-            if self._bomb_should_explode(bomb):
+            if self._bomb_should_explode(bomb, contact_armed):
                 self._explode_bomb(bomb)
 
     def _lose_a_life(self, now):
