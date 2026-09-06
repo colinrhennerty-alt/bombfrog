@@ -8,6 +8,7 @@ active display mode, which isn't set up yet at import time.
 import pygame
 
 TILE_PATH = "assets/isometric tileset/separated images/tile_022.png"
+STONE_TILE_PATH = "assets/isometric tileset/separated images/tile_063.png"
 TILE_WIDTH = 64
 TILE_HEIGHT = 64
 
@@ -20,15 +21,23 @@ TILE_HEIGHT = 64
 TILE_FOOTPRINT_HEIGHT = TILE_WIDTH * 24 / 32
 
 _grass_tile_cache = None
+_stone_tile_cache = None
 
 
-def _load_grass_tile():
-    tile = pygame.image.load(TILE_PATH).convert_alpha()
+def _load_tile(path):
+    tile = pygame.image.load(path).convert_alpha()
     return pygame.transform.scale(tile, (TILE_WIDTH, TILE_HEIGHT))
 
 
 def get_grass_tile():
     global _grass_tile_cache
     if _grass_tile_cache is None:
-        _grass_tile_cache = _load_grass_tile()
+        _grass_tile_cache = _load_tile(TILE_PATH)
     return _grass_tile_cache
+
+
+def get_stone_tile():
+    global _stone_tile_cache
+    if _stone_tile_cache is None:
+        _stone_tile_cache = _load_tile(STONE_TILE_PATH)
+    return _stone_tile_cache
