@@ -167,18 +167,30 @@ class World:
 
     def _update_enemies(self, dt, now):
         for enemy in self.enemies[:]:
-            enemy.update(dt)
-            if not enemy.dead:
-                self._damage_enemy_with_touching_shard(enemy)
-
-            if enemy.dead:
-                self._kill_enemy(enemy)
-            elif self.player.on_ground and enemy.rect.colliderect(self.player.rect):
-                if self.debug:
-                    debug_log.log("enemy hit player")
+            self._advance_enemy(enemy, dt)
+            if self._enemy_hits_player(enemy):
                 self._lose_a_life(now)
                 if not self.game_over:
                     break
+
+    def _advance_enemy(self, enemy, dt):
+        """Movement, shard damage, and death for one enemy this tick."""
+        enemy.update(dt)
+        if not enemy.dead:
+            self._damage_enemy_with_touching_shard(enemy)
+        if enemy.dead:
+            self._kill_enemy(enemy)
+
+    def _enemy_hits_player(self, enemy):
+        """True if `enemy` (already advanced this tick) is alive, still
+        in the list, and just touched a grounded player."""
+        if enemy.dead or enemy not in self.enemies:
+            return False
+        if not (self.player.on_ground and enemy.rect.colliderect(self.player.rect)):
+            return False
+        if self.debug:
+            debug_log.log("enemy hit player")
+        return True
 
     def _damage_enemy_with_touching_shard(self, enemy):
         for shard in self.shards[:]:
