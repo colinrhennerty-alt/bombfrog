@@ -21,6 +21,7 @@ from game.simulation.enemy import Enemy
 from game.simulation.explosion_effect import ExplosionEffect
 from game.simulation.camera import Camera
 from game.simulation import debug_log
+from game.persistence.save_load import save_game
 
 
 def _load_bombs_shards_enemies(data):
@@ -68,6 +69,15 @@ class World:
         world.game_over = False
         world.camera.snap_to(world.player.centerx, world.player.centery)
         return world
+
+    def save(self, filename, high_score):
+        """Persist this round to `filename`. `high_score` is session-level
+        state World doesn't own (see the module docstring), so it's the
+        one field the caller must still supply."""
+        save_game(
+            filename, self.player, self.bombs, self.shards, self.enemies,
+            self.score, high_score, self.lives, self.last_spawn,
+        )
 
     def merge_save_data(self, data):
         """Overlay a save dict onto this in-progress round (in-game load)."""

@@ -4,48 +4,10 @@ import os
 
 def save_game(filename, player, bombs, shards, enemies, score, high_score, lives, last_spawn):
     state = {
-        "player": {
-            "x": player.x,
-            "y": player.y,
-            "vx": player.vx,
-            "vy": player.vy,
-            "on_ground": player.on_ground,
-            "bombs_left": player.bombs_left,
-            "pending_bomb": player.pending_bomb,
-            "bomb_cooldown": player.bomb_cooldown,
-        },
-        "bombs": [
-            {
-                "x": bomb.x,
-                "y": bomb.y,
-                "timer": bomb.timer,
-                "has_shrapnel": bomb.has_shrapnel,
-                "fall_offset": bomb.fall_offset,
-            }
-            for bomb in bombs
-        ],
-        "shards": [
-            {
-                "x": shard.x,
-                "y": shard.y,
-                "vx": shard.vx,
-                "vy": shard.vy,
-                "life": shard.life,
-                "color": list(shard.color),
-            }
-            for shard in shards
-        ],
-        "enemies": [
-            {
-                "x": enemy.x,
-                "y": enemy.y,
-                "vx": enemy.vx,
-                "type": enemy.type,
-                "dead": enemy.dead,
-                "hp": enemy.hp,
-            }
-            for enemy in enemies
-        ],
+        "player": player.to_dict(),
+        "bombs": [bomb.to_dict() for bomb in bombs],
+        "shards": [shard.to_dict() for shard in shards],
+        "enemies": [enemy.to_dict() for enemy in enemies],
         "score": score,
         "high_score": high_score,
         "lives": lives,

@@ -175,3 +175,17 @@ def test_bomb_shadow_anchor_is_its_center_not_its_feet():
     # (see rendering.draw_scene).
     bomb = Bomb(100, 100)
     assert bomb.shadow_anchor == bomb.rect.center
+
+
+def test_bomb_to_dict_round_trips_through_from_dict():
+    original = Bomb(50, 60, fall_offset=-40)
+    original.timer = 321
+    original.has_shrapnel = True
+
+    restored = Bomb.from_dict(original.to_dict())
+
+    assert restored.x == original.x
+    assert restored.y == original.y
+    assert restored.timer == original.timer
+    assert restored.has_shrapnel == original.has_shrapnel
+    assert restored.fall_offset == original.fall_offset

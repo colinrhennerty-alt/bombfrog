@@ -159,3 +159,18 @@ def test_enemy_shadow_anchor_is_its_feet_not_its_topleft():
     # every drawable entity exposes (see rendering.draw_scene).
     enemy = Enemy("left", 500, 500)
     assert enemy.shadow_anchor == enemy.rect.midbottom
+
+
+def test_enemy_to_dict_round_trips_through_from_dict():
+    original = Enemy("left", 500, 500)
+    original.x, original.y, original.vx = 111, 222, -2.2
+    original.hp = 2
+
+    restored = Enemy.from_dict(original.to_dict())
+
+    assert restored.x == original.x
+    assert restored.y == original.y
+    assert restored.vx == original.vx
+    assert restored.type == original.type
+    assert restored.dead == original.dead
+    assert restored.hp == original.hp

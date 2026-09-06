@@ -7,7 +7,7 @@ pump and handing frames to game.rendering.
 """
 
 from game.config import SAVE_FILE
-from game.persistence.save_load import save_game, load_game
+from game.persistence.save_load import load_game
 from game.simulation.world import World
 
 
@@ -60,11 +60,7 @@ class GameApp:
             if self.world.game_over:
                 self.world.reset(now)
         elif action == "save":
-            save_game(
-                self.save_file, self.world.player, self.world.bombs, self.world.shards,
-                self.world.enemies, self.world.score, self.high_score, self.world.lives,
-                self.world.last_spawn,
-            )
+            self.world.save(self.save_file, self.high_score)
         elif action == "load":
             loaded = load_game(self.save_file)
             if loaded:

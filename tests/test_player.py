@@ -235,3 +235,22 @@ def test_player_rect_tracks_world_position_after_move():
 
     assert player.rect.size == (player.width, player.height)
     assert player.rect.midbottom == (round(player.centerx), round(player.y + player.height))
+
+
+def test_player_to_dict_round_trips_through_from_dict():
+    original = Player()
+    original.x, original.y = 111, 222
+    original.vx, original.vy = 3, -4
+    original.on_ground = False
+    original.bombs_left = 1
+    original.pending_bomb = True
+    original.bomb_cooldown = 250
+
+    restored = Player.from_dict(original.to_dict())
+
+    assert (restored.x, restored.y) == (original.x, original.y)
+    assert (restored.vx, restored.vy) == (original.vx, original.vy)
+    assert restored.on_ground == original.on_ground
+    assert restored.bombs_left == original.bombs_left
+    assert restored.pending_bomb == original.pending_bomb
+    assert restored.bomb_cooldown == original.bomb_cooldown

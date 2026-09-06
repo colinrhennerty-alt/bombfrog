@@ -41,6 +41,15 @@ class Bomb:
         bomb.age_ms = BOMB_CONTACT_GRACE_MS  # already existed in the world before saving
         return bomb
 
+    def to_dict(self):
+        return {
+            "x": self.x,
+            "y": self.y,
+            "timer": self.timer,
+            "has_shrapnel": self.has_shrapnel,
+            "fall_offset": self.fall_offset,
+        }
+
     def update(self, dt):
         self.timer -= dt
         self.rect.center = (self.x, self.y)

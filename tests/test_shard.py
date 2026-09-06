@@ -31,3 +31,17 @@ def test_shard_shadow_anchor_is_its_center_not_its_feet():
     # (see rendering.draw_scene).
     shard = Shard(100, 100, angle=0, speed=0)
     assert shard.shadow_anchor == shard.rect.center
+
+
+def test_shard_to_dict_round_trips_through_from_dict():
+    original = Shard(30, 40, angle=0, speed=5, color=(1, 2, 3))
+    original.life = 999
+
+    restored = Shard.from_dict(original.to_dict())
+
+    assert restored.x == original.x
+    assert restored.y == original.y
+    assert restored.vx == original.vx
+    assert restored.vy == original.vy
+    assert restored.life == original.life
+    assert restored.color == original.color

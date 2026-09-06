@@ -42,3 +42,10 @@ class BombLauncher:
         self.bombs_left = data["bombs_left"]
         self.pending_bomb = data["pending_bomb"]
         self.cooldown = data.get("bomb_cooldown", 0)
+
+    def to_dict(self):
+        return {
+            "bombs_left": self.bombs_left,
+            "pending_bomb": self.pending_bomb,
+            "bomb_cooldown": self.cooldown,
+        }

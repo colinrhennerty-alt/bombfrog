@@ -173,6 +173,16 @@ class Player:
         self.bomb_launcher.apply_dict(data)
         self._sync_rect()
 
+    def to_dict(self):
+        return {
+            "x": self.x,
+            "y": self.y,
+            "vx": self.vx,
+            "vy": self.vy,
+            "on_ground": self.on_ground,
+            **self.bomb_launcher.to_dict(),
+        }
+
     def apply_explosion(self, origin_x, origin_y, radius):
         dx = self.centerx - origin_x
         dy = self.centery - origin_y

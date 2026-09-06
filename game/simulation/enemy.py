@@ -93,6 +93,16 @@ class Enemy:
         enemy.hp = data.get("hp", enemy.max_hp)
         return enemy
 
+    def to_dict(self):
+        return {
+            "x": self.x,
+            "y": self.y,
+            "vx": self.vx,
+            "type": self.type,
+            "dead": self.dead,
+            "hp": self.hp,
+        }
+
     def get_death_shrapnel(self):
         center_x = self.rect.centerx
         center_y = self.rect.centery

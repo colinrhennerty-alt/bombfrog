@@ -140,6 +140,19 @@ def test_save_and_load_round_trip(tmp_path):
     assert app.world.score == 321
 
 
+def test_save_action_does_not_reach_into_worlds_internals():
+    # GameApp shouldn't need to know World's field names to save it —
+    # World.save should own assembling its own save payload.
+    app = _started_app()
+    app.world.score = 321
+    calls = []
+    app.world.save = lambda filename, high_score: calls.append((filename, high_score))
+
+    app.handle_action("save", now=0)
+
+    assert calls == [(app.save_file, app.high_score)]
+
+
 def test_menu_back_returns_to_menu():
     app = _started_app()
     app.handle_action("menu_back", now=0)

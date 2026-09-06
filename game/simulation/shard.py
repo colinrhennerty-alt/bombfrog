@@ -26,6 +26,16 @@ class Shard:
         shard.rect.topleft = (shard.x - shard.radius, shard.y - shard.radius)
         return shard
 
+    def to_dict(self):
+        return {
+            "x": self.x,
+            "y": self.y,
+            "vx": self.vx,
+            "vy": self.vy,
+            "life": self.life,
+            "color": list(self.color),
+        }
+
     def update(self, dt):
         self.vy += GRAVITY * 0.2
         self.x += self.vx
