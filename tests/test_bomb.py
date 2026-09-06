@@ -1,26 +1,33 @@
-from game.config import BOMB_FUSE_MS, BOMB_FALL_SPEED
+from game.config import BOMB_FUSE_MS, BOMB_FALL_SPEED, BOMB_CONTACT_GRACE_MS
 from game.simulation.bomb import Bomb
 
 
 def test_bomb_starts_unarmed():
-    # A freshly spawned bomb must survive at least one rendered frame
-    # before it can contact-explode — otherwise a bomb dropped directly
-    # on an enemy (e.g. jumping right over one) explodes in the same
-    # simulation tick it's created, so the player never sees it exist.
+    # A freshly spawned bomb must stay visible for a short, actually
+    # perceptible grace period before it can contact-explode — a single
+    # simulation tick (16ms) technically satisfies "exists for a frame"
+    # but is imperceptible to a human eye (reported: "I only get a split
+    # second of seeing the bomb when over an enemy").
     bomb = Bomb(100, 100)
     assert bomb.armed is False
 
 
-def test_bomb_becomes_armed_after_its_first_update():
+def test_bomb_stays_unarmed_for_a_single_tick():
     bomb = Bomb(100, 100)
     bomb.update(dt=16)
+    assert bomb.armed is False
+
+
+def test_bomb_becomes_armed_once_the_contact_grace_period_elapses():
+    bomb = Bomb(100, 100)
+    bomb.update(dt=BOMB_CONTACT_GRACE_MS)
     assert bomb.armed is True
 
 
 def test_bomb_loaded_from_a_save_is_already_armed():
     # A bomb round-tripped through save/load already existed in the world
     # for at least one tick before saving — it must not get a fresh
-    # one-tick contact-immunity grace period every time a save is loaded.
+    # contact-immunity grace period every time a save is loaded.
     bomb = Bomb.from_dict({"x": 100, "y": 100, "timer": 500})
     assert bomb.armed is True
 

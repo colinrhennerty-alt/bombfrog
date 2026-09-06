@@ -5,7 +5,7 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 
 import pygame
 
-from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER
+from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER, BOMB_CONTACT_GRACE_MS
 from game.simulation.bomb import Bomb
 from game.simulation.enemy import Enemy
 from game.simulation.shard import Shard
@@ -82,7 +82,16 @@ def test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy():
     world.update(NO_KEYS, dt=16, now=1000)
     assert world.bombs == [bomb]  # still alive after its first tick
 
-    world.update(NO_KEYS, dt=16, now=1016)
+    # Contact-triggering stays off for a short grace period after
+    # spawning (BOMB_CONTACT_GRACE_MS) so the bomb is actually visible to
+    # a player, not just technically present for one imperceptible tick.
+    # contact_armed reflects the bomb's armed state *before* each tick's
+    # own update, so the grace period must fully elapse in an earlier
+    # tick before a later tick's contact-check can see it as armed.
+    world.update(NO_KEYS, dt=BOMB_CONTACT_GRACE_MS, now=1016)
+    assert world.bombs == [bomb]  # still alive: armed only takes effect next tick
+
+    world.update(NO_KEYS, dt=16, now=1200)
     assert world.bombs == []  # now detonates, same as always
 
 
@@ -96,10 +105,12 @@ def test_bomb_explodes_on_enemy_contact_even_before_fuse_expires():
     world.bombs = [bomb]
     world.enemies = [enemy]
 
-    # A bomb always survives the very first tick after it's placed (see
-    # test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy),
-    # so contact-triggering shows up starting on the second tick here.
-    world.update(NO_KEYS, dt=1, now=1000)
+    # A bomb stays contact-immune for BOMB_CONTACT_GRACE_MS after it's
+    # placed (see test_freshly_spawned_bomb_survives_its_first_tick_...).
+    # contact_armed reflects the bomb's armed state *before* each tick's
+    # own update, so the grace period must fully elapse in an earlier
+    # tick before a later tick's contact-check can see it as armed.
+    world.update(NO_KEYS, dt=BOMB_CONTACT_GRACE_MS, now=1000)
     world.update(NO_KEYS, dt=1, now=1001)
 
     assert world.bombs == []  # detonated on contact, not from the fuse
@@ -390,7 +401,7 @@ def test_logs_bomb_contact_trigger(capsys):
     world.bombs = [bomb]
     world.enemies = [enemy]
 
-    world.update(NO_KEYS, dt=1, now=1000)  # bomb survives its first tick
+    world.update(NO_KEYS, dt=BOMB_CONTACT_GRACE_MS, now=1000)  # bomb survives the grace period
     capsys.readouterr()  # discard this tick's output
     world.update(NO_KEYS, dt=1, now=1001)
 
