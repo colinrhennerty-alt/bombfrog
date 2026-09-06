@@ -3,29 +3,42 @@ import random
 
 import pygame
 
-from game.config import WIDTH, SHARD_SPEED
-from game.simulation.depth import ground_y_for_depth, margin_for_depth
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, SHARD_SPEED
+from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
-from game.simulation.hitbox import sync_rect_for_depth
+from game.simulation.hitbox import sync_rect
 from game.simulation.shard import Shard
 
 
 class Enemy:
-    def __init__(self, spawn_side):
+    def __init__(self, spawn_side, center_x, center_y, camera=None):
         self.width = 40
         self.height = 34
         self.type = random.choices(
             list(ENEMY_TYPES.keys()), [t.spawn_weight for t in ENEMY_TYPES.values()]
         )[0]
-        self.depth = random.uniform(0.1, 0.95)
+        if camera is not None:
+            viewport_left, viewport_right = camera.x, camera.x + camera.viewport_width
+        else:
+            viewport_left = center_x - WIDTH / 2
+            viewport_right = center_x + WIDTH / 2
+        # If the requested side has no off-screen room (the viewport is
+        # already pinned against that world edge), spawn off the opposite
+        # edge instead of clamping back onto the visible screen.
+        if spawn_side == "left" and viewport_left - self.width - 20 < 0:
+            spawn_side = "right"
+        elif spawn_side == "right" and viewport_right + 20 + self.width > WORLD_WIDTH:
+            spawn_side = "left"
         if spawn_side == "left":
-            self.x = -self.width - 20
+            self.x = viewport_left - self.width - 20
             self.vx = 2.2
         else:
-            self.x = WIDTH + 20
+            self.x = viewport_right + 20
             self.vx = -2.2
-        self.ground_y = ground_y_for_depth(self.depth)
-        self.y = self.ground_y - self.height
+        self.x = clamp(self.x, 0, WORLD_WIDTH - self.width)
+        self.y = clamp(
+            center_y + random.uniform(-HEIGHT / 3, HEIGHT / 3), 0, WORLD_HEIGHT - self.height
+        )
         self.color = ENEMY_TYPES[self.type].color
         self.rect = pygame.Rect(0, 0, self.width, self.height)
         self.dead = False
@@ -34,16 +47,15 @@ class Enemy:
         self._sync_rect()
 
     def _sync_rect(self):
-        self.rect = sync_rect_for_depth(self.x, self.y, self.width, self.height, self.depth)
+        self.rect = sync_rect(self.x, self.y, self.width, self.height)
 
     def update(self, dt):
         self.x += self.vx
-        margin = margin_for_depth(self.depth)
-        if self.x <= margin:
-            self.x = margin
+        if self.x <= 0:
+            self.x = 0
             self.vx *= -1
-        elif self.x + self.width >= WIDTH - margin:
-            self.x = WIDTH - margin - self.width
+        elif self.x + self.width >= WORLD_WIDTH:
+            self.x = WORLD_WIDTH - self.width
             self.vx *= -1
         self._sync_rect()
 
@@ -59,13 +71,11 @@ class Enemy:
 
     @classmethod
     def from_dict(cls, data):
-        enemy = cls("left")
+        enemy = cls("left", data["x"], data["y"])
         enemy.x = data["x"]
         enemy.y = data["y"]
         enemy.vx = data["vx"]
         enemy.type = data["type"]
-        enemy.depth = data.get("depth", enemy.depth)
-        enemy.ground_y = ground_y_for_depth(enemy.depth)
         enemy.color = ENEMY_TYPES[enemy.type].color
         enemy._sync_rect()
         enemy.dead = data["dead"]

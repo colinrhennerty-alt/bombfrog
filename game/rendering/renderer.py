@@ -2,17 +2,15 @@
 
 Nothing here mutates game state; game.simulation owns that. Keeping
 drawing separate means entity/world logic tests never need a display
-surface, and this module can change purely visual behavior (parallax,
-depth scaling, shadows) without risking gameplay logic.
+surface, and this module can change purely visual behavior (camera
+translation, shadows) without risking gameplay logic.
 """
 
 import math
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, GROUND_NEAR_Y, GROUND_FAR_Y, FAR_MARGIN, GROUND_HEIGHT, BOMB_FUSE_MS
-from game.utils import clamp
-from game.simulation.depth import ground_y_for_depth, margin_for_depth, scale_for_depth
+from game.config import WIDTH, HEIGHT, BOMB_FUSE_MS
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
@@ -20,19 +18,16 @@ from game.simulation.enemy import Enemy
 from game.rendering.assets import get_frog_frames
 
 
-def draw_shadow(surface, x, y, ground_y, base_radius, scale):
-    # Draw a simple blurred shadow projected onto the ground
-    # shadow position anchored near ground under object
-    sx = int(x)
-    sy = int(ground_y) - int(6 * scale)
-    sr = max(6, int(base_radius * scale * 0.6))
+def draw_shadow(surface, x, y, base_radius):
+    # Draw a simple blurred shadow beneath the entity, in screen space
+    # (caller has already applied the camera translation).
+    sr = max(6, int(base_radius * 0.6))
     shadow = pygame.Surface((sr * 2, int(sr * 0.6)), pygame.SRCALPHA)
-    alpha = int(120 * clamp(1.0 - (y / float(ground_y)), 0.3, 1.0))
-    pygame.draw.ellipse(shadow, (0, 0, 0, alpha), (0, 0, sr * 2, int(sr * 0.6)))
-    surface.blit(shadow, (sx - sr, sy - int(sr * 0.3)))
+    pygame.draw.ellipse(shadow, (0, 0, 0, 90), (0, 0, sr * 2, int(sr * 0.6)))
+    surface.blit(shadow, (int(x) - sr, int(y) - int(sr * 0.3)))
 
 
-def draw_player(surface, player):
+def draw_player(surface, player, camera):
     frames = get_frog_frames()
     if not player.on_ground:
         frame = frames["jump"]
@@ -47,41 +42,46 @@ def draw_player(surface, player):
     # Scale to the collision rect's own size, not the spritesheet's native
     # cell size, so the drawn sprite and the hitbox always match exactly.
     frame = pygame.transform.smoothscale(frame, player.rect.size)
-    surface.blit(frame, player.rect.topleft)
+    screen_rect = camera.apply_rect(player.rect)
+    screen_rect.y += int(player.jump_offset)
+    surface.blit(frame, screen_rect.topleft)
 
 
-def draw_bomb(surface, bomb):
-    scale = bomb.scale
-    r = max(4, int(14 * scale))
-    pygame.draw.circle(surface, bomb.color, (int(bomb.x), int(bomb.y)), r)
+def draw_bomb(surface, bomb, camera):
+    sx, sy = camera.apply(bomb.x, bomb.y)
+    sy += bomb.fall_offset
+    r = 14
+    pygame.draw.circle(surface, bomb.color, (int(sx), int(sy)), r)
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)
-    arc_r = max(4, int(20 * scale))
-    arc_rect = (bomb.x - arc_r, bomb.y - arc_r, arc_r * 2, arc_r * 2)
-    pygame.draw.arc(surface, (255, 240, 120), arc_rect, math.pi * 0.5, math.pi * 0.5 + math.pi * 2 * fuse_ratio, max(1, int(4 * scale)))
+    arc_r = 20
+    arc_rect = (sx - arc_r, sy - arc_r, arc_r * 2, arc_r * 2)
+    pygame.draw.arc(surface, (255, 240, 120), arc_rect, math.pi * 0.5, math.pi * 0.5 + math.pi * 2 * fuse_ratio, 4)
 
 
-def draw_bomb_explosion_radius(surface, bomb):
-    scale = bomb.scale
-    pygame.draw.circle(surface, (255, 180, 0, 40), (int(bomb.x), int(bomb.y)), int(bomb.radius * scale), max(1, int(2 * scale)))
+def draw_bomb_explosion_radius(surface, bomb, camera):
+    sx, sy = camera.apply(bomb.x, bomb.y)
+    pygame.draw.circle(surface, (255, 180, 0, 40), (int(sx), int(sy)), bomb.radius, 2)
 
 
-def draw_shard(surface, shard):
-    pygame.draw.circle(surface, shard.color, (int(shard.x), int(shard.y)), shard.radius)
+def draw_shard(surface, shard, camera):
+    sx, sy = camera.apply(shard.x, shard.y)
+    pygame.draw.circle(surface, shard.color, (int(sx), int(sy)), shard.radius)
 
 
-def draw_enemy(surface, enemy):
-    # enemy.rect is already sized/positioned for the current depth scale —
-    # draw exactly into it so the body and the hitbox always match.
-    scale = scale_for_depth(enemy.depth)
-    pygame.draw.rect(surface, enemy.color, enemy.rect, border_radius=max(2, int(8 * scale)))
+def draw_enemy(surface, enemy, camera):
+    # enemy.rect is already sized/positioned in world space — draw exactly
+    # into its camera-translated screen rect so the body and hitbox match.
+    screen_rect = camera.apply_rect(enemy.rect)
+    pygame.draw.rect(surface, enemy.color, screen_rect, border_radius=8)
     if enemy.type == "elite":
-        pygame.draw.circle(surface, (255, 255, 255), enemy.rect.center, max(3, int(6 * scale)))
+        pygame.draw.circle(surface, (255, 255, 255), screen_rect.center, 6)
 
 
-def draw_explosion_effect(surface, effect):
+def draw_explosion_effect(surface, effect, camera):
+    sx, sy = camera.apply(effect.x, effect.y)
     alpha = int(180 * max(0, effect.life / 260))
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    pygame.draw.circle(overlay, (255, 180, 60, alpha), (int(effect.x), int(effect.y)), max(4, int(effect.radius)), 4)
+    pygame.draw.circle(overlay, (255, 180, 60, alpha), (int(sx), int(sy)), max(4, int(effect.radius)), 4)
     surface.blit(overlay, (0, 0))
 
 
@@ -100,7 +100,7 @@ _DEBUG_BOX_COLORS = {
 }
 
 
-def draw_debug_boxes(surface, player, bombs, shards, enemies):
+def draw_debug_boxes(surface, player, bombs, shards, enemies, camera):
     """Outlines the exact .rect each entity uses for colliderect checks
     in game.world — not an approximation, the real hitbox."""
     entities = list(enemies) + list(bombs) + list(shards)
@@ -108,10 +108,10 @@ def draw_debug_boxes(surface, player, bombs, shards, enemies):
         entities.append(player)
     for entity in entities:
         color = _DEBUG_BOX_COLORS.get(type(entity), (255, 255, 255))
-        pygame.draw.rect(surface, color, entity.rect, width=2)
+        pygame.draw.rect(surface, color, camera.apply_rect(entity.rect), width=2)
 
 
-def draw_scene(surface, player, bombs, shards, enemies, effects):
+def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
     """Depth-sort everything by y, draw shadows, then sprites, then effects on top."""
     drawables = list(enemies) + list(bombs) + list(shards)
     if player:
@@ -119,49 +119,36 @@ def draw_scene(surface, player, bombs, shards, enemies, effects):
     drawables.sort(key=lambda entity: entity.y)
 
     for entity in drawables:
-        depth = getattr(entity, "depth", 1.0)
         base_radius = getattr(entity, "radius", getattr(entity, "width", 20))
-        draw_shadow(surface, entity.x, entity.y, ground_y_for_depth(depth), base_radius, scale_for_depth(depth))
+        sx, sy = camera.apply(entity.x, entity.y)
+        draw_shadow(surface, sx, sy, base_radius)
 
     for entity in drawables:
         draw_func = _DRAW_FUNCS.get(type(entity))
         if draw_func:
-            draw_func(surface, entity)
+            draw_func(surface, entity, camera)
 
     for effect in effects:
-        draw_explosion_effect(surface, effect)
+        draw_explosion_effect(surface, effect, camera)
 
 
-def draw_parallax_background(surface, cam_x):
-    pygame.draw.rect(surface, (18, 30, 50), (0, 0, WIDTH, HEIGHT))
-    m1_x = -int(cam_x * 0.12) % (WIDTH * 2)
-    pygame.draw.ellipse(surface, (50, 60, 90), (m1_x - 300, 40, WIDTH + 600, 180))
-    pygame.draw.ellipse(surface, (60, 70, 110), (m1_x + 200, 100, WIDTH, 140))
-    m2_x = -int(cam_x * 0.24) % (WIDTH * 2)
-    pygame.draw.ellipse(surface, (70, 50, 30), (m2_x - 200, GROUND_NEAR_Y - 80, WIDTH + 400, 160))
+def draw_ground(surface, camera):
+    surface.fill((52, 88, 58))
+    tile = 120
+    offset_x = int(-camera.x) % tile
+    offset_y = int(-camera.y) % tile
+    for gx in range(offset_x - tile, WIDTH + tile, tile):
+        pygame.draw.line(surface, (44, 74, 48), (gx, 0), (gx, HEIGHT), 1)
+    for gy in range(offset_y - tile, HEIGHT + tile, tile):
+        pygame.draw.line(surface, (44, 74, 48), (0, gy), (WIDTH, gy), 1)
 
 
-def draw_ground(surface):
-    top_left = (FAR_MARGIN, GROUND_FAR_Y)
-    top_right = (WIDTH - FAR_MARGIN, GROUND_FAR_Y)
-    bottom_right = (WIDTH, GROUND_NEAR_Y)
-    bottom_left = (0, GROUND_NEAR_Y)
-    pygame.draw.polygon(surface, (52, 88, 58), [top_left, top_right, bottom_right, bottom_left])
-    for t in (0.33, 0.66):
-        y = ground_y_for_depth(t)
-        m = margin_for_depth(t)
-        pygame.draw.line(surface, (44, 74, 48), (m, y), (WIDTH - m, y), 2)
-
-    pygame.draw.rect(surface, (90, 54, 20), (0, GROUND_NEAR_Y, WIDTH, GROUND_HEIGHT))
-    for i in range(0, WIDTH, 80):
-        pygame.draw.arc(surface, (77, 45, 16), (i, GROUND_NEAR_Y - 40, 80, 80), math.pi, 0, 4)
-
-
-def draw_overlay(surface, bombs):
+def draw_overlay(surface, bombs, camera):
     for bomb in bombs:
         if bomb.timer > 0:
             radius = int(bomb.radius * (1 - bomb.timer / BOMB_FUSE_MS) * 0.5 + 20)
-            pygame.draw.circle(surface, (255, 170, 0, 40), (int(bomb.x), int(bomb.y)), radius, 1)
+            sx, sy = camera.apply(bomb.x, bomb.y)
+            pygame.draw.circle(surface, (255, 170, 0, 40), (int(sx), int(sy)), radius, 1)
 
 
 def draw_hud(surface, font, small_font, score, high_score, bombs_left, lives, bomb_cooldown):
@@ -174,7 +161,7 @@ def draw_hud(surface, font, small_font, score, high_score, bombs_left, lives, bo
     heavy_text = small_font.render("Heavy", True, (170, 130, 80))
     elite_text = small_font.render("Elite", True, (150, 95, 185))
     prompt_text = small_font.render(
-        "SPACE = jump/save bomb | UP/DOWN = depth | S=save | L=load | avoid shards", True, (210, 210, 210)
+        "SPACE = jump/save bomb | UP/DOWN = move | S=save | L=load | avoid shards", True, (210, 210, 210)
     )
     surface.blit(score_text, (20, 20))
     surface.blit(high_text, (20, 60))
