@@ -243,6 +243,15 @@ def test_draw_ground(surface, camera):
     rendering.draw_ground(surface, camera)
 
 
+def test_ground_line_color_darkens_away_from_the_horizon():
+    # The horizon is the vertical center of the viewport (HEIGHT / 2) — lines
+    # there should be lightest, lines further from it (top/bottom edges)
+    # should be darker, to imply the ground plane receding into the distance.
+    horizon_color = rendering.ground_line_color_for(HEIGHT / 2)
+    edge_color = rendering.ground_line_color_for(0)
+    assert edge_color < horizon_color
+
+
 def test_draw_overlay(surface, camera):
     rendering.draw_overlay(surface, [Bomb(100, 100)], camera)
 

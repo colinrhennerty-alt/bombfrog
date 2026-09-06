@@ -143,15 +143,28 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
         draw_explosion_effect(surface, effect, camera)
 
 
+_GROUND_LINE_BASE = (44, 74, 48)
+
+
+def ground_line_color_for(screen_y):
+    """Darken a horizontal ground line the further it sits from the
+    viewport's vertical center, to imply a ground plane tilting away
+    toward a horizon rather than a flat top-down grid."""
+    horizon = HEIGHT / 2
+    distance_ratio = min(1, abs(screen_y - horizon) / horizon)
+    darken = 1 - distance_ratio * 0.6
+    return tuple(max(0, int(c * darken)) for c in _GROUND_LINE_BASE)
+
+
 def draw_ground(surface, camera):
     surface.fill((52, 88, 58))
     tile = 120
     offset_x = int(-camera.x) % tile
     offset_y = int(-camera.y) % tile
     for gx in range(offset_x - tile, WIDTH + tile, tile):
-        pygame.draw.line(surface, (44, 74, 48), (gx, 0), (gx, HEIGHT), 1)
+        pygame.draw.line(surface, _GROUND_LINE_BASE, (gx, 0), (gx, HEIGHT), 1)
     for gy in range(offset_y - tile, HEIGHT + tile, tile):
-        pygame.draw.line(surface, (44, 74, 48), (0, gy), (WIDTH, gy), 1)
+        pygame.draw.line(surface, ground_line_color_for(gy), (0, gy), (WIDTH, gy), 1)
 
 
 def draw_overlay(surface, bombs, camera):
