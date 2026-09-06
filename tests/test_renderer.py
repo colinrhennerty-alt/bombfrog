@@ -129,6 +129,34 @@ def test_draw_enemy_draws_exactly_the_camera_translated_collision_rect(surface, 
     assert captured["rect"] == camera.apply_rect(enemy.rect)
 
 
+def test_depth_scale_is_smaller_near_the_top_than_the_bottom_of_the_viewport():
+    # Mimics a camera looking down at an angle rather than straight down:
+    # entities drawn near the top of the screen (further away) read smaller
+    # than ones near the bottom (closer), independent of their world size.
+    near_top = rendering.depth_scale_for(0)
+    near_bottom = rendering.depth_scale_for(HEIGHT)
+    assert near_top < near_bottom
+
+
+def test_draw_bomb_is_smaller_near_the_top_of_the_viewport(surface, camera, monkeypatch):
+    captured_radii = []
+    original_circle = pygame.draw.circle
+
+    def fake_circle(surface_, color, center, radius, *args, **kwargs):
+        captured_radii.append(radius)
+        return original_circle(surface_, color, center, radius, *args, **kwargs)
+
+    monkeypatch.setattr(pygame.draw, "circle", fake_circle)
+    rendering.draw_bomb(surface, Bomb(100, 0), camera)
+    top_radius = captured_radii[0]
+
+    captured_radii.clear()
+    rendering.draw_bomb(surface, Bomb(100, HEIGHT), camera)
+    bottom_radius = captured_radii[0]
+
+    assert top_radius < bottom_radius
+
+
 def test_draw_bomb(surface, camera):
     rendering.draw_bomb(surface, Bomb(100, 100), camera)
 
@@ -160,6 +188,25 @@ def test_draw_bomb_explosion_radius(surface, camera):
 
 def test_draw_shard(surface, camera):
     rendering.draw_shard(surface, Shard(100, 100, angle=0, speed=5), camera)
+
+
+def test_draw_shard_is_smaller_near_the_top_of_the_viewport(surface, camera, monkeypatch):
+    captured_radii = []
+    original_circle = pygame.draw.circle
+
+    def fake_circle(surface_, color, center, radius, *args, **kwargs):
+        captured_radii.append(radius)
+        return original_circle(surface_, color, center, radius, *args, **kwargs)
+
+    monkeypatch.setattr(pygame.draw, "circle", fake_circle)
+    rendering.draw_shard(surface, Shard(100, 0, angle=0, speed=5), camera)
+    top_radius = captured_radii[0]
+
+    captured_radii.clear()
+    rendering.draw_shard(surface, Shard(100, HEIGHT, angle=0, speed=5), camera)
+    bottom_radius = captured_radii[0]
+
+    assert top_radius < bottom_radius
 
 
 def test_draw_enemy_each_type(surface, camera):

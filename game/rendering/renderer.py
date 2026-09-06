@@ -11,6 +11,7 @@ import math
 import pygame
 
 from game.config import WIDTH, HEIGHT, BOMB_FUSE_MS
+from game.utils import clamp
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
@@ -57,10 +58,17 @@ def draw_player(surface, player, camera):
     surface.blit(frame, screen_rect.topleft)
 
 
+def depth_scale_for(screen_y):
+    """A cheap perspective-camera trick: entities nearer the top of the
+    viewport read smaller, entities nearer the bottom read larger, as if
+    the camera were looking down at an angle instead of straight down."""
+    return 0.85 + 0.3 * clamp(screen_y / HEIGHT, 0, 1)
+
+
 def draw_bomb(surface, bomb, camera):
     sx, sy = camera.apply(bomb.x, bomb.y)
     sy += bomb.fall_offset
-    r = 14
+    r = int(14 * depth_scale_for(sy))
     pygame.draw.circle(surface, bomb.color, (int(sx), int(sy)), r)
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)
     arc_r = 20
@@ -75,7 +83,8 @@ def draw_bomb_explosion_radius(surface, bomb, camera):
 
 def draw_shard(surface, shard, camera):
     sx, sy = camera.apply(shard.x, shard.y)
-    pygame.draw.circle(surface, shard.color, (int(sx), int(sy)), shard.radius)
+    r = max(1, int(shard.radius * depth_scale_for(sy)))
+    pygame.draw.circle(surface, shard.color, (int(sx), int(sy)), r)
 
 
 def draw_enemy(surface, enemy, camera):
