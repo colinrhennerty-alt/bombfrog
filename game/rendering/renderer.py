@@ -153,13 +153,15 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
         draw_explosion_effect(surface, effect, camera)
 
 
-def iso_tile_screen_pos(col, row, tile_width, tile_height):
-    """Standard isometric projection: a tile's (col, row) grid coordinate
-    to its screen-space top-left offset, fanning out into a diamond grid
-    (col increases right+down, row increases left+down)."""
-    screen_x = (col - row) * (tile_width / 2)
-    screen_y = (col + row) * (tile_height / 2)
-    return screen_x, screen_y
+def ground_tile_screen_pos(col, row, tile_width, tile_height):
+    """A tile's (col, row) grid coordinate to its screen-space top-left
+    offset. Straight scroll, not true isometric fan-out: col only ever
+    moves screen_x and row only ever moves screen_y, matching how
+    Camera.apply maps world x/y to screen x/y for every other entity.
+    (An earlier true-isometric version mixed col and row into both axes,
+    which made straight up/down/left/right movement look rotated 45
+    degrees on the tiled ground while everything else moved straight.)"""
+    return col * tile_width, row * tile_height
 
 
 def visible_tile_range(camera):
@@ -195,17 +197,20 @@ def draw_ground(surface, camera):
 
     min_col, max_col, min_row, max_row = visible_tile_range(camera)
 
-    # Draw back-to-front (ascending row+col) so nearer tiles' sprites
-    # correctly paint over farther tiles' skirts, like real isometric art.
-    coords = [
-        (col, row)
-        for col in range(int(min_col), int(max_col))
-        for row in range(int(min_row), int(max_row))
-    ]
-    coords.sort(key=lambda cr: cr[0] + cr[1])
+    # Draw in ascending-row order so a tile's diamond skirt is correctly
+    # overlapped by the row in front of it (rows no longer fan diagonally,
+    # but the vertical stacking/overlap still needs front-drawn-last).
+    coords = sorted(
+        (
+            (col, row)
+            for col in range(int(min_col), int(max_col))
+            for row in range(int(min_row), int(max_row))
+        ),
+        key=lambda cr: cr[1],
+    )
 
     for col, row in coords:
-        sx, sy = iso_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT)
+        sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT)
         sx += WIDTH / 2 - half_w
         sy += HEIGHT / 2 - half_h
         if sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT:
