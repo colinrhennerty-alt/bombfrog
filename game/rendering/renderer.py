@@ -153,15 +153,24 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
         draw_explosion_effect(surface, effect, camera)
 
 
-def ground_tile_screen_pos(col, row, tile_width, tile_height):
+def ground_tile_screen_pos(col, row, tile_width, tile_height, world_row):
     """A tile's (col, row) grid coordinate to its screen-space top-left
     offset. Straight scroll, not true isometric fan-out: col only ever
     moves screen_x and row only ever moves screen_y, matching how
     Camera.apply maps world x/y to screen x/y for every other entity.
     (An earlier true-isometric version mixed col and row into both axes,
     which made straight up/down/left/right movement look rotated 45
-    degrees on the tiled ground while everything else moved straight.)"""
-    return col * tile_width, row * tile_height
+    degrees on the tiled ground while everything else moved straight.)
+
+    Rows are packed at half the tile's footprint height and staggered by
+    half a tile width on odd rows (brick-course layout) — the diamond
+    art needs this overlap/interlock to read as a continuous floor
+    instead of stacking with visible gaps or double-covered seams. The
+    stagger is keyed off world_row (the tile's absolute integer grid
+    row), not the camera-relative `row`, so it stays fixed to the world
+    grid and doesn't flicker as the camera scrolls smoothly."""
+    stagger = (tile_width / 2) if world_row % 2 else 0
+    return col * tile_width + stagger, row * (tile_height / 2)
 
 
 def visible_tile_range(camera):
@@ -210,7 +219,7 @@ def draw_ground(surface, camera):
     )
 
     for col, row in coords:
-        sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT)
+        sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
         sx += WIDTH / 2 - half_w
         sy += HEIGHT / 2 - half_h
         if sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT:

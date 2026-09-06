@@ -405,21 +405,42 @@ def test_ground_tile_screen_position_moves_right_as_col_increases_only():
     # The ground must scroll the same straight way as every other entity
     # (Camera.apply maps world x -> screen x independently of y) — col
     # increasing should shift screen_x only, never screen_y.
-    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32)
-    next_col = rendering.ground_tile_screen_pos(1, 0, tile_width=64, tile_height=32)
+    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    next_col = rendering.ground_tile_screen_pos(1, 0, tile_width=64, tile_height=32, world_row=0)
     assert next_col[0] > origin[0]
     assert next_col[1] == origin[1]
 
 
-def test_ground_tile_screen_position_moves_down_as_row_increases_only():
+def test_ground_tile_screen_position_moves_down_as_row_increases_on_the_same_world_row_parity():
     # Same for row -> screen_y: a pure-vertical camera/player movement
     # must not shift the ground horizontally (this was the reported bug —
     # moving straight up/down/left/right looked rotated 45 degrees because
     # the previous true-isometric formula mixed col and row into both axes).
-    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32)
-    next_row = rendering.ground_tile_screen_pos(0, 1, tile_width=64, tile_height=32)
+    # Held to world_row=0 for both calls so the brick stagger (tested
+    # separately below) doesn't also shift screen_x here.
+    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    next_row = rendering.ground_tile_screen_pos(0, 1, tile_width=64, tile_height=32, world_row=0)
     assert next_row[0] == origin[0]
     assert next_row[1] > origin[1]
+
+
+def test_ground_tile_screen_position_staggers_odd_world_rows_by_half_a_tile_width():
+    # The diamond tile art needs a brick-course offset every other row to
+    # interlock cleanly — without it, rows stack directly on top of each
+    # other and the diamonds overlap into a wavy, scalloped mess.
+    even_row = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    odd_row = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=1)
+    assert odd_row[0] == even_row[0] + 32
+
+
+def test_ground_tile_screen_position_stagger_is_fixed_to_the_world_grid():
+    # The stagger must be keyed off the tile's absolute world row, not a
+    # camera-relative value — otherwise it would flicker between offsets
+    # as the camera scrolls smoothly instead of staying locked to the
+    # same physical tiles.
+    pos_a = rendering.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=5)
+    pos_b = rendering.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=7)
+    assert pos_a[0] == pos_b[0]
 
 
 def test_draw_overlay(surface, camera):
