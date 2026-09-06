@@ -546,6 +546,86 @@ def test_ground_tile_screen_position_stagger_is_fixed_to_the_world_grid():
     assert pos_a[0] == pos_b[0]
 
 
+def test_is_border_tile_true_for_a_column_inside_the_border_zone():
+    from game.config import WORLD_BORDER
+
+    # A col near world (0,0) — well within the border band — is a border tile.
+    assert rendering.is_border_tile(col=0, row=10, tile_width=64, half_h=24) is True
+
+
+def test_is_border_tile_false_for_a_column_well_inside_the_playable_area():
+    from game.config import WORLD_BORDER, WORLD_WIDTH
+
+    mid_col = int((WORLD_WIDTH / 2) / 64)
+    assert rendering.is_border_tile(col=mid_col, row=10, tile_width=64, half_h=24) is False
+
+
+def test_is_border_tile_true_near_the_far_world_edge():
+    from game.config import WORLD_WIDTH
+
+    far_col = int(WORLD_WIDTH / 64) - 1
+    assert rendering.is_border_tile(col=far_col, row=10, tile_width=64, half_h=24) is True
+
+
+class _SurfaceIdentityRecordingSurface:
+    """Records the exact blitted Surface object (by identity), not just
+    its size — stone and grass tiles are the same pixel dimensions, so
+    size alone can't distinguish which tile was actually drawn."""
+
+    def __init__(self):
+        self.blitted_surfaces = []
+
+    def blit(self, source, dest):
+        self.blitted_surfaces.append(source)
+
+    def fill(self, color):
+        pass
+
+
+def test_draw_ground_uses_the_stone_tile_in_the_border_zone():
+    from game.rendering.isometric_assets import get_stone_tile
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0  # world's top-left corner, deep in the border
+
+    fake_surface = _SurfaceIdentityRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert get_stone_tile() in fake_surface.blitted_surfaces
+
+
+def test_draw_ground_uses_the_grass_tile_away_from_the_border():
+    from game.rendering.isometric_assets import get_grass_tile
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2  # deep in the playable area
+
+    fake_surface = _SurfaceIdentityRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert get_grass_tile() in fake_surface.blitted_surfaces
+    assert all(s is get_grass_tile() for s in fake_surface.blitted_surfaces)
+
+
+def test_draw_ground_border_is_visible_when_the_camera_reaches_the_true_world_edge():
+    # Regression: the ground's world-to-screen mapping must match
+    # Camera.apply's (world_x - camera.x, no extra centering term) — an
+    # earlier stray "+ WIDTH/2 - half_w" offset shifted every tile ~850px
+    # off from where entities actually render, invisible against uniform
+    # grass but making the border band land far outside the viewport
+    # even when the camera's clamped position puts the true world edge
+    # exactly at the screen's edge.
+    from game.rendering.isometric_assets import get_stone_tile
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.follow(WORLD_WIDTH, WORLD_HEIGHT)  # clamps to the max reachable position
+
+    fake_surface = _SurfaceIdentityRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert get_stone_tile() in fake_surface.blitted_surfaces
+
+
 def test_draw_overlay(surface, camera):
     rendering.draw_overlay(surface, [Bomb(100, 100)], camera)
 

@@ -10,14 +10,14 @@ import math
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, BOMB_FUSE_MS
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, BOMB_FUSE_MS
 from game.utils import clamp
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.rendering.assets import get_frog_frames
-from game.rendering.isometric_assets import get_grass_tile, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
+from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
 
 
 def shadow_size_for(base_radius, height_offset):
@@ -179,34 +179,56 @@ def ground_tile_screen_pos(col, row, tile_width, tile_height, world_row):
     return col * tile_width + stagger, row * (tile_height / 2)
 
 
+def is_border_tile(col, row, tile_width, half_h):
+    """Whether a (col, row) ground tile falls in the world's impassable
+    stone border zone (see WORLD_BORDER / Player/Enemy's movement
+    clamping) rather than the playable interior."""
+    border_cols = WORLD_BORDER / tile_width
+    border_rows = WORLD_BORDER / half_h
+    max_col = WORLD_WIDTH / tile_width
+    max_row = WORLD_HEIGHT / half_h
+    return (
+        col < border_cols
+        or col >= max_col - border_cols
+        or row < border_rows
+        or row >= max_row - border_rows
+    )
+
+
 def visible_tile_range(camera):
     """Which (col, row) tile grid range the camera can currently see,
     clamped to the world's own tile bounds so the ground never tiles past
-    where the player could ever actually go."""
+    where the player could ever actually go.
+
+    ground_tile_screen_pos places col=cam_col/row=cam_row at screen (0, 0)
+    and scrolls at 1px per world-unit (matching Camera.apply exactly, no
+    extra centering term) — so the screen's visible range [0, WIDTH] maps
+    to col in [cam_col, cam_col + WIDTH/TILE_WIDTH], not a range centered
+    on cam_col. The +2 pad and the stagger's extra half-tile width cover
+    tiles whose art can still overlap into the viewport from just outside
+    that range (a diamond's skirt, the brick stagger's offset)."""
     half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
     cam_col = camera.x / TILE_WIDTH
     cam_row = camera.y / half_h
 
-    # The screen area a single (col, row) step can reach in either
-    # direction is half_w + half_h; pad the visible range by that much on
-    # every side so the diamond grid still covers the viewport's corners.
-    pad_cols = int(WIDTH / (2 * half_w)) + 2
-    pad_rows = int(HEIGHT / (2 * half_h)) + 2
+    pad_cols = int(half_w / TILE_WIDTH) + 2
+    pad_rows = int(half_h / half_h) + 2
 
     max_world_col = WORLD_WIDTH / TILE_WIDTH
     max_world_row = WORLD_HEIGHT / half_h
 
     min_col = max(0, int(cam_col) - pad_cols)
-    max_col = min(max_world_col, int(cam_col) + pad_cols)
+    max_col = min(max_world_col, int(cam_col) + WIDTH / TILE_WIDTH + pad_cols)
     min_row = max(0, int(cam_row) - pad_rows)
-    max_row = min(max_world_row, int(cam_row) + pad_rows)
+    max_row = min(max_world_row, int(cam_row) + HEIGHT / half_h + pad_rows)
     return min_col, max_col, min_row, max_row
 
 
 def draw_ground(surface, camera):
     surface.fill((52, 88, 58))
-    tile = get_grass_tile()
-    half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
+    grass_tile = get_grass_tile()
+    stone_tile = get_stone_tile()
+    half_h = TILE_FOOTPRINT_HEIGHT / 2
     cam_col = camera.x / TILE_WIDTH
     cam_row = camera.y / half_h
 
@@ -225,9 +247,13 @@ def draw_ground(surface, camera):
     )
 
     for col, row in coords:
+        tile = stone_tile if is_border_tile(col, row, TILE_WIDTH, half_h) else grass_tile
+        # (col - cam_col) * TILE_WIDTH == col * TILE_WIDTH - camera.x, i.e.
+        # exactly Camera.apply's world-to-screen mapping — no extra
+        # centering term. An earlier "+ WIDTH/2 - half_w" here shifted
+        # every tile ~850px from where entities actually render (masked
+        # by uniform grass, but it broke alignment with the border zone).
         sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
-        sx += WIDTH / 2 - half_w
-        sy += HEIGHT / 2 - half_h
         if sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT:
             surface.blit(tile, (sx, sy))
 
