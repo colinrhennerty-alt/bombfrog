@@ -18,12 +18,22 @@ from game.simulation.enemy import Enemy
 from game.rendering.assets import get_frog_frames
 
 
-def draw_shadow(surface, x, y, base_radius):
+def shadow_size_for(base_radius, height_offset):
+    """Shrink the shadow as the entity rises off the ground, so height
+    reads visually even though the sim is pure 2D. height_offset is the
+    same jump_offset/fall_offset magnitude used to draw the entity itself
+    (0 = grounded, larger magnitude = higher up)."""
+    shrink = 1 / (1 + abs(height_offset) / 60)
+    return max(6, int(base_radius * 0.6 * shrink))
+
+
+def draw_shadow(surface, x, y, base_radius, height_offset=0):
     # Draw a simple blurred shadow beneath the entity, in screen space
     # (caller has already applied the camera translation).
-    sr = max(6, int(base_radius * 0.6))
+    sr = shadow_size_for(base_radius, height_offset)
+    alpha = max(30, int(90 * (1 / (1 + abs(height_offset) / 60))))
     shadow = pygame.Surface((sr * 2, int(sr * 0.6)), pygame.SRCALPHA)
-    pygame.draw.ellipse(shadow, (0, 0, 0, 90), (0, 0, sr * 2, int(sr * 0.6)))
+    pygame.draw.ellipse(shadow, (0, 0, 0, alpha), (0, 0, sr * 2, int(sr * 0.6)))
     surface.blit(shadow, (int(x) - sr, int(y) - int(sr * 0.3)))
 
 
@@ -120,8 +130,9 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
 
     for entity in drawables:
         base_radius = getattr(entity, "radius", getattr(entity, "width", 20))
+        height_offset = getattr(entity, "jump_offset", getattr(entity, "fall_offset", 0))
         sx, sy = camera.apply(entity.x, entity.y)
-        draw_shadow(surface, sx, sy, base_radius)
+        draw_shadow(surface, sx, sy, base_radius, height_offset)
 
     for entity in drawables:
         draw_func = _DRAW_FUNCS.get(type(entity))

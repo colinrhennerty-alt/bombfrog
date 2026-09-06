@@ -35,6 +35,20 @@ def test_draw_shadow(surface):
     rendering.draw_shadow(surface, 100, 100, base_radius=20)
 
 
+def test_draw_shadow_shrinks_with_height_offset(surface):
+    # height_offset represents how far above the ground the entity is
+    # (same magnitude convention as jump_offset/fall_offset — 0 is grounded).
+    # The shadow should shrink and fade as height increases, since that's
+    # the depth cue that sells verticality.
+    grounded = rendering.shadow_size_for(base_radius=20, height_offset=0)
+    airborne = rendering.shadow_size_for(base_radius=20, height_offset=80)
+    assert airborne < grounded
+
+
+def test_draw_shadow_accepts_height_offset(surface):
+    rendering.draw_shadow(surface, 100, 100, base_radius=20, height_offset=80)
+
+
 def test_draw_player(surface, camera):
     rendering.draw_player(surface, Player(), camera)
 
@@ -157,6 +171,27 @@ def test_draw_enemy_each_type(surface, camera):
 
 def test_draw_explosion_effect(surface, camera):
     rendering.draw_explosion_effect(surface, ExplosionEffect(100, 100, radius=140), camera)
+
+
+def test_draw_scene_shrinks_airborne_players_shadow(surface, camera, monkeypatch):
+    # draw_scene must read the player's jump_offset and the bomb's
+    # fall_offset and pass them into draw_shadow, not always draw a
+    # grounded-size shadow.
+    player = Player()
+    player.jump_offset = -90
+    bomb = Bomb(300, 300, fall_offset=-90)
+
+    captured_offsets = []
+    original_shadow = rendering.draw_shadow
+
+    def fake_shadow(surface_, x, y, base_radius, height_offset=0):
+        captured_offsets.append(height_offset)
+        return original_shadow(surface_, x, y, base_radius, height_offset)
+
+    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    rendering.draw_scene(surface, player=player, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+
+    assert -90 in captured_offsets
 
 
 def test_draw_scene_with_full_cast(surface, camera):
