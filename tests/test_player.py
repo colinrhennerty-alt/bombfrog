@@ -28,6 +28,14 @@ def test_player_spawns_within_world_bounds():
     assert WORLD_BORDER <= player.y <= WORLD_HEIGHT - WORLD_BORDER - player.height
 
 
+def test_player_shadow_anchor_is_its_feet_not_its_topleft():
+    # Player stands upright (a rect entity, not circular) — its shadow
+    # belongs at rect.midbottom (feet), matching the rendering contract
+    # every drawable entity exposes (see rendering.draw_scene).
+    player = Player()
+    assert player.shadow_anchor == player.rect.midbottom
+
+
 def test_player_move_left_right_clamped_to_the_stone_border():
     # The world's outer WORLD_BORDER pixels are a solid stone wall the
     # player can't walk into — clamp bounds are inset by that amount,

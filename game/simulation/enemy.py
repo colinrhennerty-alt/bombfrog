@@ -51,6 +51,14 @@ class Enemy:
     def _sync_rect(self):
         self.rect = sync_rect(self.x, self.y, self.width, self.height)
 
+    @property
+    def shadow_anchor(self):
+        """Where rendering should anchor this entity's shadow: an
+        upright rect entity reads as cast on the ground beneath its feet
+        (rect.midbottom), not floating near its torso/center (see
+        rendering.draw_scene)."""
+        return self.rect.midbottom
+
     def update(self, dt):
         self.x += self.vx
         if self.x <= WORLD_BORDER:

@@ -167,3 +167,11 @@ def test_bomb_injected_rng_can_suppress_shrapnel_deterministically():
     above_threshold = _FakeRng(0.5)
     bomb = Bomb(100, 100, rng=above_threshold)
     assert bomb.has_shrapnel is False
+
+
+def test_bomb_shadow_anchor_is_its_center_not_its_feet():
+    # Bomb is circular (no "feet") — its shadow belongs at rect.center,
+    # matching the rendering contract every drawable entity exposes
+    # (see rendering.draw_scene).
+    bomb = Bomb(100, 100)
+    assert bomb.shadow_anchor == bomb.rect.center

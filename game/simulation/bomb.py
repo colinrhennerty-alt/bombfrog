@@ -18,6 +18,13 @@ class Bomb:
         self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
     @property
+    def shadow_anchor(self):
+        """Where rendering should anchor this entity's shadow: circular
+        entities have no "feet", so their rect.center is the natural
+        anchor (see rendering.draw_scene)."""
+        return self.rect.center
+
+    @property
     def armed(self):
         """Whether the bomb can contact-explode yet. False for a short
         grace period after spawning — even though a single simulation

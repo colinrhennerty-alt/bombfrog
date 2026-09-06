@@ -35,3 +35,10 @@ class Shard:
 
     def is_alive(self):
         return self.life > 0 and 0 <= self.x <= WORLD_WIDTH and 0 <= self.y <= WORLD_HEIGHT
+
+    @property
+    def shadow_anchor(self):
+        """Where rendering should anchor this entity's shadow: circular
+        entities have no "feet", so their rect.center is the natural
+        anchor (see rendering.draw_scene)."""
+        return self.rect.center

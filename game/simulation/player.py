@@ -52,6 +52,14 @@ class Player:
         return self.y + self.height / 2
 
     @property
+    def shadow_anchor(self):
+        """Where rendering should anchor this entity's shadow: an
+        upright rect entity reads as cast on the ground beneath its feet
+        (rect.midbottom), not floating near its torso/center (see
+        rendering.draw_scene)."""
+        return self.rect.midbottom
+
+    @property
     def bombs_left(self):
         return self.bomb_launcher.bombs_left
 
