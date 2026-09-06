@@ -286,8 +286,49 @@ def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
     assert color_at_top_left != (0, 0, 0)
 
 
+class _MultiBlitRecordingSurface:
+    """Like _BlitRecordingSurface, but keeps every blit call — draw_ground
+    blits many tiles in one call, not just one sprite."""
+
+    def __init__(self):
+        self.calls = []
+
+    def blit(self, source, dest):
+        dest_rect = pygame.Rect(dest, source.get_size()) if not isinstance(dest, pygame.Rect) else dest
+        self.calls.append((source.get_size(), dest_rect.topleft))
+
+    def fill(self, color):
+        pass
+
+
 def test_draw_ground(surface, camera):
     rendering.draw_ground(surface, camera)
+
+
+def test_draw_ground_tiles_the_grass_tile_across_the_viewport(camera):
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_HEIGHT
+
+    fake_surface = _MultiBlitRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert len(fake_surface.calls) > 1
+    assert all(size == (TILE_WIDTH, TILE_HEIGHT) for size, _ in fake_surface.calls)
+
+
+def test_draw_ground_covers_the_full_viewport(camera):
+    # Every screen pixel should fall under some tile — no gaps at the
+    # viewport edges from an under-sized iso grid.
+    fake_surface = _MultiBlitRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_HEIGHT
+
+    covered = pygame.Rect(0, 0, 0, 0)
+    for size, topleft in fake_surface.calls:
+        covered = covered.union(pygame.Rect(topleft, size))
+
+    viewport = pygame.Rect(0, 0, WIDTH, HEIGHT)
+    assert covered.contains(viewport)
 
 
 def test_iso_tile_screen_position_moves_right_and_down_as_col_increases():

@@ -17,6 +17,7 @@ from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.rendering.assets import get_frog_frames
+from game.rendering.isometric_assets import get_grass_tile, TILE_WIDTH, TILE_HEIGHT
 
 
 def shadow_size_for(base_radius, height_offset):
@@ -163,6 +164,28 @@ def iso_tile_screen_pos(col, row, tile_width, tile_height):
 
 def draw_ground(surface, camera):
     surface.fill((52, 88, 58))
+    tile = get_grass_tile()
+    half_w, half_h = TILE_WIDTH / 2, TILE_HEIGHT / 2
+
+    # World space maps 1:1 onto the (col, row) tile grid (one world-unit
+    # square of ground per tile), then iso_tile_screen_pos fans that grid
+    # into the diamond layout on screen.
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / TILE_WIDTH
+
+    # The screen area a single (col, row) step can reach in either
+    # direction is half_w + half_h; pad the visible range by that much on
+    # every side so the diamond grid still covers the viewport's corners.
+    pad_cols = int(WIDTH / (2 * half_w)) + 2
+    pad_rows = int(HEIGHT / (2 * half_h)) + 2
+
+    for col in range(int(cam_col) - pad_cols, int(cam_col) + pad_cols):
+        for row in range(int(cam_row) - pad_rows, int(cam_row) + pad_rows):
+            sx, sy = iso_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_HEIGHT)
+            sx += WIDTH / 2 - half_w
+            sy += HEIGHT / 2 - half_h
+            if sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT:
+                surface.blit(tile, (sx, sy))
 
 
 def draw_overlay(surface, bombs, camera):
