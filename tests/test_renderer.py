@@ -320,8 +320,11 @@ def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
 
 def test_visible_tile_range_does_not_exceed_the_worlds_far_edge():
     # The camera sits at the world's bottom-right corner — the tile range
-    # must not extend past WORLD_WIDTH/WORLD_HEIGHT (in tile units).
-    from game.rendering.isometric_assets import TILE_WIDTH
+    # must not extend past WORLD_WIDTH/WORLD_HEIGHT (in tile units). Row
+    # units are TILE_FOOTPRINT_HEIGHT/2 (matching the scroll rate fix, see
+    # test_ground_scrolls_at_the_same_rate_as_every_other_entity), not
+    # TILE_WIDTH — cols and rows use different pixel-per-unit scales.
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = WORLD_WIDTH, WORLD_HEIGHT
@@ -329,7 +332,7 @@ def test_visible_tile_range_does_not_exceed_the_worlds_far_edge():
     min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
 
     assert max_col <= WORLD_WIDTH / TILE_WIDTH
-    assert max_row <= WORLD_HEIGHT / TILE_WIDTH
+    assert max_row <= WORLD_HEIGHT / (TILE_FOOTPRINT_HEIGHT / 2)
 
 
 def test_draw_ground_scrolls_straight_when_camera_moves_purely_vertically():
@@ -350,6 +353,45 @@ def test_draw_ground_scrolls_straight_when_camera_moves_purely_vertically():
     before_xs = sorted({topleft[0] for _, topleft in before.calls})
     after_xs = sorted({topleft[0] for _, topleft in after.calls})
     assert before_xs == after_xs
+
+
+def test_ground_scrolls_at_the_same_rate_as_every_other_entity():
+    # Regression: bombs/enemies/player all move via Camera.apply, a 1:1
+    # world-unit-to-screen-pixel mapping. The ground must scroll at that
+    # same rate, or entities visually drift off the tiles they're
+    # standing on as the camera moves (reported bug: "bombs and enemies
+    # are still moving relative to the old flat game and not the new
+    # tiles"). Track the same physical world tile's screen position
+    # (fixed world_row, camera-relative row recomputed each time) across
+    # a vertical camera move and confirm it shifts by exactly the delta,
+    # matching what camera.apply produces for any entity.
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
+    half_h = TILE_FOOTPRINT_HEIGHT / 2
+    fixed_world_row = int(camera.y / half_h)  # a tile at the camera's own row
+
+    def screen_y_of_fixed_tile():
+        cam_row = camera.y / half_h
+        _, sy = rendering.ground_tile_screen_pos(
+            0, fixed_world_row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=fixed_world_row
+        )
+        return sy
+
+    fixed_world_point_y = WORLD_HEIGHT / 2
+    before_tile_y = screen_y_of_fixed_tile()
+    before_entity_y = camera.apply(0, fixed_world_point_y)[1]
+
+    camera.y += 96  # arbitrary pure-vertical move
+
+    after_tile_y = screen_y_of_fixed_tile()
+    after_entity_y = camera.apply(0, fixed_world_point_y)[1]
+
+    tile_shift = before_tile_y - after_tile_y
+    entity_shift = before_entity_y - after_entity_y
+    assert entity_shift == 96  # sanity: camera.apply is 1:1, as documented
+    assert tile_shift == entity_shift
 
 
 def test_draw_ground_tiles_the_grass_tile_across_the_viewport(camera):

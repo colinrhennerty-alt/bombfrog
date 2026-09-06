@@ -179,7 +179,7 @@ def visible_tile_range(camera):
     where the player could ever actually go."""
     half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
     cam_col = camera.x / TILE_WIDTH
-    cam_row = camera.y / TILE_WIDTH
+    cam_row = camera.y / half_h
 
     # The screen area a single (col, row) step can reach in either
     # direction is half_w + half_h; pad the visible range by that much on
@@ -188,7 +188,7 @@ def visible_tile_range(camera):
     pad_rows = int(HEIGHT / (2 * half_h)) + 2
 
     max_world_col = WORLD_WIDTH / TILE_WIDTH
-    max_world_row = WORLD_HEIGHT / TILE_WIDTH
+    max_world_row = WORLD_HEIGHT / half_h
 
     min_col = max(0, int(cam_col) - pad_cols)
     max_col = min(max_world_col, int(cam_col) + pad_cols)
@@ -202,7 +202,7 @@ def draw_ground(surface, camera):
     tile = get_grass_tile()
     half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
     cam_col = camera.x / TILE_WIDTH
-    cam_row = camera.y / TILE_WIDTH
+    cam_row = camera.y / half_h
 
     min_col, max_col, min_row, max_row = visible_tile_range(camera)
 
