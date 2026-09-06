@@ -11,6 +11,7 @@ import pygame
 from game.config import (
     WORLD_WIDTH,
     WORLD_HEIGHT,
+    WORLD_BORDER,
     PLAYER_SPEED,
     GRAVITY,
     BOMB_FORCE,
@@ -27,8 +28,8 @@ class Player:
     def __init__(self):
         self.width = 52
         self.height = 40
-        self.x = clamp(WORLD_WIDTH // 2 - self.width // 2, 0, WORLD_WIDTH - self.width)
-        self.y = clamp(WORLD_HEIGHT // 2 - self.height // 2, 0, WORLD_HEIGHT - self.height)
+        self.x = clamp(WORLD_WIDTH // 2 - self.width // 2, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
+        self.y = clamp(WORLD_HEIGHT // 2 - self.height // 2, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
         self.vx = 0
         self.vy = 0
         self.jump_offset = 0
@@ -96,7 +97,7 @@ class Player:
             self.facing = 1 if self.vx > 0 else -1
 
         self.x += self.vx
-        self.x = clamp(self.x, 0, WORLD_WIDTH - self.width)
+        self.x = clamp(self.x, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
 
     def _apply_vertical_movement(self, keys):
         vy_input = 0
@@ -105,7 +106,7 @@ class Player:
         if keys[pygame.K_DOWN]:
             vy_input = PLAYER_SPEED
         self.y += vy_input
-        self.y = clamp(self.y, 0, WORLD_HEIGHT - self.height)
+        self.y = clamp(self.y, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
         return vy_input
 
     def _apply_jump_physics(self, dt):
