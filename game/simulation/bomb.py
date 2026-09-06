@@ -41,4 +41,4 @@ class Bomb:
             self.fall_offset = max(0, self.fall_offset - step)
 
     def is_ready(self):
-        return self.timer <= 0
+        return self.timer <= 0 and self.fall_offset == 0

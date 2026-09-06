@@ -37,6 +37,28 @@ def test_bomb_ready_after_fuse_expires():
     assert bomb.is_ready() is True
 
 
+def test_bomb_not_ready_even_after_fuse_expires_while_still_falling():
+    # Reported: "the bomb shouldn't explode until it hits the ground or
+    # an enemy." A bomb dropped from a big jump can still be mid-air
+    # (fall_offset != 0) when its fuse timer alone would say it's ready —
+    # is_ready() must also require the bomb to have actually landed.
+    # BOMB_FALL_SPEED * (BOMB_FUSE_MS / 16) is the most a fall_offset can
+    # decay by the time the fuse expires — start further than that so it
+    # provably hasn't landed yet.
+    max_decay_over_fuse = BOMB_FALL_SPEED * (BOMB_FUSE_MS / 16)
+    bomb = Bomb(100, 100, fall_offset=-(max_decay_over_fuse * 2))
+    bomb.update(dt=BOMB_FUSE_MS)
+    assert bomb.fall_offset != 0  # sanity: still airborne after this tick
+    assert bomb.is_ready() is False
+
+
+def test_bomb_ready_once_it_lands_even_if_the_fuse_already_expired():
+    bomb = Bomb(100, 100, fall_offset=-40)  # small enough to land within one tick
+    bomb.update(dt=BOMB_FUSE_MS)
+    assert bomb.fall_offset == 0  # sanity: landed this tick
+    assert bomb.is_ready() is True
+
+
 def test_bomb_from_dict_round_trips_fields():
     original = Bomb(50, 60)
     original.timer = 321
