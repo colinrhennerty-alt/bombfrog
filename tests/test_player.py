@@ -1,6 +1,6 @@
 import pygame
 
-from game.config import WORLD_WIDTH, WORLD_HEIGHT, PLAYER_SPEED, GRAVITY
+from game.config import WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, PLAYER_SPEED, GRAVITY
 from game.simulation.player import Player
 
 NO_MOVE_KEYS = {
@@ -24,32 +24,35 @@ def test_player_starts_on_ground():
 
 def test_player_spawns_within_world_bounds():
     player = Player()
-    assert 0 <= player.x <= WORLD_WIDTH - player.width
-    assert 0 <= player.y <= WORLD_HEIGHT - player.height
+    assert WORLD_BORDER <= player.x <= WORLD_WIDTH - WORLD_BORDER - player.width
+    assert WORLD_BORDER <= player.y <= WORLD_HEIGHT - WORLD_BORDER - player.height
 
 
-def test_player_move_left_right_clamped_to_world():
+def test_player_move_left_right_clamped_to_the_stone_border():
+    # The world's outer WORLD_BORDER pixels are a solid stone wall the
+    # player can't walk into — clamp bounds are inset by that amount,
+    # not the raw world edge.
     player = Player()
 
-    player.x = 0
+    player.x = WORLD_BORDER
     player.update(_keys({pygame.K_LEFT: True}), dt=16)
-    assert player.x == 0
+    assert player.x == WORLD_BORDER
 
-    player.x = WORLD_WIDTH - player.width
+    player.x = WORLD_WIDTH - WORLD_BORDER - player.width
     player.update(_keys({pygame.K_RIGHT: True}), dt=16)
-    assert player.x == WORLD_WIDTH - player.width
+    assert player.x == WORLD_WIDTH - WORLD_BORDER - player.width
 
 
-def test_player_move_up_down_clamped_to_world():
+def test_player_move_up_down_clamped_to_the_stone_border():
     player = Player()
 
-    player.y = 0
+    player.y = WORLD_BORDER
     player.update(_keys({pygame.K_UP: True}), dt=16)
-    assert player.y == 0
+    assert player.y == WORLD_BORDER
 
-    player.y = WORLD_HEIGHT - player.height
+    player.y = WORLD_HEIGHT - WORLD_BORDER - player.height
     player.update(_keys({pygame.K_DOWN: True}), dt=16)
-    assert player.y == WORLD_HEIGHT - player.height
+    assert player.y == WORLD_HEIGHT - WORLD_BORDER - player.height
 
 
 def test_player_moves_up_and_down_by_player_speed():

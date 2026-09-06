@@ -35,6 +35,30 @@ def test_draw_shadow(surface):
     rendering.draw_shadow(surface, 100, 100, base_radius=20)
 
 
+def test_draw_shadow_shrinks_with_height_offset(surface):
+    # height_offset represents how far above the ground the entity is
+    # (same magnitude convention as jump_offset/fall_offset — 0 is grounded).
+    # The shadow should shrink and fade as height increases, since that's
+    # the depth cue that sells verticality.
+    grounded = rendering.shadow_size_for(base_radius=20, height_offset=0)
+    airborne = rendering.shadow_size_for(base_radius=20, height_offset=80)
+    assert airborne < grounded
+
+
+def test_draw_shadow_accepts_height_offset(surface):
+    rendering.draw_shadow(surface, 100, 100, base_radius=20, height_offset=80)
+
+
+def test_grounded_shadow_width_stays_within_the_entitys_own_footprint():
+    # base_radius is passed as the entity's full width for rect-based
+    # entities (Player/Enemy) — the shadow's full width (shadow_size_for
+    # returns a radius, so double it) must not exceed that, or it visibly
+    # overhangs the sprite's own silhouette instead of sitting under it.
+    base_radius = 52  # e.g. Player.width
+    shadow_radius = rendering.shadow_size_for(base_radius, height_offset=0)
+    assert shadow_radius * 2 <= base_radius
+
+
 def test_draw_player(surface, camera):
     rendering.draw_player(surface, Player(), camera)
 
@@ -115,6 +139,34 @@ def test_draw_enemy_draws_exactly_the_camera_translated_collision_rect(surface, 
     assert captured["rect"] == camera.apply_rect(enemy.rect)
 
 
+def test_depth_scale_is_smaller_near_the_top_than_the_bottom_of_the_viewport():
+    # Mimics a camera looking down at an angle rather than straight down:
+    # entities drawn near the top of the screen (further away) read smaller
+    # than ones near the bottom (closer), independent of their world size.
+    near_top = rendering.depth_scale_for(0)
+    near_bottom = rendering.depth_scale_for(HEIGHT)
+    assert near_top < near_bottom
+
+
+def test_draw_bomb_is_smaller_near_the_top_of_the_viewport(surface, camera, monkeypatch):
+    captured_radii = []
+    original_circle = pygame.draw.circle
+
+    def fake_circle(surface_, color, center, radius, *args, **kwargs):
+        captured_radii.append(radius)
+        return original_circle(surface_, color, center, radius, *args, **kwargs)
+
+    monkeypatch.setattr(pygame.draw, "circle", fake_circle)
+    rendering.draw_bomb(surface, Bomb(100, 0), camera)
+    top_radius = captured_radii[0]
+
+    captured_radii.clear()
+    rendering.draw_bomb(surface, Bomb(100, HEIGHT), camera)
+    bottom_radius = captured_radii[0]
+
+    assert top_radius < bottom_radius
+
+
 def test_draw_bomb(surface, camera):
     rendering.draw_bomb(surface, Bomb(100, 100), camera)
 
@@ -148,6 +200,25 @@ def test_draw_shard(surface, camera):
     rendering.draw_shard(surface, Shard(100, 100, angle=0, speed=5), camera)
 
 
+def test_draw_shard_is_smaller_near_the_top_of_the_viewport(surface, camera, monkeypatch):
+    captured_radii = []
+    original_circle = pygame.draw.circle
+
+    def fake_circle(surface_, color, center, radius, *args, **kwargs):
+        captured_radii.append(radius)
+        return original_circle(surface_, color, center, radius, *args, **kwargs)
+
+    monkeypatch.setattr(pygame.draw, "circle", fake_circle)
+    rendering.draw_shard(surface, Shard(100, 0, angle=0, speed=5), camera)
+    top_radius = captured_radii[0]
+
+    captured_radii.clear()
+    rendering.draw_shard(surface, Shard(100, HEIGHT, angle=0, speed=5), camera)
+    bottom_radius = captured_radii[0]
+
+    assert top_radius < bottom_radius
+
+
 def test_draw_enemy_each_type(surface, camera):
     for enemy_type in ("grunt", "heavy", "elite"):
         enemy = Enemy("left", 500, 500)
@@ -157,6 +228,78 @@ def test_draw_enemy_each_type(surface, camera):
 
 def test_draw_explosion_effect(surface, camera):
     rendering.draw_explosion_effect(surface, ExplosionEffect(100, 100, radius=140), camera)
+
+
+def test_draw_scene_shrinks_airborne_players_shadow(surface, camera, monkeypatch):
+    # draw_scene must read the player's jump_offset and the bomb's
+    # fall_offset and pass them into draw_shadow, not always draw a
+    # grounded-size shadow.
+    player = Player()
+    player.jump_offset = -90
+    bomb = Bomb(300, 300, fall_offset=-90)
+
+    captured_offsets = []
+    original_shadow = rendering.draw_shadow
+
+    def fake_shadow(surface_, x, y, base_radius, height_offset=0):
+        captured_offsets.append(height_offset)
+        return original_shadow(surface_, x, y, base_radius, height_offset)
+
+    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    rendering.draw_scene(surface, player=player, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+
+    assert -90 in captured_offsets
+
+
+def test_draw_scene_draws_the_players_shadow_at_its_feet_not_its_topleft(monkeypatch):
+    # Regression: player.x/y is the rect's top-left corner, not its
+    # center (Bomb/Shard use x/y as their true center, but Player and
+    # Enemy don't) — drawing the shadow at camera.apply(entity.x, entity.y)
+    # placed it offset up-and-left of the sprite instead of directly
+    # beneath it. Anchored to rect.midbottom (feet), not rect.center, so
+    # it reads as cast on the ground under the sprite rather than sitting
+    # near its torso/behind it.
+    player = Player()
+    player.x, player.y = 500, 500  # comfortably inside the viewport
+    player._sync_rect()
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.snap_to(player.centerx, player.centery)
+
+    captured_positions = []
+    original_shadow = rendering.draw_shadow
+
+    def fake_shadow(surface_, x, y, base_radius, height_offset=0):
+        captured_positions.append((x, y))
+        return original_shadow(surface_, x, y, base_radius, height_offset)
+
+    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    fake_surface = pygame.Surface((WIDTH, HEIGHT))
+    rendering.draw_scene(fake_surface, player=player, bombs=[], shards=[], enemies=[], effects=[], camera=camera)
+
+    expected = camera.apply(*player.rect.midbottom)
+    assert captured_positions[0] == expected
+
+
+def test_draw_scene_draws_a_bombs_shadow_at_its_center(monkeypatch):
+    # Bomb/Shard are circular with no "feet" — their rect.center is
+    # already the correct shadow anchor, unlike rect-based entities.
+    bomb = Bomb(500, 500)
+
+    captured_positions = []
+    original_shadow = rendering.draw_shadow
+
+    def fake_shadow(surface_, x, y, base_radius, height_offset=0):
+        captured_positions.append((x, y))
+        return original_shadow(surface_, x, y, base_radius, height_offset)
+
+    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    fake_surface = pygame.Surface((WIDTH, HEIGHT))
+    rendering.draw_scene(fake_surface, player=None, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+
+    expected = camera.apply(*bomb.rect.center)
+    assert captured_positions[0] == expected
 
 
 def test_draw_scene_with_full_cast(surface, camera):
@@ -196,7 +339,7 @@ def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
     player = Player()
     player.x, player.y = 100, 100  # comfortably inside the viewport regardless of camera clamp
     player._sync_rect()
-    camera.follow(player.centerx, player.centery)
+    camera.snap_to(player.centerx, player.centery)
     rendering.draw_debug_boxes(surface, player=player, bombs=[], shards=[], enemies=[], camera=camera)
     # the outline is drawn exactly on the camera-translated rect: sample its border pixel
     screen_rect = camera.apply_rect(player.rect)
@@ -204,8 +347,312 @@ def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
     assert color_at_top_left != (0, 0, 0)
 
 
+class _MultiBlitRecordingSurface:
+    """Like _BlitRecordingSurface, but keeps every blit call — draw_ground
+    blits many tiles in one call, not just one sprite."""
+
+    def __init__(self):
+        self.calls = []
+
+    def blit(self, source, dest):
+        dest_rect = pygame.Rect(dest, source.get_size()) if not isinstance(dest, pygame.Rect) else dest
+        self.calls.append((source.get_size(), dest_rect.topleft))
+
+    def fill(self, color):
+        pass
+
+
 def test_draw_ground(surface, camera):
     rendering.draw_ground(surface, camera)
+
+
+def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
+    # The camera sits at the world's top-left corner (0, 0) — the tile
+    # range must not include negative columns/rows, since there's no
+    # ground there for the player to ever reach.
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0
+
+    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+
+    assert min_col >= 0
+    assert min_row >= 0
+
+
+def test_visible_tile_range_does_not_exceed_the_worlds_far_edge():
+    # The camera sits at the world's bottom-right corner — the tile range
+    # must not extend past WORLD_WIDTH/WORLD_HEIGHT (in tile units). Row
+    # units are TILE_FOOTPRINT_HEIGHT/2 (matching the scroll rate fix, see
+    # test_ground_scrolls_at_the_same_rate_as_every_other_entity), not
+    # TILE_WIDTH — cols and rows use different pixel-per-unit scales.
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH, WORLD_HEIGHT
+
+    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+
+    assert max_col <= WORLD_WIDTH / TILE_WIDTH
+    assert max_row <= WORLD_HEIGHT / (TILE_FOOTPRINT_HEIGHT / 2)
+
+
+def test_draw_ground_scrolls_straight_when_camera_moves_purely_vertically():
+    # Regression for the reported bug: moving straight up/down felt
+    # rotated 45 degrees on the tiled ground. A pure-vertical camera move
+    # must shift every tile's screen position only in y, never in x.
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
+
+    before = _MultiBlitRecordingSurface()
+    rendering.draw_ground(before, camera)
+
+    camera.y -= 100  # pure vertical move, x unchanged
+
+    after = _MultiBlitRecordingSurface()
+    rendering.draw_ground(after, camera)
+
+    before_xs = sorted({topleft[0] for _, topleft in before.calls})
+    after_xs = sorted({topleft[0] for _, topleft in after.calls})
+    assert before_xs == after_xs
+
+
+def test_ground_scrolls_at_the_same_rate_as_every_other_entity():
+    # Regression: bombs/enemies/player all move via Camera.apply, a 1:1
+    # world-unit-to-screen-pixel mapping. The ground must scroll at that
+    # same rate, or entities visually drift off the tiles they're
+    # standing on as the camera moves (reported bug: "bombs and enemies
+    # are still moving relative to the old flat game and not the new
+    # tiles"). Track the same physical world tile's screen position
+    # (fixed world_row, camera-relative row recomputed each time) across
+    # a vertical camera move and confirm it shifts by exactly the delta,
+    # matching what camera.apply produces for any entity.
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
+    half_h = TILE_FOOTPRINT_HEIGHT / 2
+    fixed_world_row = int(camera.y / half_h)  # a tile at the camera's own row
+
+    def screen_y_of_fixed_tile():
+        cam_row = camera.y / half_h
+        _, sy = rendering.ground_tile_screen_pos(
+            0, fixed_world_row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=fixed_world_row
+        )
+        return sy
+
+    fixed_world_point_y = WORLD_HEIGHT / 2
+    before_tile_y = screen_y_of_fixed_tile()
+    before_entity_y = camera.apply(0, fixed_world_point_y)[1]
+
+    camera.y += 96  # arbitrary pure-vertical move
+
+    after_tile_y = screen_y_of_fixed_tile()
+    after_entity_y = camera.apply(0, fixed_world_point_y)[1]
+
+    tile_shift = before_tile_y - after_tile_y
+    entity_shift = before_entity_y - after_entity_y
+    assert entity_shift == 96  # sanity: camera.apply is 1:1, as documented
+    assert tile_shift == entity_shift
+
+
+def test_draw_ground_tiles_the_grass_tile_across_the_viewport(camera):
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_HEIGHT
+
+    fake_surface = _MultiBlitRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert len(fake_surface.calls) > 1
+    assert all(size == (TILE_WIDTH, TILE_HEIGHT) for size, _ in fake_surface.calls)
+
+
+def test_draw_ground_covers_the_full_viewport_away_from_world_edges():
+    # Every screen pixel should fall under some tile when the camera is
+    # comfortably inside the world — no gaps from an under-sized iso grid.
+    # (Near a world edge the ground is expected to stop short of the
+    # viewport, since there's no ground beyond WORLD_WIDTH/WORLD_HEIGHT —
+    # see test_draw_ground_does_not_tile_past_the_worlds_edges.)
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
+
+    fake_surface = _MultiBlitRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    covered = pygame.Rect(0, 0, 0, 0)
+    for size, topleft in fake_surface.calls:
+        covered = covered.union(pygame.Rect(topleft, size))
+
+    viewport = pygame.Rect(0, 0, WIDTH, HEIGHT)
+    assert covered.contains(viewport)
+
+
+def test_draw_ground_covers_the_full_viewport_across_a_sweep_of_camera_positions():
+    # Regression: a single fixed camera position isn't enough to catch a
+    # padding bug in visible_tile_range — only ~55% of arbitrary camera
+    # positions actually failed before this was fixed, since the gap only
+    # appears depending on cam_col/cam_row's fractional part and whether
+    # the visible row range happens to include an odd (staggered) row.
+    # This read as "the screen flickers a lot while moving": the ground
+    # would intermittently fail to cover the viewport, flashing the navy
+    # background through the gap.
+    viewport = pygame.Rect(0, 0, WIDTH, HEIGHT)
+    # Comfortably inside the world on every axis, including the viewport's
+    # own extent (camera.x/y is the viewport's top-left corner, not its
+    # center) — so world-edge clipping (a separate, correct behavior)
+    # never explains a gap here.
+    margin = 300
+    for cx in range(margin, WORLD_WIDTH - WIDTH - margin, 37):
+        for cy in range(margin, WORLD_HEIGHT - HEIGHT - margin, 41):
+            camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+            camera.x, camera.y = cx, cy
+            fake_surface = _MultiBlitRecordingSurface()
+            rendering.draw_ground(fake_surface, camera)
+
+            covered = pygame.Rect(0, 0, 0, 0)
+            for size, topleft in fake_surface.calls:
+                covered = covered.union(pygame.Rect(topleft, size))
+
+            assert covered.contains(viewport), f"gap at camera=({cx}, {cy})"
+
+
+def test_draw_ground_does_not_tile_past_the_worlds_edges():
+    # At the world's origin corner, no tile should be blitted representing
+    # ground above/left of world (0, 0) — there's nothing there for the
+    # player to ever reach.
+    from game.rendering.isometric_assets import TILE_WIDTH
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0
+
+    fake_surface = _MultiBlitRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+    assert min_col == 0
+    assert min_row == 0
+    # Sanity: draw_ground actually blit tiles at all (not an empty range).
+    assert len(fake_surface.calls) > 0
+
+
+def test_ground_tile_screen_position_moves_right_as_col_increases_only():
+    # The ground must scroll the same straight way as every other entity
+    # (Camera.apply maps world x -> screen x independently of y) — col
+    # increasing should shift screen_x only, never screen_y.
+    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    next_col = rendering.ground_tile_screen_pos(1, 0, tile_width=64, tile_height=32, world_row=0)
+    assert next_col[0] > origin[0]
+    assert next_col[1] == origin[1]
+
+
+def test_ground_tile_screen_position_moves_down_as_row_increases_on_the_same_world_row_parity():
+    # Same for row -> screen_y: a pure-vertical camera/player movement
+    # must not shift the ground horizontally (this was the reported bug —
+    # moving straight up/down/left/right looked rotated 45 degrees because
+    # the previous true-isometric formula mixed col and row into both axes).
+    # Held to world_row=0 for both calls so the brick stagger (tested
+    # separately below) doesn't also shift screen_x here.
+    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    next_row = rendering.ground_tile_screen_pos(0, 1, tile_width=64, tile_height=32, world_row=0)
+    assert next_row[0] == origin[0]
+    assert next_row[1] > origin[1]
+
+
+def test_ground_tile_screen_position_staggers_odd_world_rows_by_half_a_tile_width():
+    # The diamond tile art needs a brick-course offset every other row to
+    # interlock cleanly — without it, rows stack directly on top of each
+    # other and the diamonds overlap into a wavy, scalloped mess.
+    even_row = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    odd_row = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=1)
+    assert odd_row[0] == even_row[0] + 32
+
+
+def test_ground_tile_screen_position_stagger_is_fixed_to_the_world_grid():
+    # The stagger must be keyed off the tile's absolute world row, not a
+    # camera-relative value — otherwise it would flicker between offsets
+    # as the camera scrolls smoothly instead of staying locked to the
+    # same physical tiles.
+    pos_a = rendering.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=5)
+    pos_b = rendering.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=7)
+    assert pos_a[0] == pos_b[0]
+
+
+def test_is_border_tile_true_for_a_column_inside_the_border_zone():
+    from game.config import WORLD_BORDER
+
+    # A col near world (0,0) — well within the border band — is a border tile.
+    assert rendering.is_border_tile(col=0, row=10, tile_width=64, half_h=24) is True
+
+
+def test_is_border_tile_false_for_a_column_well_inside_the_playable_area():
+    from game.config import WORLD_BORDER, WORLD_WIDTH
+
+    mid_col = int((WORLD_WIDTH / 2) / 64)
+    assert rendering.is_border_tile(col=mid_col, row=10, tile_width=64, half_h=24) is False
+
+
+def test_is_border_tile_true_near_the_far_world_edge():
+    from game.config import WORLD_WIDTH
+
+    far_col = int(WORLD_WIDTH / 64) - 1
+    assert rendering.is_border_tile(col=far_col, row=10, tile_width=64, half_h=24) is True
+
+
+class _SurfaceIdentityRecordingSurface:
+    """Records the exact blitted Surface object (by identity), not just
+    its size — stone and grass tiles are the same pixel dimensions, so
+    size alone can't distinguish which tile was actually drawn."""
+
+    def __init__(self):
+        self.blitted_surfaces = []
+
+    def blit(self, source, dest):
+        self.blitted_surfaces.append(source)
+
+    def fill(self, color):
+        pass
+
+
+def test_draw_ground_uses_the_stone_tile_in_the_border_zone():
+    from game.rendering.isometric_assets import get_stone_tile
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0  # world's top-left corner, deep in the border
+
+    fake_surface = _SurfaceIdentityRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert get_stone_tile() in fake_surface.blitted_surfaces
+
+
+def test_draw_ground_uses_the_grass_tile_away_from_the_border():
+    from game.rendering.isometric_assets import get_grass_tile
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2  # deep in the playable area
+
+    fake_surface = _SurfaceIdentityRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert get_grass_tile() in fake_surface.blitted_surfaces
+    assert all(s is get_grass_tile() for s in fake_surface.blitted_surfaces)
+
+
+def test_draw_ground_border_is_visible_when_the_camera_reaches_the_true_world_edge():
+    # Regression: the ground's world-to-screen mapping must match
+    # Camera.apply's (world_x - camera.x, no extra centering term) — an
+    # earlier stray "+ WIDTH/2 - half_w" offset shifted every tile ~850px
+    # off from where entities actually render, invisible against uniform
+    # grass but making the border band land far outside the viewport
+    # even when the camera's clamped position puts the true world edge
+    # exactly at the screen's edge.
+    from game.rendering.isometric_assets import get_stone_tile
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.snap_to(WORLD_WIDTH, WORLD_HEIGHT)  # clamps to the max reachable position
+
+    fake_surface = _SurfaceIdentityRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    assert get_stone_tile() in fake_surface.blitted_surfaces
 
 
 def test_draw_overlay(surface, camera):

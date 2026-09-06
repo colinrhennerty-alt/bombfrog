@@ -1,4 +1,4 @@
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER
 from game.simulation.camera import Camera
 from game.simulation.enemy import Enemy
 
@@ -14,29 +14,31 @@ def test_enemy_takes_damage_and_dies_at_zero_hp():
     assert enemy.dead is True
 
 
-def test_enemy_bounces_off_world_edges():
+def test_enemy_bounces_off_the_stone_border():
+    # Same inset boundary as the player — enemies bounce off the border
+    # zone, not the raw world edge, so they never visually clip into it.
     enemy = Enemy("left", 500, 500)
-    enemy.x = 0
+    enemy.x = WORLD_BORDER
     enemy.vx = -3
     enemy.update(dt=16)
-    assert enemy.x == 0
+    assert enemy.x == WORLD_BORDER
     assert enemy.vx == 3
 
 
-def test_enemy_bounces_off_far_world_edge():
+def test_enemy_bounces_off_the_far_stone_border():
     enemy = Enemy("left", 500, 500)
-    enemy.x = WORLD_WIDTH - enemy.width
+    enemy.x = WORLD_WIDTH - WORLD_BORDER - enemy.width
     enemy.vx = 3
     enemy.update(dt=16)
-    assert enemy.x == WORLD_WIDTH - enemy.width
+    assert enemy.x == WORLD_WIDTH - WORLD_BORDER - enemy.width
     assert enemy.vx == -3
 
 
-def test_enemy_spawns_clamped_within_world_bounds():
+def test_enemy_spawns_clamped_within_the_stone_border():
     for _ in range(20):
         enemy = Enemy("left", 500, 500)
-        assert 0 <= enemy.x <= WORLD_WIDTH - enemy.width
-        assert 0 <= enemy.y <= WORLD_HEIGHT - enemy.height
+        assert WORLD_BORDER <= enemy.x <= WORLD_WIDTH - WORLD_BORDER - enemy.width
+        assert WORLD_BORDER <= enemy.y <= WORLD_HEIGHT - WORLD_BORDER - enemy.height
 
 
 def test_enemy_spawns_off_screen_near_left_world_edge():
@@ -45,7 +47,7 @@ def test_enemy_spawns_off_screen_near_left_world_edge():
     # that viewport, not get clamped back onto the visible screen.
     player_x, player_y = 50, 500
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    camera.follow(player_x, player_y)
+    camera.snap_to(player_x, player_y)
 
     enemy = Enemy("left", player_x, player_y, camera=camera)
 
@@ -55,7 +57,7 @@ def test_enemy_spawns_off_screen_near_left_world_edge():
 def test_enemy_spawns_off_screen_near_right_world_edge():
     player_x, player_y = WORLD_WIDTH - 50, 500
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    camera.follow(player_x, player_y)
+    camera.snap_to(player_x, player_y)
 
     enemy = Enemy("right", player_x, player_y, camera=camera)
 

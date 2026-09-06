@@ -5,7 +5,7 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 
 import pygame
 
-from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS
+from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER, BOMB_CONTACT_GRACE_MS
 from game.simulation.bomb import Bomb
 from game.simulation.enemy import Enemy
 from game.simulation.shard import Shard
@@ -65,6 +65,36 @@ def test_bomb_explosion_on_fuse_damages_nearby_enemy_and_scores():
     assert world.score == 100 + 1  # kill bonus + this frame's score tick
 
 
+def test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy():
+    # Reported bug: "I don't see the bomb drop when I am over an enemy."
+    # A bomb created via Player.create_bomb() at the jump apex directly
+    # above an enemy would previously spawn and contact-explode in the
+    # same world.update() call — the bomb never rendered for even one
+    # frame. A bomb must survive the tick it's created on regardless of
+    # what it's overlapping, then behave normally afterward.
+    world = World(now=0)
+    enemy = _new_enemy()
+    bomb = Bomb(enemy.x, enemy.y)  # spawned already overlapping the enemy
+    _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
+    world.bombs = [bomb]
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+    assert world.bombs == [bomb]  # still alive after its first tick
+
+    # Contact-triggering stays off for a short grace period after
+    # spawning (BOMB_CONTACT_GRACE_MS) so the bomb is actually visible to
+    # a player, not just technically present for one imperceptible tick.
+    # contact_armed reflects the bomb's armed state *before* each tick's
+    # own update, so the grace period must fully elapse in an earlier
+    # tick before a later tick's contact-check can see it as armed.
+    world.update(NO_KEYS, dt=BOMB_CONTACT_GRACE_MS, now=1016)
+    assert world.bombs == [bomb]  # still alive: armed only takes effect next tick
+
+    world.update(NO_KEYS, dt=16, now=1200)
+    assert world.bombs == []  # now detonates, same as always
+
+
 def test_bomb_explodes_on_enemy_contact_even_before_fuse_expires():
     bomb = Bomb(100, 100)
     bomb.timer = BOMB_FUSE_MS  # nowhere near its own fuse
@@ -75,7 +105,13 @@ def test_bomb_explodes_on_enemy_contact_even_before_fuse_expires():
     world.bombs = [bomb]
     world.enemies = [enemy]
 
-    world.update(NO_KEYS, dt=1, now=1000)
+    # A bomb stays contact-immune for BOMB_CONTACT_GRACE_MS after it's
+    # placed (see test_freshly_spawned_bomb_survives_its_first_tick_...).
+    # contact_armed reflects the bomb's armed state *before* each tick's
+    # own update, so the grace period must fully elapse in an earlier
+    # tick before a later tick's contact-check can see it as armed.
+    world.update(NO_KEYS, dt=BOMB_CONTACT_GRACE_MS, now=1000)
+    world.update(NO_KEYS, dt=1, now=1001)
 
     assert world.bombs == []  # detonated on contact, not from the fuse
 
@@ -93,6 +129,68 @@ def test_enemy_collision_costs_a_life_and_respawns_without_wiping_score():
     assert world.score == 501  # score survives a respawn, plus this frame's +1
     assert world.game_over is False
     assert world.enemies == []  # arena cleared by the respawn
+
+
+def test_jumping_over_an_enemy_avoids_the_collision():
+    # Jumping should let the player dodge an enemy underneath them —
+    # on_ground already tracks "airborne for the whole jump arc", reuse
+    # it rather than adding new state.
+    world = World(now=0)
+    world.player.on_ground = False
+    world.player.jump_offset = -50  # mid-air, not about to land this frame
+    enemy = _new_enemy()
+    _place_enemy_at(enemy, world.player.x, world.player.y)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 3
+    assert world.game_over is False
+    assert world.enemies == [enemy]  # enemy survives too — no collision happened at all
+
+
+def test_landing_on_an_enemy_still_costs_a_life():
+    # Sanity check alongside the jump-dodge test: grounded collision must
+    # still work exactly as before.
+    world = World(now=0)
+    world.player.on_ground = True
+    enemy = _new_enemy()
+    _place_enemy_at(enemy, world.player.x, world.player.y)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 2
+
+
+def test_jumping_over_shrapnel_avoids_the_collision():
+    # Reported bug: bombing an enemy while jumping directly over it spawns
+    # death shrapnel right at the player's *hitbox* position (which stays
+    # grounded during a jump — jump_offset is purely visual), so the
+    # player took an instant, invisible hit with no on-screen feedback
+    # even though the sprite was clearly airborne. Jumping should dodge
+    # shrapnel exactly the same way it dodges enemies.
+    world = World(now=0)
+    world.player.on_ground = False
+    world.player.jump_offset = -50
+    shard = Shard(world.player.rect.centerx, world.player.rect.centery, angle=0, speed=0)
+    world.shards = [shard]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 3
+    assert world.game_over is False
+
+
+def test_landing_on_shrapnel_still_costs_a_life():
+    world = World(now=0)
+    world.player.on_ground = True
+    shard = Shard(world.player.rect.centerx, world.player.rect.centery, angle=0, speed=0)
+    world.shards = [shard]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 2
 
 
 def test_losing_the_last_life_ends_the_game():
@@ -225,7 +323,7 @@ def test_bomb_should_explode_when_fuse_is_ready():
     world = World(now=0)
     bomb = Bomb(100, 100)
     bomb.timer = 0
-    assert world._bomb_should_explode(bomb) is True
+    assert world._bomb_should_explode(bomb, contact_armed=False) is True
 
 
 def test_bomb_should_explode_on_enemy_contact_even_with_fuse_unready():
@@ -235,7 +333,21 @@ def test_bomb_should_explode_on_enemy_contact_even_with_fuse_unready():
     enemy = _new_enemy()
     _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
     world.enemies = [enemy]
-    assert world._bomb_should_explode(bomb) is True
+    assert world._bomb_should_explode(bomb, contact_armed=True) is True
+
+
+def test_bomb_does_not_contact_explode_before_its_first_tick():
+    # A bomb that hasn't survived a tick yet (contact_armed=False) must
+    # not contact-explode even while overlapping an enemy — see
+    # test_freshly_spawned_bomb_survives_its_first_tick_even_touching_an_enemy
+    # for the end-to-end version of this via world.update().
+    world = World(now=0)
+    bomb = Bomb(100, 100)
+    bomb.timer = BOMB_FUSE_MS
+    enemy = _new_enemy()
+    _place_enemy_at(enemy, bomb.x - 5, bomb.y - 5)
+    world.enemies = [enemy]
+    assert world._bomb_should_explode(bomb, contact_armed=False) is False
 
 
 def test_bomb_should_not_explode_when_fuse_unready_and_no_contact():
@@ -245,7 +357,7 @@ def test_bomb_should_not_explode_when_fuse_unready_and_no_contact():
     enemy = _new_enemy()
     _place_enemy_at(enemy, 5000, 5000)  # nowhere near the bomb
     world.enemies = [enemy]
-    assert world._bomb_should_explode(bomb) is False
+    assert world._bomb_should_explode(bomb, contact_armed=True) is False
 
 
 # --- debug-mode collision logging ------------------------------------------
@@ -289,7 +401,9 @@ def test_logs_bomb_contact_trigger(capsys):
     world.bombs = [bomb]
     world.enemies = [enemy]
 
-    world.update(NO_KEYS, dt=1, now=1000)
+    world.update(NO_KEYS, dt=BOMB_CONTACT_GRACE_MS, now=1000)  # bomb survives the grace period
+    capsys.readouterr()  # discard this tick's output
+    world.update(NO_KEYS, dt=1, now=1001)
 
     out = capsys.readouterr().out
     assert "[debug]" in out
@@ -321,7 +435,7 @@ def test_logs_shard_hitting_an_enemy(capsys):
     world.debug = True
     enemy = _new_enemy()
     enemy.vx = 0  # stays put, so this frame's enemy.update() doesn't drift it off the shard
-    _place_enemy_at(enemy, 100, 100)
+    _place_enemy_at(enemy, WORLD_BORDER + 100, WORLD_BORDER + 100)  # outside the stone border
     enemy._sync_rect()  # matches what enemy.update() will do, so the shard lands exactly on it
     shard = Shard(enemy.rect.centerx, enemy.rect.centery, angle=0, speed=0)
     world.enemies = [enemy]

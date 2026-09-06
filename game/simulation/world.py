@@ -51,7 +51,7 @@ class World:
         self.effects = []
         self.game_over = False
         self.last_spawn = now
-        self.camera.follow(self.player.centerx, self.player.centery)
+        self.camera.snap_to(self.player.centerx, self.player.centery)
 
     @classmethod
     def from_save_data(cls, data, now=0):
@@ -66,7 +66,7 @@ class World:
         world.last_spawn = data.get("last_spawn", now)
         world.effects = []
         world.game_over = False
-        world.camera.follow(world.player.centerx, world.player.centery)
+        world.camera.snap_to(world.player.centerx, world.player.centery)
         return world
 
     def merge_save_data(self, data):
@@ -76,7 +76,7 @@ class World:
         self.score = data.get("score", self.score)
         self.lives = data.get("lives", self.lives)
         self.last_spawn = data.get("last_spawn", self.last_spawn)
-        self.camera.follow(self.player.centerx, self.player.centery)
+        self.camera.snap_to(self.player.centerx, self.player.centery)
 
     def update(self, keys, dt, now):
         if self.game_over:
@@ -110,11 +110,20 @@ class World:
             )
             self.last_spawn = now
 
-    def _bomb_should_explode(self, bomb):
-        """A bomb detonates once its fuse expires, or the instant any
-        enemy touches it — whichever comes first."""
+    def _bomb_should_explode(self, bomb, contact_armed):
+        """A bomb detonates once it's landed AND its fuse has expired
+        (Bomb.is_ready() requires both — a bomb dropped from a high jump
+        must not explode mid-air just because the fuse timer ran out), or
+        the instant any enemy touches it, whichever comes first.
+        Contact-triggering is gated by contact_armed (whether the bomb
+        existed before this tick) so a bomb spawned already overlapping
+        an enemy — e.g. dropped at the apex of a jump directly over one —
+        always survives its first tick instead of exploding before ever
+        being rendered."""
         if bomb.is_ready():
             return True
+        if not contact_armed:
+            return False
         touching_enemy = next((e for e in self.enemies if bomb.rect.colliderect(e.rect)), None)
         if touching_enemy is not None:
             if self.debug:
@@ -141,8 +150,9 @@ class World:
 
     def _update_bombs(self, dt):
         for bomb in self.bombs[:]:
+            contact_armed = bomb.armed
             bomb.update(dt)
-            if self._bomb_should_explode(bomb):
+            if self._bomb_should_explode(bomb, contact_armed):
                 self._explode_bomb(bomb)
 
     def _lose_a_life(self, now):
@@ -163,7 +173,7 @@ class World:
 
             if enemy.dead:
                 self._kill_enemy(enemy)
-            elif enemy.rect.colliderect(self.player.rect):
+            elif self.player.on_ground and enemy.rect.colliderect(self.player.rect):
                 if self.debug:
                     debug_log.log("enemy hit player")
                 self._lose_a_life(now)
@@ -188,7 +198,7 @@ class World:
     def _update_shards(self, dt, now):
         for shard in self.shards[:]:
             shard.update(dt)
-            if shard.rect.colliderect(self.player.rect):
+            if self.player.on_ground and shard.rect.colliderect(self.player.rect):
                 if self.debug:
                     debug_log.log("shard hit player")
                 self._lose_a_life(now)

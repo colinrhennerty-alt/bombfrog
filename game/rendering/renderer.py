@@ -10,20 +10,32 @@ import math
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, BOMB_FUSE_MS
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, BOMB_FUSE_MS
+from game.utils import clamp
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.rendering.assets import get_frog_frames
+from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
 
 
-def draw_shadow(surface, x, y, base_radius):
+def shadow_size_for(base_radius, height_offset):
+    """Shrink the shadow as the entity rises off the ground, so height
+    reads visually even though the sim is pure 2D. height_offset is the
+    same jump_offset/fall_offset magnitude used to draw the entity itself
+    (0 = grounded, larger magnitude = higher up)."""
+    shrink = 1 / (1 + abs(height_offset) / 60)
+    return max(6, int(base_radius * 0.4 * shrink))
+
+
+def draw_shadow(surface, x, y, base_radius, height_offset=0):
     # Draw a simple blurred shadow beneath the entity, in screen space
     # (caller has already applied the camera translation).
-    sr = max(6, int(base_radius * 0.6))
+    sr = shadow_size_for(base_radius, height_offset)
+    alpha = max(30, int(90 * (1 / (1 + abs(height_offset) / 60))))
     shadow = pygame.Surface((sr * 2, int(sr * 0.6)), pygame.SRCALPHA)
-    pygame.draw.ellipse(shadow, (0, 0, 0, 90), (0, 0, sr * 2, int(sr * 0.6)))
+    pygame.draw.ellipse(shadow, (0, 0, 0, alpha), (0, 0, sr * 2, int(sr * 0.6)))
     surface.blit(shadow, (int(x) - sr, int(y) - int(sr * 0.3)))
 
 
@@ -47,10 +59,17 @@ def draw_player(surface, player, camera):
     surface.blit(frame, screen_rect.topleft)
 
 
+def depth_scale_for(screen_y):
+    """A cheap perspective-camera trick: entities nearer the top of the
+    viewport read smaller, entities nearer the bottom read larger, as if
+    the camera were looking down at an angle instead of straight down."""
+    return 0.85 + 0.3 * clamp(screen_y / HEIGHT, 0, 1)
+
+
 def draw_bomb(surface, bomb, camera):
     sx, sy = camera.apply(bomb.x, bomb.y)
     sy += bomb.fall_offset
-    r = 14
+    r = int(14 * depth_scale_for(sy))
     pygame.draw.circle(surface, bomb.color, (int(sx), int(sy)), r)
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)
     arc_r = 20
@@ -65,7 +84,8 @@ def draw_bomb_explosion_radius(surface, bomb, camera):
 
 def draw_shard(surface, shard, camera):
     sx, sy = camera.apply(shard.x, shard.y)
-    pygame.draw.circle(surface, shard.color, (int(sx), int(sy)), shard.radius)
+    r = max(1, int(shard.radius * depth_scale_for(sy)))
+    pygame.draw.circle(surface, shard.color, (int(sx), int(sy)), r)
 
 
 def draw_enemy(surface, enemy, camera):
@@ -120,8 +140,15 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
 
     for entity in drawables:
         base_radius = getattr(entity, "radius", getattr(entity, "width", 20))
-        sx, sy = camera.apply(entity.x, entity.y)
-        draw_shadow(surface, sx, sy, base_radius)
+        height_offset = getattr(entity, "jump_offset", getattr(entity, "fall_offset", 0))
+        # Circular entities (Bomb/Shard, which have .radius) have no
+        # "feet" — their rect.center is the natural shadow anchor. Rect
+        # entities (Player/Enemy) read as standing upright, so the shadow
+        # belongs at rect.midbottom (their feet) to look cast on the
+        # ground beneath them rather than floating near their torso.
+        anchor = entity.rect.center if hasattr(entity, "radius") else entity.rect.midbottom
+        sx, sy = camera.apply(*anchor)
+        draw_shadow(surface, sx, sy, base_radius, height_offset)
 
     for entity in drawables:
         draw_func = _DRAW_FUNCS.get(type(entity))
@@ -132,15 +159,109 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
         draw_explosion_effect(surface, effect, camera)
 
 
+def ground_tile_screen_pos(col, row, tile_width, tile_height, world_row):
+    """A tile's (col, row) grid coordinate to its screen-space top-left
+    offset. Straight scroll, not true isometric fan-out: col only ever
+    moves screen_x and row only ever moves screen_y, matching how
+    Camera.apply maps world x/y to screen x/y for every other entity.
+    (An earlier true-isometric version mixed col and row into both axes,
+    which made straight up/down/left/right movement look rotated 45
+    degrees on the tiled ground while everything else moved straight.)
+
+    Rows are packed at half the tile's footprint height and staggered by
+    half a tile width on odd rows (brick-course layout) — the diamond
+    art needs this overlap/interlock to read as a continuous floor
+    instead of stacking with visible gaps or double-covered seams. The
+    stagger is keyed off world_row (the tile's absolute integer grid
+    row), not the camera-relative `row`, so it stays fixed to the world
+    grid and doesn't flicker as the camera scrolls smoothly."""
+    stagger = (tile_width / 2) if world_row % 2 else 0
+    return col * tile_width + stagger, row * (tile_height / 2)
+
+
+def is_border_tile(col, row, tile_width, half_h):
+    """Whether a (col, row) ground tile falls in the world's impassable
+    stone border zone (see WORLD_BORDER / Player/Enemy's movement
+    clamping) rather than the playable interior."""
+    border_cols = WORLD_BORDER / tile_width
+    border_rows = WORLD_BORDER / half_h
+    max_col = WORLD_WIDTH / tile_width
+    max_row = WORLD_HEIGHT / half_h
+    return (
+        col < border_cols
+        or col >= max_col - border_cols
+        or row < border_rows
+        or row >= max_row - border_rows
+    )
+
+
+def visible_tile_range(camera):
+    """Which (col, row) tile grid range the camera can currently see,
+    clamped to the world's own tile bounds so the ground never tiles past
+    where the player could ever actually go.
+
+    ground_tile_screen_pos places col=cam_col/row=cam_row at screen (0, 0)
+    and scrolls at 1px per world-unit (matching Camera.apply exactly, no
+    extra centering term) — so the screen's visible range [0, WIDTH] maps
+    to col in [cam_col, cam_col + WIDTH/TILE_WIDTH], not a range centered
+    on cam_col. Padding beyond that range is explained inline below."""
+    half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / half_h
+
+    # Padding needs to cover: the brick stagger, which can shift an odd
+    # row's tiles by half_w (0.5 col-units) either side of where an
+    # unstaggered grid would put them; plus a couple of whole tiles of
+    # safety margin so int() truncation and the diamond's own footprint
+    # bleeding past its nominal cell never leave a gap at the viewport
+    # edge (this was previously computed as int(half_w / TILE_WIDTH),
+    # which truncates to 0 and produced visible gaps in ~45% of camera
+    # positions — read as "the screen flickers a lot while moving").
+    pad_cols = 1 + 2
+    pad_rows = 1 + 2
+
+    max_world_col = WORLD_WIDTH / TILE_WIDTH
+    max_world_row = WORLD_HEIGHT / half_h
+
+    min_col = max(0, int(cam_col) - pad_cols)
+    max_col = min(max_world_col, int(cam_col) + WIDTH / TILE_WIDTH + pad_cols)
+    min_row = max(0, int(cam_row) - pad_rows)
+    max_row = min(max_world_row, int(cam_row) + HEIGHT / half_h + pad_rows)
+    return min_col, max_col, min_row, max_row
+
+
 def draw_ground(surface, camera):
     surface.fill((52, 88, 58))
-    tile = 120
-    offset_x = int(-camera.x) % tile
-    offset_y = int(-camera.y) % tile
-    for gx in range(offset_x - tile, WIDTH + tile, tile):
-        pygame.draw.line(surface, (44, 74, 48), (gx, 0), (gx, HEIGHT), 1)
-    for gy in range(offset_y - tile, HEIGHT + tile, tile):
-        pygame.draw.line(surface, (44, 74, 48), (0, gy), (WIDTH, gy), 1)
+    grass_tile = get_grass_tile()
+    stone_tile = get_stone_tile()
+    half_h = TILE_FOOTPRINT_HEIGHT / 2
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / half_h
+
+    min_col, max_col, min_row, max_row = visible_tile_range(camera)
+
+    # Draw in ascending-row order so a tile's diamond skirt is correctly
+    # overlapped by the row in front of it (rows no longer fan diagonally,
+    # but the vertical stacking/overlap still needs front-drawn-last).
+    coords = sorted(
+        (
+            (col, row)
+            for col in range(int(min_col), int(max_col))
+            for row in range(int(min_row), int(max_row))
+        ),
+        key=lambda cr: cr[1],
+    )
+
+    for col, row in coords:
+        tile = stone_tile if is_border_tile(col, row, TILE_WIDTH, half_h) else grass_tile
+        # (col - cam_col) * TILE_WIDTH == col * TILE_WIDTH - camera.x, i.e.
+        # exactly Camera.apply's world-to-screen mapping — no extra
+        # centering term. An earlier "+ WIDTH/2 - half_w" here shifted
+        # every tile ~850px from where entities actually render (masked
+        # by uniform grass, but it broke alignment with the border zone).
+        sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
+        if sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT:
+            surface.blit(tile, (sx, sy))
 
 
 def draw_overlay(surface, bombs, camera):
