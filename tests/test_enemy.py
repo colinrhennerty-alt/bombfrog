@@ -47,7 +47,7 @@ def test_enemy_spawns_off_screen_near_left_world_edge():
     # that viewport, not get clamped back onto the visible screen.
     player_x, player_y = 50, 500
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    camera.follow(player_x, player_y)
+    camera.snap_to(player_x, player_y)
 
     enemy = Enemy("left", player_x, player_y, camera=camera)
 
@@ -57,7 +57,7 @@ def test_enemy_spawns_off_screen_near_left_world_edge():
 def test_enemy_spawns_off_screen_near_right_world_edge():
     player_x, player_y = WORLD_WIDTH - 50, 500
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    camera.follow(player_x, player_y)
+    camera.snap_to(player_x, player_y)
 
     enemy = Enemy("right", player_x, player_y, camera=camera)
 

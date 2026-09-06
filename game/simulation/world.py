@@ -51,7 +51,7 @@ class World:
         self.effects = []
         self.game_over = False
         self.last_spawn = now
-        self.camera.follow(self.player.centerx, self.player.centery)
+        self.camera.snap_to(self.player.centerx, self.player.centery)
 
     @classmethod
     def from_save_data(cls, data, now=0):
@@ -66,7 +66,7 @@ class World:
         world.last_spawn = data.get("last_spawn", now)
         world.effects = []
         world.game_over = False
-        world.camera.follow(world.player.centerx, world.player.centery)
+        world.camera.snap_to(world.player.centerx, world.player.centery)
         return world
 
     def merge_save_data(self, data):
@@ -76,7 +76,7 @@ class World:
         self.score = data.get("score", self.score)
         self.lives = data.get("lives", self.lives)
         self.last_spawn = data.get("last_spawn", self.last_spawn)
-        self.camera.follow(self.player.centerx, self.player.centery)
+        self.camera.snap_to(self.player.centerx, self.player.centery)
 
     def update(self, keys, dt, now):
         if self.game_over:

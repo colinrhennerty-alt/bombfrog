@@ -264,7 +264,7 @@ def test_draw_scene_draws_the_players_shadow_at_its_feet_not_its_topleft(monkeyp
     player._sync_rect()
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    camera.follow(player.centerx, player.centery)
+    camera.snap_to(player.centerx, player.centery)
 
     captured_positions = []
     original_shadow = rendering.draw_shadow
@@ -339,7 +339,7 @@ def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
     player = Player()
     player.x, player.y = 100, 100  # comfortably inside the viewport regardless of camera clamp
     player._sync_rect()
-    camera.follow(player.centerx, player.centery)
+    camera.snap_to(player.centerx, player.centery)
     rendering.draw_debug_boxes(surface, player=player, bombs=[], shards=[], enemies=[], camera=camera)
     # the outline is drawn exactly on the camera-translated rect: sample its border pixel
     screen_rect = camera.apply_rect(player.rect)
@@ -647,7 +647,7 @@ def test_draw_ground_border_is_visible_when_the_camera_reaches_the_true_world_ed
     from game.rendering.isometric_assets import get_stone_tile
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    camera.follow(WORLD_WIDTH, WORLD_HEIGHT)  # clamps to the max reachable position
+    camera.snap_to(WORLD_WIDTH, WORLD_HEIGHT)  # clamps to the max reachable position
 
     fake_surface = _SurfaceIdentityRecordingSurface()
     rendering.draw_ground(fake_surface, camera)
