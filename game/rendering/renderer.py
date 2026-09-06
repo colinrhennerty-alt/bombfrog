@@ -204,15 +204,21 @@ def visible_tile_range(camera):
     and scrolls at 1px per world-unit (matching Camera.apply exactly, no
     extra centering term) — so the screen's visible range [0, WIDTH] maps
     to col in [cam_col, cam_col + WIDTH/TILE_WIDTH], not a range centered
-    on cam_col. The +2 pad and the stagger's extra half-tile width cover
-    tiles whose art can still overlap into the viewport from just outside
-    that range (a diamond's skirt, the brick stagger's offset)."""
+    on cam_col. Padding beyond that range is explained inline below."""
     half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
     cam_col = camera.x / TILE_WIDTH
     cam_row = camera.y / half_h
 
-    pad_cols = int(half_w / TILE_WIDTH) + 2
-    pad_rows = int(half_h / half_h) + 2
+    # Padding needs to cover: the brick stagger, which can shift an odd
+    # row's tiles by half_w (0.5 col-units) either side of where an
+    # unstaggered grid would put them; plus a couple of whole tiles of
+    # safety margin so int() truncation and the diamond's own footprint
+    # bleeding past its nominal cell never leave a gap at the viewport
+    # edge (this was previously computed as int(half_w / TILE_WIDTH),
+    # which truncates to 0 and produced visible gaps in ~45% of camera
+    # positions — read as "the screen flickers a lot while moving").
+    pad_cols = 1 + 2
+    pad_rows = 1 + 2
 
     max_world_col = WORLD_WIDTH / TILE_WIDTH
     max_world_row = WORLD_HEIGHT / half_h

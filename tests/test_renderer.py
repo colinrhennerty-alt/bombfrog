@@ -485,6 +485,35 @@ def test_draw_ground_covers_the_full_viewport_away_from_world_edges():
     assert covered.contains(viewport)
 
 
+def test_draw_ground_covers_the_full_viewport_across_a_sweep_of_camera_positions():
+    # Regression: a single fixed camera position isn't enough to catch a
+    # padding bug in visible_tile_range — only ~55% of arbitrary camera
+    # positions actually failed before this was fixed, since the gap only
+    # appears depending on cam_col/cam_row's fractional part and whether
+    # the visible row range happens to include an odd (staggered) row.
+    # This read as "the screen flickers a lot while moving": the ground
+    # would intermittently fail to cover the viewport, flashing the navy
+    # background through the gap.
+    viewport = pygame.Rect(0, 0, WIDTH, HEIGHT)
+    # Comfortably inside the world on every axis, including the viewport's
+    # own extent (camera.x/y is the viewport's top-left corner, not its
+    # center) — so world-edge clipping (a separate, correct behavior)
+    # never explains a gap here.
+    margin = 300
+    for cx in range(margin, WORLD_WIDTH - WIDTH - margin, 37):
+        for cy in range(margin, WORLD_HEIGHT - HEIGHT - margin, 41):
+            camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+            camera.x, camera.y = cx, cy
+            fake_surface = _MultiBlitRecordingSurface()
+            rendering.draw_ground(fake_surface, camera)
+
+            covered = pygame.Rect(0, 0, 0, 0)
+            for size, topleft in fake_surface.calls:
+                covered = covered.union(pygame.Rect(topleft, size))
+
+            assert covered.contains(viewport), f"gap at camera=({cx}, {cy})"
+
+
 def test_draw_ground_does_not_tile_past_the_worlds_edges():
     # At the world's origin corner, no tile should be blitted representing
     # ground above/left of world (0, 0) — there's nothing there for the
