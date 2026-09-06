@@ -89,12 +89,18 @@ class Enemy:
 
     @classmethod
     def from_dict(cls, data):
-        enemy = cls("left", data["x"], data["y"])
+        """Builds an Enemy purely from saved data — bypasses __init__
+        (which rolls a random type/spawn-side/y-offset) since every field
+        is already fully determined by `data`."""
+        enemy = cls.__new__(cls)
+        enemy.width = 40
+        enemy.height = 34
         enemy.x = data["x"]
         enemy.y = data["y"]
         enemy.vx = data["vx"]
         enemy.type = data["type"]
         enemy.color = ENEMY_TYPES[enemy.type].color
+        enemy.rect = pygame.Rect(0, 0, enemy.width, enemy.height)
         enemy._sync_rect()
         enemy.dead = data["dead"]
         enemy.max_hp = ENEMY_TYPES[enemy.type].max_hp

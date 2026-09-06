@@ -1,3 +1,5 @@
+import random
+
 from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER
 from game.simulation.camera import Camera
 from game.simulation.enemy import Enemy
@@ -159,6 +161,27 @@ def test_enemy_shadow_anchor_is_its_feet_not_its_topleft():
     # every drawable entity exposes (see rendering.draw_scene).
     enemy = Enemy("left", 500, 500)
     assert enemy.shadow_anchor == enemy.rect.midbottom
+
+
+def test_enemy_from_dict_does_not_invoke_randomness():
+    # from_dict fully determines every field from the saved data — it
+    # must not run the randomized spawn constructor path (rng.choices /
+    # rng.uniform) just to immediately overwrite the result.
+    class _ExplodingRng:
+        def choices(self, *a, **k):
+            raise AssertionError("from_dict must not roll a random enemy type")
+
+        def uniform(self, *a, **k):
+            raise AssertionError("from_dict must not roll a random spawn offset")
+
+    original_random = random.choices, random.uniform
+    random.choices, random.uniform = _ExplodingRng().choices, _ExplodingRng().uniform
+    try:
+        Enemy.from_dict(
+            {"x": 111, "y": 222, "vx": -2.2, "type": "grunt", "dead": False, "hp": 1}
+        )
+    finally:
+        random.choices, random.uniform = original_random
 
 
 def test_enemy_to_dict_round_trips_through_from_dict():
