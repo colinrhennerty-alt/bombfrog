@@ -241,6 +241,34 @@ def test_draw_scene_shrinks_airborne_players_shadow(surface, camera, monkeypatch
     assert -90 in captured_offsets
 
 
+def test_draw_scene_draws_the_players_shadow_at_its_rect_center_not_its_topleft(monkeypatch):
+    # Regression: player.x/y is the rect's top-left corner, not its
+    # center (Bomb/Shard use x/y as their true center, but Player and
+    # Enemy don't) — drawing the shadow at camera.apply(entity.x, entity.y)
+    # placed it offset up-and-left of the sprite instead of directly
+    # beneath it.
+    player = Player()
+    player.x, player.y = 500, 500  # comfortably inside the viewport
+    player._sync_rect()
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.follow(player.centerx, player.centery)
+
+    captured_positions = []
+    original_shadow = rendering.draw_shadow
+
+    def fake_shadow(surface_, x, y, base_radius, height_offset=0):
+        captured_positions.append((x, y))
+        return original_shadow(surface_, x, y, base_radius, height_offset)
+
+    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    fake_surface = pygame.Surface((WIDTH, HEIGHT))
+    rendering.draw_scene(fake_surface, player=player, bombs=[], shards=[], enemies=[], effects=[], camera=camera)
+
+    expected = camera.apply(player.centerx, player.centery)
+    assert captured_positions[0] == expected
+
+
 def test_draw_scene_with_full_cast(surface, camera):
     rendering.draw_scene(
         surface,

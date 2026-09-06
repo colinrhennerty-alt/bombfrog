@@ -141,7 +141,12 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
     for entity in drawables:
         base_radius = getattr(entity, "radius", getattr(entity, "width", 20))
         height_offset = getattr(entity, "jump_offset", getattr(entity, "fall_offset", 0))
-        sx, sy = camera.apply(entity.x, entity.y)
+        # entity.rect.center is the entity's true visual center for every
+        # drawable type — entity.x/y is only the same point for Bomb/Shard
+        # (which use x/y as their center); Player/Enemy use x/y as a rect's
+        # top-left, so using x/y directly here drew the shadow offset from
+        # the sprite instead of underneath it.
+        sx, sy = camera.apply(*entity.rect.center)
         draw_shadow(surface, sx, sy, base_radius, height_offset)
 
     for entity in drawables:
