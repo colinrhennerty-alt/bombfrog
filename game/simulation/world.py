@@ -196,7 +196,7 @@ class World:
     def _update_shards(self, dt, now):
         for shard in self.shards[:]:
             shard.update(dt)
-            if shard.rect.colliderect(self.player.rect):
+            if self.player.on_ground and shard.rect.colliderect(self.player.rect):
                 if self.debug:
                     debug_log.log("shard hit player")
                 self._lose_a_life(now)

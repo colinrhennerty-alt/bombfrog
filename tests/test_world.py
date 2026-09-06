@@ -152,6 +152,36 @@ def test_landing_on_an_enemy_still_costs_a_life():
     assert world.lives == 2
 
 
+def test_jumping_over_shrapnel_avoids_the_collision():
+    # Reported bug: bombing an enemy while jumping directly over it spawns
+    # death shrapnel right at the player's *hitbox* position (which stays
+    # grounded during a jump — jump_offset is purely visual), so the
+    # player took an instant, invisible hit with no on-screen feedback
+    # even though the sprite was clearly airborne. Jumping should dodge
+    # shrapnel exactly the same way it dodges enemies.
+    world = World(now=0)
+    world.player.on_ground = False
+    world.player.jump_offset = -50
+    shard = Shard(world.player.rect.centerx, world.player.rect.centery, angle=0, speed=0)
+    world.shards = [shard]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 3
+    assert world.game_over is False
+
+
+def test_landing_on_shrapnel_still_costs_a_life():
+    world = World(now=0)
+    world.player.on_ground = True
+    shard = Shard(world.player.rect.centerx, world.player.rect.centery, angle=0, speed=0)
+    world.shards = [shard]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 2
+
+
 def test_losing_the_last_life_ends_the_game():
     world = World(now=0)
     world.lives = 1
