@@ -290,13 +290,22 @@ def test_draw_ground(surface, camera):
     rendering.draw_ground(surface, camera)
 
 
-def test_ground_line_color_darkens_away_from_the_horizon():
-    # The horizon is the vertical center of the viewport (HEIGHT / 2) — lines
-    # there should be lightest, lines further from it (top/bottom edges)
-    # should be darker, to imply the ground plane receding into the distance.
-    horizon_color = rendering.ground_line_color_for(HEIGHT / 2)
-    edge_color = rendering.ground_line_color_for(0)
-    assert edge_color < horizon_color
+def test_iso_tile_screen_position_moves_right_and_down_as_col_increases():
+    # Standard isometric projection: increasing the column moves the tile
+    # right and down on screen (tile_width/2, tile_height/2 per step).
+    origin = rendering.iso_tile_screen_pos(0, 0, tile_width=64, tile_height=32)
+    next_col = rendering.iso_tile_screen_pos(1, 0, tile_width=64, tile_height=32)
+    assert next_col[0] > origin[0]
+    assert next_col[1] > origin[1]
+
+
+def test_iso_tile_screen_position_moves_left_and_down_as_row_increases():
+    # Increasing the row moves the tile left and down on screen — the two
+    # axes fan out into the classic diamond grid shape.
+    origin = rendering.iso_tile_screen_pos(0, 0, tile_width=64, tile_height=32)
+    next_row = rendering.iso_tile_screen_pos(0, 1, tile_width=64, tile_height=32)
+    assert next_row[0] < origin[0]
+    assert next_row[1] > origin[1]
 
 
 def test_draw_overlay(surface, camera):
