@@ -305,6 +305,33 @@ def test_draw_ground(surface, camera):
     rendering.draw_ground(surface, camera)
 
 
+def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
+    # The camera sits at the world's top-left corner (0, 0) — the tile
+    # range must not include negative columns/rows, since there's no
+    # ground there for the player to ever reach.
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0
+
+    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+
+    assert min_col >= 0
+    assert min_row >= 0
+
+
+def test_visible_tile_range_does_not_exceed_the_worlds_far_edge():
+    # The camera sits at the world's bottom-right corner — the tile range
+    # must not extend past WORLD_WIDTH/WORLD_HEIGHT (in tile units).
+    from game.rendering.isometric_assets import TILE_WIDTH
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH, WORLD_HEIGHT
+
+    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+
+    assert max_col <= WORLD_WIDTH / TILE_WIDTH
+    assert max_row <= WORLD_HEIGHT / TILE_WIDTH
+
+
 def test_draw_ground_tiles_the_grass_tile_across_the_viewport(camera):
     from game.rendering.isometric_assets import TILE_WIDTH, TILE_HEIGHT
 
@@ -315,13 +342,17 @@ def test_draw_ground_tiles_the_grass_tile_across_the_viewport(camera):
     assert all(size == (TILE_WIDTH, TILE_HEIGHT) for size, _ in fake_surface.calls)
 
 
-def test_draw_ground_covers_the_full_viewport(camera):
-    # Every screen pixel should fall under some tile — no gaps at the
-    # viewport edges from an under-sized iso grid.
+def test_draw_ground_covers_the_full_viewport_away_from_world_edges():
+    # Every screen pixel should fall under some tile when the camera is
+    # comfortably inside the world — no gaps from an under-sized iso grid.
+    # (Near a world edge the ground is expected to stop short of the
+    # viewport, since there's no ground beyond WORLD_WIDTH/WORLD_HEIGHT —
+    # see test_draw_ground_does_not_tile_past_the_worlds_edges.)
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
+
     fake_surface = _MultiBlitRecordingSurface()
     rendering.draw_ground(fake_surface, camera)
-
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_HEIGHT
 
     covered = pygame.Rect(0, 0, 0, 0)
     for size, topleft in fake_surface.calls:
@@ -329,6 +360,25 @@ def test_draw_ground_covers_the_full_viewport(camera):
 
     viewport = pygame.Rect(0, 0, WIDTH, HEIGHT)
     assert covered.contains(viewport)
+
+
+def test_draw_ground_does_not_tile_past_the_worlds_edges():
+    # At the world's origin corner, no tile should be blitted representing
+    # ground above/left of world (0, 0) — there's nothing there for the
+    # player to ever reach.
+    from game.rendering.isometric_assets import TILE_WIDTH
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0
+
+    fake_surface = _MultiBlitRecordingSurface()
+    rendering.draw_ground(fake_surface, camera)
+
+    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+    assert min_col == 0
+    assert min_row == 0
+    # Sanity: draw_ground actually blit tiles at all (not an empty range).
+    assert len(fake_surface.calls) > 0
 
 
 def test_iso_tile_screen_position_moves_right_and_down_as_col_increases():

@@ -10,7 +10,7 @@ import math
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, BOMB_FUSE_MS
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, BOMB_FUSE_MS
 from game.utils import clamp
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
@@ -162,16 +162,11 @@ def iso_tile_screen_pos(col, row, tile_width, tile_height):
     return screen_x, screen_y
 
 
-def draw_ground(surface, camera):
-    surface.fill((52, 88, 58))
-    tile = get_grass_tile()
+def visible_tile_range(camera):
+    """Which (col, row) tile grid range the camera can currently see,
+    clamped to the world's own tile bounds so the ground never tiles past
+    where the player could ever actually go."""
     half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
-
-    # World space maps 1:1 onto the (col, row) tile grid (one world-unit
-    # square of ground per tile), then iso_tile_screen_pos fans that grid
-    # into the diamond layout on screen. Spacing uses the diamond's own
-    # footprint height, not the full sprite height (the sprite also draws
-    # a "skirt" below the diamond face that neighboring tiles overlap).
     cam_col = camera.x / TILE_WIDTH
     cam_row = camera.y / TILE_WIDTH
 
@@ -181,12 +176,31 @@ def draw_ground(surface, camera):
     pad_cols = int(WIDTH / (2 * half_w)) + 2
     pad_rows = int(HEIGHT / (2 * half_h)) + 2
 
+    max_world_col = WORLD_WIDTH / TILE_WIDTH
+    max_world_row = WORLD_HEIGHT / TILE_WIDTH
+
+    min_col = max(0, int(cam_col) - pad_cols)
+    max_col = min(max_world_col, int(cam_col) + pad_cols)
+    min_row = max(0, int(cam_row) - pad_rows)
+    max_row = min(max_world_row, int(cam_row) + pad_rows)
+    return min_col, max_col, min_row, max_row
+
+
+def draw_ground(surface, camera):
+    surface.fill((52, 88, 58))
+    tile = get_grass_tile()
+    half_w, half_h = TILE_WIDTH / 2, TILE_FOOTPRINT_HEIGHT / 2
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / TILE_WIDTH
+
+    min_col, max_col, min_row, max_row = visible_tile_range(camera)
+
     # Draw back-to-front (ascending row+col) so nearer tiles' sprites
     # correctly paint over farther tiles' skirts, like real isometric art.
     coords = [
         (col, row)
-        for col in range(int(cam_col) - pad_cols, int(cam_col) + pad_cols)
-        for row in range(int(cam_row) - pad_rows, int(cam_row) + pad_rows)
+        for col in range(int(min_col), int(max_col))
+        for row in range(int(min_row), int(max_row))
     ]
     coords.sort(key=lambda cr: cr[0] + cr[1])
 
