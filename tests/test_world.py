@@ -5,7 +5,7 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 
 import pygame
 
-from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS
+from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER
 from game.simulation.bomb import Bomb
 from game.simulation.enemy import Enemy
 from game.simulation.shard import Shard
@@ -424,7 +424,7 @@ def test_logs_shard_hitting_an_enemy(capsys):
     world.debug = True
     enemy = _new_enemy()
     enemy.vx = 0  # stays put, so this frame's enemy.update() doesn't drift it off the shard
-    _place_enemy_at(enemy, 100, 100)
+    _place_enemy_at(enemy, WORLD_BORDER + 100, WORLD_BORDER + 100)  # outside the stone border
     enemy._sync_rect()  # matches what enemy.update() will do, so the shard lands exactly on it
     shard = Shard(enemy.rect.centerx, enemy.rect.centery, angle=0, speed=0)
     world.enemies = [enemy]

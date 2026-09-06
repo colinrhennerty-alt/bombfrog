@@ -3,7 +3,7 @@ import random
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, SHARD_SPEED
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
 from game.simulation.hitbox import sync_rect
@@ -35,9 +35,11 @@ class Enemy:
         else:
             self.x = viewport_right + 20
             self.vx = -2.2
-        self.x = clamp(self.x, 0, WORLD_WIDTH - self.width)
+        self.x = clamp(self.x, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
         self.y = clamp(
-            center_y + random.uniform(-HEIGHT / 3, HEIGHT / 3), 0, WORLD_HEIGHT - self.height
+            center_y + random.uniform(-HEIGHT / 3, HEIGHT / 3),
+            WORLD_BORDER,
+            WORLD_HEIGHT - WORLD_BORDER - self.height,
         )
         self.color = ENEMY_TYPES[self.type].color
         self.rect = pygame.Rect(0, 0, self.width, self.height)
@@ -51,11 +53,11 @@ class Enemy:
 
     def update(self, dt):
         self.x += self.vx
-        if self.x <= 0:
-            self.x = 0
+        if self.x <= WORLD_BORDER:
+            self.x = WORLD_BORDER
             self.vx *= -1
-        elif self.x + self.width >= WORLD_WIDTH:
-            self.x = WORLD_WIDTH - self.width
+        elif self.x + self.width >= WORLD_WIDTH - WORLD_BORDER:
+            self.x = WORLD_WIDTH - WORLD_BORDER - self.width
             self.vx *= -1
         self._sync_rect()
 
