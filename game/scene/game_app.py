@@ -42,13 +42,20 @@ class GameApp:
             self.world = World(now)
             self.state = "playing"
         elif choice == "Load Game":
-            loaded = load_game(self.save_file)
+            loaded = self._load_high_score(default=0)
             if loaded:
                 self.world = World.from_save_data(loaded, now)
-                self.high_score = loaded.get("high_score", 0)
                 self.state = "playing"
         elif choice == "Quit":
             self.running = False
+
+    def _load_high_score(self, default):
+        """Load the save file, if any, updating high_score from it.
+        Returns the loaded dict (falsy if there was nothing to load)."""
+        loaded = load_game(self.save_file)
+        if loaded:
+            self.high_score = loaded.get("high_score", default)
+        return loaded
 
     def _handle_playing_action(self, action, now):
         if action == "space":
@@ -62,10 +69,9 @@ class GameApp:
         elif action == "save":
             self.world.save(self.save_file, self.high_score)
         elif action == "load":
-            loaded = load_game(self.save_file)
+            loaded = self._load_high_score(default=self.high_score)
             if loaded:
                 self.world.merge_save_data(loaded)
-                self.high_score = loaded.get("high_score", self.high_score)
         elif action == "menu_back":
             self.state = "menu"
         elif action == "toggle_debug":

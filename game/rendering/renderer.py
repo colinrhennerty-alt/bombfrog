@@ -105,37 +105,34 @@ def draw_explosion_effect(surface, effect, camera):
     surface.blit(overlay, (0, 0))
 
 
-_DRAW_FUNCS = {
-    Player: draw_player,
-    Bomb: draw_bomb,
-    Shard: draw_shard,
-    Enemy: draw_enemy,
+_ENTITY_DRAW_SPECS = {
+    Player: (draw_player, (0, 255, 0)),
+    Bomb: (draw_bomb, (255, 80, 80)),
+    Shard: (draw_shard, (255, 255, 0)),
+    Enemy: (draw_enemy, (80, 160, 255)),
 }
 
-_DEBUG_BOX_COLORS = {
-    Player: (0, 255, 0),
-    Bomb: (255, 80, 80),
-    Shard: (255, 255, 0),
-    Enemy: (80, 160, 255),
-}
+
+def _collect_entities(player, bombs, shards, enemies):
+    """Every drawable entity for one frame, player last so it renders
+    (and debug-outlines) on top of the cast around it."""
+    entities = list(enemies) + list(bombs) + list(shards)
+    if player:
+        entities.append(player)
+    return entities
 
 
 def draw_debug_boxes(surface, player, bombs, shards, enemies, camera):
     """Outlines the exact .rect each entity uses for colliderect checks
     in game.world — not an approximation, the real hitbox."""
-    entities = list(enemies) + list(bombs) + list(shards)
-    if player:
-        entities.append(player)
-    for entity in entities:
-        color = _DEBUG_BOX_COLORS.get(type(entity), (255, 255, 255))
+    for entity in _collect_entities(player, bombs, shards, enemies):
+        _, color = _ENTITY_DRAW_SPECS.get(type(entity), (None, (255, 255, 255)))
         pygame.draw.rect(surface, color, camera.apply_rect(entity.rect), width=2)
 
 
 def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
     """Depth-sort everything by y, draw shadows, then sprites, then effects on top."""
-    drawables = list(enemies) + list(bombs) + list(shards)
-    if player:
-        drawables.append(player)
+    drawables = _collect_entities(player, bombs, shards, enemies)
     drawables.sort(key=lambda entity: entity.y)
 
     for entity in drawables:
@@ -143,9 +140,9 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
         draw_shadow(surface, sx, sy, entity.shadow_radius, entity.shadow_height_offset)
 
     for entity in drawables:
-        draw_func = _DRAW_FUNCS.get(type(entity))
-        if draw_func:
-            draw_func(surface, entity, camera)
+        spec = _ENTITY_DRAW_SPECS.get(type(entity))
+        if spec:
+            spec[0](surface, entity, camera)
 
     for effect in effects:
         draw_explosion_effect(surface, effect, camera)

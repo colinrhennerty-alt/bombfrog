@@ -24,12 +24,17 @@ class Camera:
     DEADZONE_WIDTH_RATIO = 0.4
     DEADZONE_HEIGHT_RATIO = 0.4
 
+    def _clamp_to_bounds(self):
+        self.x = clamp(self.x, 0, self.world_width - self.viewport_width)
+        self.y = clamp(self.y, 0, self.world_height - self.viewport_height)
+
     def snap_to(self, target_x, target_y):
         """Hard recenter on the target, no deadzone — for one-time events
         (respawn, loading a save, a fresh round) where the camera should
         jump immediately rather than ease in from wherever it was."""
-        self.x = clamp(target_x - self.viewport_width / 2, 0, self.world_width - self.viewport_width)
-        self.y = clamp(target_y - self.viewport_height / 2, 0, self.world_height - self.viewport_height)
+        self.x = target_x - self.viewport_width / 2
+        self.y = target_y - self.viewport_height / 2
+        self._clamp_to_bounds()
 
     def follow(self, target_x, target_y):
         """Per-frame camera tracking with a deadzone: the camera only
@@ -53,8 +58,7 @@ class Camera:
         elif screen_y > center_y + half_h:
             self.y += screen_y - (center_y + half_h)
 
-        self.x = clamp(self.x, 0, self.world_width - self.viewport_width)
-        self.y = clamp(self.y, 0, self.world_height - self.viewport_height)
+        self._clamp_to_bounds()
 
     def apply(self, world_x, world_y):
         return world_x - self.x, world_y - self.y

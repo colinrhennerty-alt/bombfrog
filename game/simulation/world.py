@@ -13,7 +13,7 @@ was a variable in run_game() that start_new_game() never touched.
 import math
 import random
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, BOMB_LIMIT
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
@@ -32,11 +32,15 @@ def _load_bombs_shards_enemies(data):
 
 
 class World:
-    def __init__(self, now=0, rng=random):
+    def __init__(self, now=0, rng=None):
         self.debug = False
-        self.rng = rng
+        self.rng = rng if rng is not None else random.Random()
         self.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         self.reset(now)
+
+    def _log(self, message):
+        if self.debug:
+            debug_log.log(message)
 
     def reset(self, now=0):
         """Start a brand new round: clears the arena and zeroes score/lives."""
@@ -56,11 +60,11 @@ class World:
         self.camera.snap_to(self.player.centerx, self.player.centery)
 
     @classmethod
-    def from_save_data(cls, data, now=0, rng=random):
+    def from_save_data(cls, data, now=0, rng=None):
         """Build a fresh World from a save dict (the menu's "Load Game")."""
         world = cls.__new__(cls)
         world.debug = False
-        world.rng = rng
+        world.rng = rng if rng is not None else random.Random()
         world.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         world.player = Player.from_dict(data["player"])
         world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
@@ -138,8 +142,7 @@ class World:
             return False
         touching_enemy = next((e for e in self.enemies if bomb.rect.colliderect(e.rect)), None)
         if touching_enemy is not None:
-            if self.debug:
-                debug_log.log(f"bomb contact-triggered by enemy (type={touching_enemy.type})")
+            self._log(f"bomb contact-triggered by enemy (type={touching_enemy.type})")
             return True
         return False
 
@@ -148,8 +151,7 @@ class World:
         self.player.apply_explosion(bomb.x, bomb.y, bomb.radius)
         for enemy in self.enemies:
             if enemy.killed_by_explosion(bomb.x, bomb.y, bomb.radius):
-                if self.debug:
-                    debug_log.log(f"bomb killed enemy (type={enemy.type})")
+                self._log(f"bomb killed enemy (type={enemy.type})")
                 enemy.take_damage()
         if bomb.has_shrapnel:
             self.shards.extend(
@@ -158,7 +160,7 @@ class World:
             )
         if bomb in self.bombs:
             self.bombs.remove(bomb)
-        self.player.bombs_left = min(self.player.bombs_left + 1, BOMB_LIMIT)
+        self.player.bomb_launcher.refill_one()
 
     def _update_bombs(self, dt):
         for bomb in self.bombs[:]:
@@ -200,15 +202,13 @@ class World:
             return False
         if not (self.player.on_ground and enemy.rect.colliderect(self.player.rect)):
             return False
-        if self.debug:
-            debug_log.log("enemy hit player")
+        self._log("enemy hit player")
         return True
 
     def _damage_enemy_with_touching_shard(self, enemy):
         for shard in self.shards[:]:
             if shard.rect.colliderect(enemy.rect):
-                if self.debug:
-                    debug_log.log(f"shard hit enemy (type={enemy.type})")
+                self._log(f"shard hit enemy (type={enemy.type})")
                 enemy.take_damage()
                 if shard in self.shards:
                     self.shards.remove(shard)
@@ -223,8 +223,7 @@ class World:
         for shard in self.shards[:]:
             shard.update(dt)
             if self.player.on_ground and shard.rect.colliderect(self.player.rect):
-                if self.debug:
-                    debug_log.log("shard hit player")
+                self._log("shard hit player")
                 self._lose_a_life(now)
                 break
             if not shard.is_alive():

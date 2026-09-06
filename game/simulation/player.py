@@ -128,22 +128,26 @@ class Player:
     def _apply_jump_physics(self, dt):
         old_vy = self.vy
         was_on_ground = self.on_ground
+        self._integrate_gravity()
+        spawn_bomb = self.bomb_launcher.check_apex(old_vy, self.vy)
+        self._handle_landing(was_on_ground)
+        self.land_timer = max(0, self.land_timer - dt)
+        return spawn_bomb
+
+    def _integrate_gravity(self):
         if not self.on_ground:
             self.vy += GRAVITY
             self.jump_offset += self.vy
 
-        spawn_bomb = self.bomb_launcher.check_apex(old_vy, self.vy)
-
-        if self.jump_offset >= 0:
-            self.jump_offset = 0
-            self.vy = 0
-            self.on_ground = True
-            self.bomb_launcher.cancel_pending()
-            if not was_on_ground:
-                self.land_timer = 120
-
-        self.land_timer = max(0, self.land_timer - dt)
-        return spawn_bomb
+    def _handle_landing(self, was_on_ground):
+        if self.jump_offset < 0:
+            return
+        self.jump_offset = 0
+        self.vy = 0
+        self.on_ground = True
+        self.bomb_launcher.cancel_pending()
+        if not was_on_ground:
+            self.land_timer = 120
 
     def _update_animation(self, dt, vy_input):
         if self.on_ground and (self.vx != 0 or vy_input != 0):

@@ -20,8 +20,7 @@ TILE_HEIGHT = 64
 # little). 24/32 of TILE_WIDTH, scaled the same way the sprite is.
 TILE_FOOTPRINT_HEIGHT = TILE_WIDTH * 24 / 32
 
-_grass_tile_cache = None
-_stone_tile_cache = None
+_tile_cache = {}
 
 
 def _load_tile(path):
@@ -29,15 +28,15 @@ def _load_tile(path):
     return pygame.transform.scale(tile, (TILE_WIDTH, TILE_HEIGHT))
 
 
+def _get_cached_tile(path):
+    if path not in _tile_cache:
+        _tile_cache[path] = _load_tile(path)
+    return _tile_cache[path]
+
+
 def get_grass_tile():
-    global _grass_tile_cache
-    if _grass_tile_cache is None:
-        _grass_tile_cache = _load_tile(TILE_PATH)
-    return _grass_tile_cache
+    return _get_cached_tile(TILE_PATH)
 
 
 def get_stone_tile():
-    global _stone_tile_cache
-    if _stone_tile_cache is None:
-        _stone_tile_cache = _load_tile(STONE_TILE_PATH)
-    return _stone_tile_cache
+    return _get_cached_tile(STONE_TILE_PATH)
