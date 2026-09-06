@@ -59,6 +59,14 @@ class Enemy:
         rendering.draw_scene)."""
         return self.rect.midbottom
 
+    @property
+    def shadow_radius(self):
+        return self.width
+
+    @property
+    def shadow_height_offset(self):
+        return 0
+
     def update(self, dt):
         self.x += self.vx
         if self.x <= WORLD_BORDER:

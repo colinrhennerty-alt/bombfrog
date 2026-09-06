@@ -139,10 +139,8 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
     drawables.sort(key=lambda entity: entity.y)
 
     for entity in drawables:
-        base_radius = getattr(entity, "radius", getattr(entity, "width", 20))
-        height_offset = getattr(entity, "jump_offset", getattr(entity, "fall_offset", 0))
         sx, sy = camera.apply(*entity.shadow_anchor)
-        draw_shadow(surface, sx, sy, base_radius, height_offset)
+        draw_shadow(surface, sx, sy, entity.shadow_radius, entity.shadow_height_offset)
 
     for entity in drawables:
         draw_func = _DRAW_FUNCS.get(type(entity))

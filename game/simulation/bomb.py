@@ -25,6 +25,14 @@ class Bomb:
         return self.rect.center
 
     @property
+    def shadow_radius(self):
+        return self.radius
+
+    @property
+    def shadow_height_offset(self):
+        return self.fall_offset
+
+    @property
     def armed(self):
         """Whether the bomb can contact-explode yet. False for a short
         grace period after spawning — even though a single simulation

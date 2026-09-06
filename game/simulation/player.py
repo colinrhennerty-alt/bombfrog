@@ -60,6 +60,14 @@ class Player:
         return self.rect.midbottom
 
     @property
+    def shadow_radius(self):
+        return self.width
+
+    @property
+    def shadow_height_offset(self):
+        return self.jump_offset
+
+    @property
     def bombs_left(self):
         return self.bomb_launcher.bombs_left
 

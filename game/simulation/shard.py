@@ -52,3 +52,11 @@ class Shard:
         entities have no "feet", so their rect.center is the natural
         anchor (see rendering.draw_scene)."""
         return self.rect.center
+
+    @property
+    def shadow_radius(self):
+        return self.radius
+
+    @property
+    def shadow_height_offset(self):
+        return 0
