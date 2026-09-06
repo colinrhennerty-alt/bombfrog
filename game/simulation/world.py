@@ -163,7 +163,7 @@ class World:
 
             if enemy.dead:
                 self._kill_enemy(enemy)
-            elif enemy.rect.colliderect(self.player.rect):
+            elif self.player.on_ground and enemy.rect.colliderect(self.player.rect):
                 if self.debug:
                     debug_log.log("enemy hit player")
                 self._lose_a_life(now)

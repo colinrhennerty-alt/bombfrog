@@ -95,6 +95,38 @@ def test_enemy_collision_costs_a_life_and_respawns_without_wiping_score():
     assert world.enemies == []  # arena cleared by the respawn
 
 
+def test_jumping_over_an_enemy_avoids_the_collision():
+    # Jumping should let the player dodge an enemy underneath them —
+    # on_ground already tracks "airborne for the whole jump arc", reuse
+    # it rather than adding new state.
+    world = World(now=0)
+    world.player.on_ground = False
+    world.player.jump_offset = -50  # mid-air, not about to land this frame
+    enemy = _new_enemy()
+    _place_enemy_at(enemy, world.player.x, world.player.y)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 3
+    assert world.game_over is False
+    assert world.enemies == [enemy]  # enemy survives too — no collision happened at all
+
+
+def test_landing_on_an_enemy_still_costs_a_life():
+    # Sanity check alongside the jump-dodge test: grounded collision must
+    # still work exactly as before.
+    world = World(now=0)
+    world.player.on_ground = True
+    enemy = _new_enemy()
+    _place_enemy_at(enemy, world.player.x, world.player.y)
+    world.enemies = [enemy]
+
+    world.update(NO_KEYS, dt=16, now=1000)
+
+    assert world.lives == 2
+
+
 def test_losing_the_last_life_ends_the_game():
     world = World(now=0)
     world.lives = 1
