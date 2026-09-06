@@ -140,3 +140,30 @@ def test_bomb_from_dict_round_trips_fall_offset_when_present():
         }
     )
     assert restored.fall_offset == -40
+
+
+class _FakeRng:
+    """Duck-typed stand-in for the `random` module: records exactly what
+    Bomb asked of it and returns a fixed, caller-chosen value instead of
+    an actual random draw."""
+
+    def __init__(self, random_value):
+        self.random_value = random_value
+        self.random_calls = 0
+
+    def random(self):
+        self.random_calls += 1
+        return self.random_value
+
+
+def test_bomb_uses_injected_rng_to_decide_shrapnel():
+    below_threshold = _FakeRng(0.04)  # has_shrapnel triggers at random() < 0.05
+    bomb = Bomb(100, 100, rng=below_threshold)
+    assert bomb.has_shrapnel is True
+    assert below_threshold.random_calls == 1
+
+
+def test_bomb_injected_rng_can_suppress_shrapnel_deterministically():
+    above_threshold = _FakeRng(0.5)
+    bomb = Bomb(100, 100, rng=above_threshold)
+    assert bomb.has_shrapnel is False

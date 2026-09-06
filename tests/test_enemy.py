@@ -115,3 +115,39 @@ def test_death_shrapnel_count_matches_enemy_type():
 
     enemy.type = "elite"
     assert len(enemy.get_death_shrapnel()) == 8
+
+
+class _FakeRng:
+    """Duck-typed stand-in for the `random` module: returns fixed,
+    caller-chosen values for the exact calls Enemy makes instead of an
+    actual random draw, and records how each was called."""
+
+    def __init__(self, choice_result, uniform_result):
+        self.choice_result = choice_result
+        self.uniform_result = uniform_result
+        self.choices_calls = []
+        self.uniform_calls = []
+
+    def choices(self, population, weights):
+        self.choices_calls.append((population, weights))
+        return [self.choice_result]
+
+    def uniform(self, low, high):
+        self.uniform_calls.append((low, high))
+        return self.uniform_result
+
+
+def test_enemy_uses_injected_rng_to_pick_type_and_spawn_offset():
+    fake = _FakeRng(choice_result="elite", uniform_result=0)
+    enemy = Enemy("left", 500, 500, rng=fake)
+
+    assert enemy.type == "elite"
+    assert len(fake.choices_calls) == 1
+    assert len(fake.uniform_calls) == 1
+
+
+def test_enemy_injected_rng_controls_spawn_y_offset_deterministically():
+    fake = _FakeRng(choice_result="grunt", uniform_result=37)
+    enemy = Enemy("left", 500, 500, rng=fake)
+
+    assert enemy.y == 500 + 37

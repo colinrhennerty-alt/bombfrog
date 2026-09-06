@@ -6,13 +6,13 @@ from game.config import BOMB_RADIUS, BOMB_FUSE_MS, BOMB_FALL_SPEED, BOMB_CONTACT
 
 
 class Bomb:
-    def __init__(self, x, y, fall_offset=0):
+    def __init__(self, x, y, fall_offset=0, rng=random):
         self.x = x
         self.y = y
         self.radius = BOMB_RADIUS
         self.timer = BOMB_FUSE_MS
         self.color = (210, 70, 70)
-        self.has_shrapnel = random.random() < 0.05
+        self.has_shrapnel = rng.random() < 0.05
         self.fall_offset = fall_offset
         self.age_ms = 0
         self.rect = pygame.Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)

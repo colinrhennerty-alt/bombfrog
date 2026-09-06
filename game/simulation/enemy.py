@@ -11,10 +11,10 @@ from game.simulation.shard import Shard
 
 
 class Enemy:
-    def __init__(self, spawn_side, center_x, center_y, camera=None):
+    def __init__(self, spawn_side, center_x, center_y, camera=None, rng=random):
         self.width = 40
         self.height = 34
-        self.type = random.choices(
+        self.type = rng.choices(
             list(ENEMY_TYPES.keys()), [t.spawn_weight for t in ENEMY_TYPES.values()]
         )[0]
         if camera is not None:
@@ -37,7 +37,7 @@ class Enemy:
             self.vx = -2.2
         self.x = clamp(self.x, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
         self.y = clamp(
-            center_y + random.uniform(-HEIGHT / 3, HEIGHT / 3),
+            center_y + rng.uniform(-HEIGHT / 3, HEIGHT / 3),
             WORLD_BORDER,
             WORLD_HEIGHT - WORLD_BORDER - self.height,
         )
