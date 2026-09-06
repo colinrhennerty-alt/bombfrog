@@ -244,6 +244,30 @@ def test_enemy_spawn_capped_at_max_enemies():
     assert len(world.enemies) == MAX_ENEMIES
 
 
+class _FakeRng:
+    """Duck-typed stand-in for the `random` module: returns a fixed,
+    caller-chosen side instead of an actual random draw and records what
+    World asked of it."""
+
+    def __init__(self, choice_result):
+        self.choice_result = choice_result
+        self.choice_calls = []
+
+    def choice(self, population):
+        self.choice_calls.append(population)
+        return self.choice_result
+
+
+def test_world_uses_injected_rng_to_pick_enemy_spawn_side():
+    fake = _FakeRng(choice_result="right")
+    world = World(now=0, rng=fake)
+
+    world.update(NO_KEYS, dt=16, now=ENEMY_SPAWN_MS)
+
+    assert len(fake.choice_calls) == 1
+    assert fake.choice_calls[0] == ["left", "right"]
+
+
 def _save_dict(**overrides):
     data = {
         "player": {

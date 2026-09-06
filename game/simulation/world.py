@@ -32,8 +32,9 @@ def _load_bombs_shards_enemies(data):
 
 
 class World:
-    def __init__(self, now=0):
+    def __init__(self, now=0, rng=random):
         self.debug = False
+        self.rng = rng
         self.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         self.reset(now)
 
@@ -55,10 +56,11 @@ class World:
         self.camera.snap_to(self.player.centerx, self.player.centery)
 
     @classmethod
-    def from_save_data(cls, data, now=0):
+    def from_save_data(cls, data, now=0, rng=random):
         """Build a fresh World from a save dict (the menu's "Load Game")."""
         world = cls.__new__(cls)
         world.debug = False
+        world.rng = rng
         world.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         world.player = Player.from_dict(data["player"])
         world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
@@ -114,7 +116,7 @@ class World:
 
     def _maybe_spawn_enemy(self, now):
         if len(self.enemies) < MAX_ENEMIES and now - self.last_spawn >= ENEMY_SPAWN_MS:
-            side = random.choice(["left", "right"])
+            side = self.rng.choice(["left", "right"])
             self.enemies.append(
                 Enemy(side, self.player.centerx, self.player.centery, camera=self.camera)
             )
