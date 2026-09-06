@@ -26,7 +26,7 @@ def shadow_size_for(base_radius, height_offset):
     same jump_offset/fall_offset magnitude used to draw the entity itself
     (0 = grounded, larger magnitude = higher up)."""
     shrink = 1 / (1 + abs(height_offset) / 60)
-    return max(6, int(base_radius * 0.6 * shrink))
+    return max(6, int(base_radius * 0.4 * shrink))
 
 
 def draw_shadow(surface, x, y, base_radius, height_offset=0):

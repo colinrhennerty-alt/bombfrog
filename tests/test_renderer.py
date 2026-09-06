@@ -49,6 +49,16 @@ def test_draw_shadow_accepts_height_offset(surface):
     rendering.draw_shadow(surface, 100, 100, base_radius=20, height_offset=80)
 
 
+def test_grounded_shadow_width_stays_within_the_entitys_own_footprint():
+    # base_radius is passed as the entity's full width for rect-based
+    # entities (Player/Enemy) — the shadow's full width (shadow_size_for
+    # returns a radius, so double it) must not exceed that, or it visibly
+    # overhangs the sprite's own silhouette instead of sitting under it.
+    base_radius = 52  # e.g. Player.width
+    shadow_radius = rendering.shadow_size_for(base_radius, height_offset=0)
+    assert shadow_radius * 2 <= base_radius
+
+
 def test_draw_player(surface, camera):
     rendering.draw_player(surface, Player(), camera)
 
