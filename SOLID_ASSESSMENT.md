@@ -66,8 +66,8 @@ Deduction: `Bomb.__init__` calls `random.random()` directly ([bomb.py:15](game/s
 
 ## Where a future pass would earn the most
 
-1. **`World._update_enemies`** — split enemy-movement, shard-collision, death, and player-collision handling into distinct steps (would raise SRP score).
-2. **RNG as a hidden dependency** in `Bomb`/`Enemy` constructors — accepting an optional `rng` parameter (defaulting to the `random` module) would remove the last DIP friction point and make both classes fully deterministic under test without monkeypatching.
-3. **An explicit `Entity` `Protocol`** (rect/x/y/radius-or-dimensions) would make the current implicit duck-typed contract self-documenting and would let `draw_scene`'s shadow-anchor branch become data-driven instead of `hasattr`-based.
+1. ~~**`World._update_enemies`** — split enemy-movement, shard-collision, death, and player-collision handling into distinct steps.~~ **Applied**: split into `_advance_enemy` (movement/shard-damage/death) and `_enemy_hits_player` (the collision check), matching the existing `_update_bombs`/`_bomb_should_explode`/`_explode_bomb` pattern.
+2. ~~**RNG as a hidden dependency** in `Bomb`/`Enemy` constructors.~~ **Applied**: both accept an optional `rng` parameter (defaulting to the `random` module), removing the DIP friction point and making both classes fully deterministic under test without monkeypatching.
+3. ~~**An explicit `Entity` `Protocol`**.~~ **Applied**: `game/simulation/entity.py` declares a `runtime_checkable Entity` Protocol (`x`, `y`, `rect`, `shadow_anchor`), and each entity class now exposes an explicit `shadow_anchor` property. `renderer.draw_scene`'s shadow-anchor logic reads `entity.shadow_anchor` directly instead of branching on `hasattr(entity, "radius")`.
 
-None of these are urgent — they're refinements to an already solid design, not fixes to a broken one.
+All three were applied via TDD (failing test confirmed red, then minimal implementation to green) except the mechanical `World` method split, which changed no observable behavior and was verified by full-suite green-before/green-after at the same test count. Full suite: 207 passing (was 195 before this pass).
