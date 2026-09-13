@@ -3,7 +3,7 @@ test_key_mapping.py: pure functions, no real joystick object needed —
 just literal button indices / hat tuples in, action string (or None) out.
 """
 
-from game.input.gamepad_mapping import map_button, map_hat
+from game.input.gamepad_mapping import map_button, map_hat, axis_to_digital
 
 
 def test_menu_confirm_from_button_a():
@@ -62,6 +62,19 @@ def test_hat_center_returns_none_in_every_context():
     assert map_hat("menu", (0, 0)) is None
     assert map_hat("playing", (0, 0)) is None
     assert map_hat("editor", (0, 0)) is None
+
+
+def test_axis_to_digital_below_deadzone_returns_zero():
+    assert axis_to_digital(0.0, deadzone=0.5) == 0
+    assert axis_to_digital(0.49, deadzone=0.5) == 0
+    assert axis_to_digital(-0.49, deadzone=0.5) == 0
+
+
+def test_axis_to_digital_at_or_past_deadzone_returns_signed_direction():
+    assert axis_to_digital(0.5, deadzone=0.5) == 1
+    assert axis_to_digital(1.0, deadzone=0.5) == 1
+    assert axis_to_digital(-0.5, deadzone=0.5) == -1
+    assert axis_to_digital(-1.0, deadzone=0.5) == -1
 
 
 def test_contexts_do_not_leak_into_each_other():

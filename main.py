@@ -1,10 +1,11 @@
 import sys
 import pygame
 
-from game.config import WIDTH, HEIGHT, FPS, DEBUG_ENV_VAR
+from game.config import WIDTH, HEIGHT, FPS, DEBUG_ENV_VAR, GAMEPAD_STICK_DEADZONE
 from game.rendering import renderer as rendering
 from game.input import key_mapping as game_input
 from game.input import gamepad_mapping
+from game.input.gamepad_mapping import axis_to_digital
 from game.scene.game_app import GameApp
 from game.utils import env_flag
 
@@ -16,8 +17,39 @@ font = pygame.font.SysFont(None, 36)
 small_font = pygame.font.SysFont(None, 24)
 
 pygame.joystick.init()
+joystick = None
 if pygame.joystick.get_count() > 0:
-    pygame.joystick.Joystick(0).init()
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+
+
+class MergedKeys:
+    """A pygame.key.get_pressed()-like object that also reports a
+    connected gamepad's left stick / d-pad as digital arrow-key state,
+    so Player/World never need to know a controller exists."""
+
+    def __init__(self, keys, joystick):
+        self._keys = keys
+        self._left = self._right = self._up = self._down = False
+        if joystick is not None:
+            x = axis_to_digital(joystick.get_axis(0), GAMEPAD_STICK_DEADZONE)
+            y = axis_to_digital(joystick.get_axis(1), GAMEPAD_STICK_DEADZONE)
+            hat_x, hat_y = joystick.get_hat(0) if joystick.get_numhats() > 0 else (0, 0)
+            self._left = x == -1 or hat_x == -1
+            self._right = x == 1 or hat_x == 1
+            self._up = y == -1 or hat_y == 1
+            self._down = y == 1 or hat_y == -1
+
+    def __getitem__(self, key):
+        if key == pygame.K_LEFT:
+            return self._keys[key] or self._left
+        if key == pygame.K_RIGHT:
+            return self._keys[key] or self._right
+        if key == pygame.K_UP:
+            return self._keys[key] or self._up
+        if key == pygame.K_DOWN:
+            return self._keys[key] or self._down
+        return self._keys[key]
 
 
 def run_game():
@@ -25,7 +57,7 @@ def run_game():
 
     while app.running:
         dt = clock.tick(FPS)
-        keys = pygame.key.get_pressed()
+        keys = MergedKeys(pygame.key.get_pressed(), joystick)
         now = pygame.time.get_ticks()
 
         for event in pygame.event.get():

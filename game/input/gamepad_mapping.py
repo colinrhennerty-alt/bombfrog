@@ -59,3 +59,12 @@ def map_button(state, button):
 def map_hat(state, hat_value):
     table = _STATE_HAT_ACTIONS.get(state, {})
     return table.get(hat_value)
+
+
+def axis_to_digital(value, deadzone):
+    """Collapse an analog stick axis reading to -1/0/1, like a d-pad."""
+    if value >= deadzone:
+        return 1
+    if value <= -deadzone:
+        return -1
+    return 0
