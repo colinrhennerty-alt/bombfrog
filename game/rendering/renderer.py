@@ -10,7 +10,7 @@ import math
 
 import pygame
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, BOMB_FUSE_MS
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, BOMB_FUSE_MS, EDITOR_SIDEBAR_WIDTH
 from game.utils import clamp
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
@@ -271,13 +271,10 @@ def draw_ground(surface, camera):
             surface.blit(tile, (sx, sy))
 
 
-PALETTE_MARGIN = 10
-PALETTE_CELL_SIZE = 48
-PALETTE_COLUMNS = 20
-
-
 def draw_editor(surface, editor_state):
-    """The map editor's ground grid, hover highlight, and palette strip.
+    """The map editor's ground grid and hover highlight, scoped to the
+    map viewport (left of the sidebar) — see draw_editor_sidebar for the
+    separate palette/buttons panel.
 
     Structurally parallel to draw_ground: same visible-range/tile-position
     math, but each cell looks up its own painted tile (or an empty
@@ -302,7 +299,7 @@ def draw_editor(surface, editor_state):
 
     for col, row in coords:
         sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
-        if not (sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT):
+        if not (sx + TILE_WIDTH >= 0 and sx <= camera.viewport_width and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT):
             continue
         tile_id = editor_state.tilemap.get_tile(col, row)
         if tile_id is not None and tile_id in all_tiles:
@@ -317,18 +314,28 @@ def draw_editor(surface, editor_state):
         )
         pygame.draw.rect(surface, (255, 255, 0), (hx, hy, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT), 2)
 
-    draw_editor_palette(surface, editor_state, all_tiles)
 
+def draw_editor_sidebar(surface, editor_state, small_font=None):
+    """The map editor's tile palette and Save/Load buttons — a fixed
+    panel kept visually and logically separate from the map view
+    (draw_editor), occupying the screen region right of the map's
+    (already-shrunk) camera viewport."""
+    all_tiles = get_all_tiles()
+    sidebar_rect = (editor_state.camera.viewport_width, 0, EDITOR_SIDEBAR_WIDTH, HEIGHT)
+    pygame.draw.rect(surface, (45, 45, 55), sidebar_rect)
 
-def draw_editor_palette(surface, editor_state, all_tiles):
-    for i, tile_id in enumerate(editor_state.palette):
-        col, row = i % PALETTE_COLUMNS, i // PALETTE_COLUMNS
-        x = PALETTE_MARGIN + col * PALETTE_CELL_SIZE
-        y = PALETTE_MARGIN + row * PALETTE_CELL_SIZE
-        thumb = pygame.transform.scale(all_tiles[tile_id], (PALETTE_CELL_SIZE - 4, PALETTE_CELL_SIZE - 4))
+    for tile_id, (x, y, w, h) in editor_state.palette_layout.items():
+        thumb = pygame.transform.scale(all_tiles[tile_id], (w, h))
         surface.blit(thumb, (x, y))
-        if i == editor_state.selected_index:
-            pygame.draw.rect(surface, (255, 255, 0), (x, y, PALETTE_CELL_SIZE - 4, PALETTE_CELL_SIZE - 4), 2)
+        if tile_id == editor_state.selected_tile_id:
+            pygame.draw.rect(surface, (255, 255, 0), (x, y, w, h), 2)
+
+    for rect, label in ((editor_state.save_button_rect, "Save"), (editor_state.load_button_rect, "Load")):
+        pygame.draw.rect(surface, (80, 80, 95), rect)
+        if small_font is not None:
+            x, y, w, h = rect
+            text = small_font.render(label, True, (240, 240, 240))
+            surface.blit(text, (x + w / 2 - text.get_width() / 2, y + h / 2 - text.get_height() / 2))
 
 
 def draw_overlay(surface, bombs, camera):

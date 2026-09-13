@@ -64,9 +64,7 @@ def test_editor_number_keys_select_tile_by_index():
     assert map_key("editor", pygame.K_0) == "select_tile_9"
 
 
-def test_editor_save_load_escape():
-    assert map_key("editor", pygame.K_F5) == "save_level"
-    assert map_key("editor", pygame.K_F9) == "load_level"
+def test_editor_escape_returns_to_menu():
     assert map_key("editor", pygame.K_ESCAPE) == "menu_back"
 
 
@@ -75,8 +73,8 @@ def test_editor_unknown_key_returns_none():
 
 
 def test_editor_context_does_not_leak_into_menu_or_playing():
-    assert map_key("menu", pygame.K_F5) is None
-    assert map_key("playing", pygame.K_F5) is None
+    assert map_key("menu", pygame.K_1) is None
+    assert map_key("playing", pygame.K_1) is None
 
 
 def test_editor_key_actions_table_has_no_duplicate_conflicting_actions_for_wasd_and_arrows():

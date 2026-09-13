@@ -97,10 +97,6 @@ class GameApp:
             editor.pan(PAN_STEP, 0)
         elif action.startswith("select_tile_"):
             editor.select_tile(int(action.removeprefix("select_tile_")))
-        elif action == "save_level":
-            editor.save(self.level_file)
-        elif action == "load_level":
-            editor.load(self.level_file)
         elif action == "menu_back":
             self.state = "menu"
 

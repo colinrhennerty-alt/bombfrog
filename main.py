@@ -31,10 +31,24 @@ def run_game():
                 if action:
                     app.handle_action(action, now)
             if app.state == "editor":
+                editor = app.editor_state
                 if event.type == pygame.MOUSEMOTION:
-                    app.editor_state.set_hover(*event.pos)
+                    if not editor.point_is_in_sidebar(*event.pos):
+                        editor.set_hover(*event.pos)
+                    if editor.is_dragging and not editor.point_is_in_sidebar(*event.pos):
+                        editor.paint_at_screen(*event.pos)
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    app.editor_state.paint_at_screen(*event.pos)
+                    if editor.point_is_in_sidebar(*event.pos):
+                        result = editor.handle_sidebar_click(*event.pos)
+                        if result == "save":
+                            editor.save(app.level_file)
+                        elif result == "load":
+                            editor.load(app.level_file)
+                    else:
+                        editor.is_dragging = True
+                        editor.paint_at_screen(*event.pos)
+                elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                    editor.is_dragging = False
 
         screen.fill((18, 30, 50))
 
@@ -43,6 +57,7 @@ def run_game():
 
         elif app.state == "editor":
             rendering.draw_editor(screen, app.editor_state)
+            rendering.draw_editor_sidebar(screen, app.editor_state, small_font)
 
         elif app.state == "playing":
             app.tick(keys, dt, now)

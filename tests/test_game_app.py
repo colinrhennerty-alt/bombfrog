@@ -197,16 +197,19 @@ def test_editor_select_tile_action_changes_selected_index():
     assert app.editor_state.selected_index == 2
 
 
-def test_editor_save_and_load_round_trip(tmp_path):
+def test_editor_save_and_load_round_trip_via_sidebar_buttons(tmp_path):
+    # Save/Load are sidebar buttons now, not keyboard actions — main.py
+    # calls EditorState.save/load directly off a sidebar click result,
+    # so exercise that same path here rather than handle_action.
     app = GameApp(level_file=str(tmp_path / "level.json"))
     app.selected = 2
     app.handle_action("menu_confirm", now=0)
 
     app.editor_state.tilemap.set_tile(3, 3, app.editor_state.palette[0])
-    app.handle_action("save_level", now=0)
+    app.editor_state.save(app.level_file)
 
     app.editor_state.tilemap.set_tile(3, 3, None)
-    app.handle_action("load_level", now=0)
+    app.editor_state.load(app.level_file)
 
     assert app.editor_state.tilemap.get_tile(3, 3) == app.editor_state.palette[0]
 

@@ -42,8 +42,6 @@ EDITOR_KEY_ACTIONS = {
     pygame.K_8: "select_tile_7",
     pygame.K_9: "select_tile_8",
     pygame.K_0: "select_tile_9",
-    pygame.K_F5: "save_level",
-    pygame.K_F9: "load_level",
     pygame.K_ESCAPE: "menu_back",
 }
 

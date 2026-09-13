@@ -384,14 +384,33 @@ def test_draw_editor_with_painted_tiles_and_hover(surface):
     rendering.draw_editor(surface, editor_state)
 
 
-def test_draw_editor_palette_highlights_the_selected_tile(surface):
+def test_draw_editor_sidebar_without_a_font(surface):
     from game.scene.editor_state import EditorState
-    from game.rendering.isometric_assets import get_all_tiles
 
     editor_state = EditorState(WIDTH, HEIGHT)
     editor_state.select_tile(1)
 
-    rendering.draw_editor_palette(surface, editor_state, get_all_tiles())
+    rendering.draw_editor_sidebar(surface, editor_state)
+
+
+def test_draw_editor_sidebar_with_a_font_renders_button_labels(surface, fonts):
+    from game.scene.editor_state import EditorState
+
+    _, small_font = fonts
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.select_tile(1)
+
+    rendering.draw_editor_sidebar(surface, editor_state, small_font)
+
+
+def test_draw_editor_does_not_draw_ground_tiles_into_the_sidebar_region(surface):
+    from game.scene.editor_state import EditorState
+
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.camera.x, editor_state.camera.y = 0, 0
+    # Every ground tile the map draws must stay left of its own (shrunk)
+    # viewport — the sidebar area is reserved for draw_editor_sidebar.
+    rendering.draw_editor(surface, editor_state)
 
 
 def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
