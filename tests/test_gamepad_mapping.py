@@ -3,7 +3,32 @@ test_key_mapping.py: pure functions, no real joystick object needed —
 just literal button indices / hat tuples in, action string (or None) out.
 """
 
-from game.input.gamepad_mapping import map_button, map_hat, axis_to_digital
+import pygame
+
+from game.input.gamepad_mapping import map_button, map_hat, axis_to_digital, merge_keys
+
+
+class FakeJoystick:
+    def __init__(self, axes=(0.0, 0.0), hat=(0, 0), has_hat=True):
+        self._axes = axes
+        self._hat = hat
+        self._has_hat = has_hat
+
+    def get_axis(self, index):
+        return self._axes[index]
+
+    def get_numhats(self):
+        return 1 if self._has_hat else 0
+
+    def get_hat(self, index):
+        return self._hat
+
+
+NO_KEYS = {
+    pygame.K_LEFT: False, pygame.K_RIGHT: False,
+    pygame.K_UP: False, pygame.K_DOWN: False,
+    pygame.K_a: False, pygame.K_d: False,
+}
 
 
 def test_menu_confirm_from_button_a():
@@ -75,6 +100,102 @@ def test_axis_to_digital_at_or_past_deadzone_returns_signed_direction():
     assert axis_to_digital(1.0, deadzone=0.5) == 1
     assert axis_to_digital(-0.5, deadzone=0.5) == -1
     assert axis_to_digital(-1.0, deadzone=0.5) == -1
+
+
+def test_merge_keys_with_no_joystick_returns_underlying_keys_unchanged():
+    merged = merge_keys(NO_KEYS, joystick=None, deadzone=0.5)
+    assert merged[pygame.K_LEFT] == NO_KEYS[pygame.K_LEFT]
+    assert merged[pygame.K_a] == NO_KEYS[pygame.K_a]
+
+
+def test_merge_keys_left_stick_pushed_left_sets_left_true():
+    joystick = FakeJoystick(axes=(-1.0, 0.0))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_LEFT] is True
+    assert merged[pygame.K_RIGHT] is False
+
+
+def test_merge_keys_left_stick_pushed_right_sets_right_true():
+    joystick = FakeJoystick(axes=(1.0, 0.0))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_RIGHT] is True
+    assert merged[pygame.K_LEFT] is False
+
+
+def test_merge_keys_left_stick_pushed_up_sets_up_true():
+    # SDL2 joystick y-axis is inverted: pushing up yields a NEGATIVE value.
+    joystick = FakeJoystick(axes=(0.0, -1.0))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_UP] is True
+    assert merged[pygame.K_DOWN] is False
+
+
+def test_merge_keys_left_stick_pushed_down_sets_down_true():
+    joystick = FakeJoystick(axes=(0.0, 1.0))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_DOWN] is True
+    assert merged[pygame.K_UP] is False
+
+
+def test_merge_keys_dpad_up_sets_up_true():
+    # SDL2 hat y=+1 means up (opposite sign convention from the axis).
+    joystick = FakeJoystick(hat=(0, 1))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_UP] is True
+
+
+def test_merge_keys_dpad_down_sets_down_true():
+    joystick = FakeJoystick(hat=(0, -1))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_DOWN] is True
+
+
+def test_merge_keys_stick_below_deadzone_does_not_set_direction():
+    joystick = FakeJoystick(axes=(0.2, 0.2))
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_LEFT] is False
+    assert merged[pygame.K_RIGHT] is False
+    assert merged[pygame.K_UP] is False
+    assert merged[pygame.K_DOWN] is False
+
+
+def test_merge_keys_joystick_with_no_hat_does_not_crash():
+    joystick = FakeJoystick(has_hat=False)
+    merged = merge_keys(NO_KEYS, joystick, deadzone=0.5)
+    assert merged[pygame.K_UP] is False
+
+
+def test_merge_keys_leaves_non_directional_keys_untouched():
+    keys = dict(NO_KEYS)
+    keys[pygame.K_a] = True
+    merged = merge_keys(keys, joystick=None, deadzone=0.5)
+    assert merged[pygame.K_a] is True
+
+
+def test_merge_keys_falls_back_to_keyboard_only_if_joystick_read_raises():
+    class DisconnectedJoystick:
+        def get_axis(self, index):
+            raise pygame.error("Joystick has been disconnected")
+
+        def get_numhats(self):
+            raise pygame.error("Joystick has been disconnected")
+
+        def get_hat(self, index):
+            raise pygame.error("Joystick has been disconnected")
+
+    keys = dict(NO_KEYS)
+    keys[pygame.K_a] = True
+    merged = merge_keys(keys, DisconnectedJoystick(), deadzone=0.5)
+    assert merged[pygame.K_LEFT] is False
+    assert merged[pygame.K_a] is True
+
+
+def test_merge_keys_ors_with_real_key_state_rather_than_overriding():
+    keys = dict(NO_KEYS)
+    keys[pygame.K_LEFT] = True
+    joystick = FakeJoystick(axes=(0.0, 0.0))
+    merged = merge_keys(keys, joystick, deadzone=0.5)
+    assert merged[pygame.K_LEFT] is True
 
 
 def test_contexts_do_not_leak_into_each_other():
