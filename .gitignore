@@ -17,6 +17,7 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+!bombfrog.spec
 
 # Unit test / coverage reports
 .pytest_cache/

@@ -9,8 +9,9 @@ pygame.display.set_mode() has had a chance to execute.
 import pygame
 
 from game.config import FROG_IDLE_FRAME_COUNT
+from game.paths import resource_path
 
-SHEET_PATH = "assets/frog_green_spritesheet.png"
+SHEET_PATH = resource_path("assets/frog_green_spritesheet.png")
 CELL = 32
 SPRITE_SIZE = 64
 

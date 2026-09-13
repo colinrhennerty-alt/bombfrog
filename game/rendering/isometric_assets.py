@@ -10,7 +10,9 @@ import os
 
 import pygame
 
-TILE_DIR = "assets/isometric tileset/separated images"
+from game.paths import resource_path
+
+TILE_DIR = resource_path("assets/isometric tileset/separated images")
 TILE_PATH = f"{TILE_DIR}/tile_022.png"
 STONE_TILE_PATH = f"{TILE_DIR}/tile_063.png"
 TILE_WIDTH = 64
