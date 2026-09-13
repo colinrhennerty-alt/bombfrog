@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: win64
+          - os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller bombfrog.spec
+
+      - name: Get version from tag
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Package archive
+        shell: python
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          import os
+          import shutil
+
+          version = os.environ["VERSION"]
+          platform = os.environ["PLATFORM"]
+          shutil.make_archive(f"bombfrog-{version}-{platform}", "zip", "dist", "bombfrog")
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bombfrog-${{ env.VERSION }}-${{ matrix.platform }}
+          path: bombfrog-${{ env.VERSION }}-${{ matrix.platform }}.zip
