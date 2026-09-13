@@ -46,7 +46,8 @@ jobs:
 
           version = os.environ["VERSION"]
           platform = os.environ["PLATFORM"]
-          shutil.make_archive(f"bombfrog-{version}-{platform}", "zip", "dist", "bombfrog")
+          root_name = "Bomb Frog.app" if platform == "macos" else "bombfrog"
+          shutil.make_archive(f"bombfrog-{version}-{platform}", "zip", "dist", root_name)
 
       - uses: actions/upload-artifact@v4
         with:
@@ -70,4 +71,9 @@ jobs:
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
         run: |
-          ./butler-bin/butler push dist/bombfrog bjorndead/bomb-frog:${{ matrix.platform }} --userversion "$VERSION"
+          if [ "${{ matrix.platform }}" = "macos" ]; then
+            BUILD_PATH="dist/Bomb Frog.app"
+          else
+            BUILD_PATH="dist/bombfrog"
+          fi
+          ./butler-bin/butler push "$BUILD_PATH" bjorndead/bomb-frog:${{ matrix.platform }} --userversion "$VERSION"

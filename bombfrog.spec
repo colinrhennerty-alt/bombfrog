@@ -35,3 +35,10 @@ coll = COLLECT(
     upx_exclude=[],
     name="bombfrog",
 )
+
+app = BUNDLE(
+    coll,
+    name="Bomb Frog.app",
+    icon=None,
+    bundle_identifier="io.itch.bjorndead.bombfrog",
+)

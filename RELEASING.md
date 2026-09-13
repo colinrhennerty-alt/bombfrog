@@ -24,3 +24,7 @@ Every Linear ticket whose completion should trigger a new shipped build must car
 4. **Smoke-test** at least one downloaded build before flipping the page live (see the itch.io publish ticket for the full checklist) — publishing to itch.io's build channels does not by itself make the page public.
 
 Since every push to `main` publishes automatically, keep `main` deployable — don't merge work you don't want live on itch.io immediately.
+
+## macOS build notes
+
+The macOS build is packaged as `Bomb Frog.app` (via `BUNDLE()` in `bombfrog.spec`), not a bare executable. PyInstaller ad-hoc signs it automatically during the build — there's no Apple Developer account involved, so Gatekeeper will still show one "cannot verify" warning on first launch. Players can proceed via right-click → Open, or System Settings → Privacy & Security → "Open Anyway". Without the `.app` wrapper, macOS previously Gatekeeper-checked every internal `.so`/`.framework` file individually, producing a flood of separate warnings instead of one.
