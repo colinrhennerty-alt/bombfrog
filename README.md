@@ -39,3 +39,7 @@ pytest
 ```
 
 Tests run headlessly (no window pops up) via the SDL dummy video driver, configured in `tests/conftest.py`.
+
+## Releasing
+
+See [RELEASING.md](RELEASING.md) for the version scheme and release process.
