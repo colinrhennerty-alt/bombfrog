@@ -4,6 +4,7 @@ import pygame
 from game.config import WIDTH, HEIGHT, FPS, DEBUG_ENV_VAR
 from game.rendering import renderer as rendering
 from game.input import key_mapping as game_input
+from game.input import gamepad_mapping
 from game.scene.game_app import GameApp
 from game.utils import env_flag
 
@@ -13,6 +14,10 @@ pygame.display.set_caption("Bomb Frog")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 36)
 small_font = pygame.font.SysFont(None, 24)
+
+pygame.joystick.init()
+if pygame.joystick.get_count() > 0:
+    pygame.joystick.Joystick(0).init()
 
 
 def run_game():
@@ -28,6 +33,14 @@ def run_game():
                 app.running = False
             if event.type == pygame.KEYDOWN:
                 action = game_input.map_key(app.state, event.key)
+                if action:
+                    app.handle_action(action, now)
+            if event.type == pygame.JOYBUTTONDOWN:
+                action = gamepad_mapping.map_button(app.state, event.button)
+                if action:
+                    app.handle_action(action, now)
+            if event.type == pygame.JOYHATMOTION:
+                action = gamepad_mapping.map_hat(app.state, event.value)
                 if action:
                     app.handle_action(action, now)
             if app.state == "editor":
