@@ -51,3 +51,22 @@ jobs:
         with:
           name: bombfrog-${{ env.VERSION }}-${{ matrix.platform }}
           path: bombfrog-${{ env.VERSION }}-${{ matrix.platform }}.zip
+
+      - name: Install butler
+        shell: bash
+        run: |
+          case "${{ matrix.platform }}" in
+            linux) BUTLER_PLATFORM=linux-amd64 ;;
+            win64) BUTLER_PLATFORM=windows-amd64 ;;
+            macos) BUTLER_PLATFORM=darwin-amd64 ;;
+          esac
+          curl -L -o butler.zip "https://broth.itch.zone/butler/${BUTLER_PLATFORM}/LATEST/archive/default"
+          unzip butler.zip -d butler-bin
+          chmod +x butler-bin/butler || true
+
+      - name: Push build to itch.io
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          ./butler-bin/butler push dist/bombfrog bjorndead/bomb-frog:${{ matrix.platform }} --userversion "$VERSION"
