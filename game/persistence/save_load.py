@@ -13,6 +13,7 @@ def save_game(filename, player, bombs, shards, enemies, score, high_score, lives
         "lives": lives,
         "last_spawn": last_spawn,
     }
+    os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
     with open(filename, "w") as handle:
         json.dump(state, handle)
 

@@ -1,3 +1,5 @@
+from game.paths import user_data_path
+
 WIDTH = 1700
 HEIGHT = 900
 FPS = 60
@@ -19,7 +21,7 @@ BOMB_COOLDOWN_MS = 1200
 BOMB_FALL_SPEED = 40
 ENEMY_SPAWN_MS = 1800
 MAX_ENEMIES = 5
-SAVE_FILE = "savegame.json"
-LEVEL_FILE = "levels/level.json"
+SAVE_FILE = user_data_path("savegame.json")
+LEVEL_FILE = user_data_path("levels/level.json")
 EDITOR_SIDEBAR_WIDTH = 220
 DEBUG_ENV_VAR = "BOMBFROG_DEBUG"
