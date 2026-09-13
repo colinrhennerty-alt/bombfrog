@@ -40,8 +40,15 @@ class EditorState:
         self.hover_col = None
         self.hover_row = None
         self.is_dragging = False
+        self.wall_mode = False
+        self.reset_pending = False
         self.palette_layout = self._build_palette_layout()
-        self.save_button_rect, self.load_button_rect = self._build_button_rects()
+        (
+            self.save_button_rect,
+            self.load_button_rect,
+            self.wall_mode_button_rect,
+            self.reset_button_rect,
+        ) = self._build_button_rects()
 
     def _build_palette_layout(self):
         layout = {}
@@ -56,9 +63,12 @@ class EditorState:
         palette_rows = (len(self.palette) + PALETTE_COLUMNS - 1) // PALETTE_COLUMNS
         buttons_top = PALETTE_MARGIN + palette_rows * PALETTE_CELL_SIZE + BUTTON_GAP
         button_width = EDITOR_SIDEBAR_WIDTH - 2 * PALETTE_MARGIN
-        save_rect = (self.sidebar_x + PALETTE_MARGIN, buttons_top, button_width, BUTTON_HEIGHT)
-        load_rect = (self.sidebar_x + PALETTE_MARGIN, buttons_top + BUTTON_HEIGHT + BUTTON_GAP, button_width, BUTTON_HEIGHT)
-        return save_rect, load_rect
+        button_x = self.sidebar_x + PALETTE_MARGIN
+        rects = [
+            (button_x, buttons_top + i * (BUTTON_HEIGHT + BUTTON_GAP), button_width, BUTTON_HEIGHT)
+            for i in range(4)
+        ]
+        return tuple(rects)
 
     @property
     def selected_tile_id(self):
@@ -78,19 +88,47 @@ class EditorState:
 
     def paint_at_screen(self, screen_x, screen_y):
         col, row = screen_pos_to_tile(screen_x, screen_y, self.camera)
-        self.tilemap.set_tile(col, row, self.selected_tile_id)
+        self.tilemap.set_tile(col, row, self.selected_tile_id, is_wall=self.wall_mode)
 
     def point_is_in_sidebar(self, screen_x, screen_y):
         return screen_x >= self.camera.viewport_width
 
     def handle_sidebar_click(self, screen_x, screen_y):
         """Hit-tests a click against the sidebar's controls (palette
-        tiles, Save/Load buttons). Returns "select" (selection already
-        applied), "save", "load", or None if the click hit nothing."""
+        tiles, Save/Load, Wall Mode, Reset). Returns "select" (selection
+        already applied), "save", "load", "toggle_wall_mode",
+        "reset_pending", "reset_confirmed", or None if the click hit
+        nothing.
+
+        Any recognized-control click other than a second Reset click
+        cancels a pending reset rather than leaving it armed — so a
+        later, unrelated click on the (now un-highlighted) Reset button
+        can't accidentally land as the "confirm" half of an earlier,
+        forgotten arm."""
+        if _point_in_rect(screen_x, screen_y, self.reset_button_rect):
+            return self._handle_reset_click()
+
+        result = self._handle_other_control_click(screen_x, screen_y)
+        if result is not None:
+            self.reset_pending = False
+        return result
+
+    def _handle_reset_click(self):
+        if self.reset_pending:
+            self.tilemap.clear()
+            self.reset_pending = False
+            return "reset_confirmed"
+        self.reset_pending = True
+        return "reset_pending"
+
+    def _handle_other_control_click(self, screen_x, screen_y):
         if _point_in_rect(screen_x, screen_y, self.save_button_rect):
             return "save"
         if _point_in_rect(screen_x, screen_y, self.load_button_rect):
             return "load"
+        if _point_in_rect(screen_x, screen_y, self.wall_mode_button_rect):
+            self.wall_mode = not self.wall_mode
+            return "toggle_wall_mode"
         for tile_id, rect in self.palette_layout.items():
             if _point_in_rect(screen_x, screen_y, rect):
                 self.selected_index = self.palette.index(tile_id)

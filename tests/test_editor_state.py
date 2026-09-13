@@ -206,3 +206,134 @@ def test_handle_sidebar_click_does_not_change_selection_when_missing_a_control()
 def test_starts_not_dragging():
     editor = EditorState()
     assert editor.is_dragging is False
+
+
+# --- wall mode ---------------------------------------------------------------
+
+
+def test_starts_with_wall_mode_off():
+    editor = EditorState()
+    assert editor.wall_mode is False
+
+
+def test_wall_mode_button_rect_is_within_the_sidebar_region():
+    editor = EditorState(WIDTH, HEIGHT)
+    x, y, w, h = editor.wall_mode_button_rect
+    assert x >= editor.camera.viewport_width
+    assert x + w <= WIDTH
+    assert y >= 0
+    assert y + h <= HEIGHT
+
+
+def test_handle_sidebar_click_on_wall_mode_button_toggles_it_on():
+    editor = EditorState(WIDTH, HEIGHT)
+    click_x, click_y = _center(editor.wall_mode_button_rect)
+
+    result = editor.handle_sidebar_click(click_x, click_y)
+
+    assert result == "toggle_wall_mode"
+    assert editor.wall_mode is True
+
+
+def test_handle_sidebar_click_on_wall_mode_button_toggles_it_back_off():
+    editor = EditorState(WIDTH, HEIGHT)
+    click_x, click_y = _center(editor.wall_mode_button_rect)
+
+    editor.handle_sidebar_click(click_x, click_y)
+    editor.handle_sidebar_click(click_x, click_y)
+
+    assert editor.wall_mode is False
+
+
+def test_paint_at_screen_marks_the_cell_as_a_wall_when_wall_mode_is_on():
+    editor = EditorState()
+    editor.camera.x, editor.camera.y = 0, 0
+    editor.wall_mode = True
+
+    sx, sy = ground_tile_screen_pos(4, 2, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=2)
+    editor.paint_at_screen(sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4)
+
+    assert editor.tilemap.is_wall(4, 2) is True
+
+
+def test_paint_at_screen_does_not_mark_a_wall_when_wall_mode_is_off():
+    editor = EditorState()
+    editor.camera.x, editor.camera.y = 0, 0
+    editor.wall_mode = False
+
+    sx, sy = ground_tile_screen_pos(4, 2, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=2)
+    editor.paint_at_screen(sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4)
+
+    assert editor.tilemap.is_wall(4, 2) is False
+
+
+# --- reset ---------------------------------------------------------------------
+
+
+def test_starts_with_reset_not_pending():
+    editor = EditorState()
+    assert editor.reset_pending is False
+
+
+def test_reset_button_rect_is_within_the_sidebar_region():
+    editor = EditorState(WIDTH, HEIGHT)
+    x, y, w, h = editor.reset_button_rect
+    assert x >= editor.camera.viewport_width
+    assert x + w <= WIDTH
+    assert y >= 0
+    assert y + h <= HEIGHT
+
+
+def test_first_click_on_reset_arms_it_without_clearing_the_map():
+    editor = EditorState(WIDTH, HEIGHT)
+    editor.tilemap.set_tile(1, 1, "tile_000")
+    click_x, click_y = _center(editor.reset_button_rect)
+
+    result = editor.handle_sidebar_click(click_x, click_y)
+
+    assert result == "reset_pending"
+    assert editor.reset_pending is True
+    assert editor.tilemap.get_tile(1, 1) == "tile_000"
+
+
+def test_second_click_on_reset_clears_the_map_and_disarms():
+    editor = EditorState(WIDTH, HEIGHT)
+    editor.tilemap.set_tile(1, 1, "tile_000")
+    click_x, click_y = _center(editor.reset_button_rect)
+
+    editor.handle_sidebar_click(click_x, click_y)
+    result = editor.handle_sidebar_click(click_x, click_y)
+
+    assert result == "reset_confirmed"
+    assert editor.reset_pending is False
+    assert editor.tilemap.get_tile(1, 1) is None
+
+
+def test_clicking_elsewhere_while_reset_is_pending_cancels_it():
+    editor = EditorState(WIDTH, HEIGHT)
+    editor.tilemap.set_tile(1, 1, "tile_000")
+    reset_x, reset_y = _center(editor.reset_button_rect)
+    save_x, save_y = _center(editor.save_button_rect)
+
+    editor.handle_sidebar_click(reset_x, reset_y)
+    assert editor.reset_pending is True
+
+    editor.handle_sidebar_click(save_x, save_y)
+
+    assert editor.reset_pending is False
+    assert editor.tilemap.get_tile(1, 1) == "tile_000"  # untouched
+
+
+def test_reset_does_not_touch_a_file_on_disk(tmp_path):
+    editor = EditorState(WIDTH, HEIGHT)
+    editor.tilemap.set_tile(1, 1, "tile_000")
+    save_path = str(tmp_path / "level.json")
+    editor.save(save_path)
+
+    click_x, click_y = _center(editor.reset_button_rect)
+    editor.handle_sidebar_click(click_x, click_y)
+    editor.handle_sidebar_click(click_x, click_y)  # confirm clear
+
+    reloaded = EditorState(WIDTH, HEIGHT)
+    reloaded.load(save_path)
+    assert reloaded.tilemap.get_tile(1, 1) == "tile_000"  # saved file untouched

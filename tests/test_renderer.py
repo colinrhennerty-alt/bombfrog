@@ -384,6 +384,16 @@ def test_draw_editor_with_painted_tiles_and_hover(surface):
     rendering.draw_editor(surface, editor_state)
 
 
+def test_draw_editor_with_a_wall_cell(surface):
+    from game.scene.editor_state import EditorState
+
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.camera.x, editor_state.camera.y = 0, 0
+    editor_state.tilemap.set_tile(2, 2, editor_state.palette[0], is_wall=True)
+
+    rendering.draw_editor(surface, editor_state)
+
+
 def test_draw_editor_sidebar_without_a_font(surface):
     from game.scene.editor_state import EditorState
 
@@ -399,6 +409,26 @@ def test_draw_editor_sidebar_with_a_font_renders_button_labels(surface, fonts):
     _, small_font = fonts
     editor_state = EditorState(WIDTH, HEIGHT)
     editor_state.select_tile(1)
+
+    rendering.draw_editor_sidebar(surface, editor_state, small_font)
+
+
+def test_draw_editor_sidebar_with_wall_mode_on(surface, fonts):
+    from game.scene.editor_state import EditorState
+
+    _, small_font = fonts
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.wall_mode = True
+
+    rendering.draw_editor_sidebar(surface, editor_state, small_font)
+
+
+def test_draw_editor_sidebar_with_reset_pending(surface, fonts):
+    from game.scene.editor_state import EditorState
+
+    _, small_font = fonts
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.reset_pending = True
 
     rendering.draw_editor_sidebar(surface, editor_state, small_font)
 

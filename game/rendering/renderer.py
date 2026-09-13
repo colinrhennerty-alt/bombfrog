@@ -306,6 +306,8 @@ def draw_editor(surface, editor_state):
             surface.blit(all_tiles[tile_id], (sx, sy))
         else:
             pygame.draw.rect(surface, (60, 60, 70), (sx, sy, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT), 1)
+        if editor_state.tilemap.is_wall(col, row):
+            pygame.draw.rect(surface, (220, 40, 40), (sx, sy, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT), 2)
 
     if editor_state.hover_col is not None:
         hx, hy = ground_tile_screen_pos(
@@ -330,8 +332,14 @@ def draw_editor_sidebar(surface, editor_state, small_font=None):
         if tile_id == editor_state.selected_tile_id:
             pygame.draw.rect(surface, (255, 255, 0), (x, y, w, h), 2)
 
-    for rect, label in ((editor_state.save_button_rect, "Save"), (editor_state.load_button_rect, "Load")):
-        pygame.draw.rect(surface, (80, 80, 95), rect)
+    buttons = (
+        (editor_state.save_button_rect, "Save", (80, 80, 95)),
+        (editor_state.load_button_rect, "Load", (80, 80, 95)),
+        (editor_state.wall_mode_button_rect, "Wall Mode", (200, 70, 70) if editor_state.wall_mode else (80, 80, 95)),
+        (editor_state.reset_button_rect, "Confirm?" if editor_state.reset_pending else "Reset", (200, 140, 40) if editor_state.reset_pending else (80, 80, 95)),
+    )
+    for rect, label, color in buttons:
+        pygame.draw.rect(surface, color, rect)
         if small_font is not None:
             x, y, w, h = rect
             text = small_font.render(label, True, (240, 240, 240))
