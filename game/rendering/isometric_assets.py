@@ -5,10 +5,14 @@ reasoning as game.rendering.assets: Surface.convert_alpha() requires an
 active display mode, which isn't set up yet at import time.
 """
 
+import glob
+import os
+
 import pygame
 
-TILE_PATH = "assets/isometric tileset/separated images/tile_022.png"
-STONE_TILE_PATH = "assets/isometric tileset/separated images/tile_063.png"
+TILE_DIR = "assets/isometric tileset/separated images"
+TILE_PATH = f"{TILE_DIR}/tile_022.png"
+STONE_TILE_PATH = f"{TILE_DIR}/tile_063.png"
 TILE_WIDTH = 64
 TILE_HEIGHT = 64
 
@@ -40,3 +44,21 @@ def get_grass_tile():
 
 def get_stone_tile():
     return _get_cached_tile(STONE_TILE_PATH)
+
+
+_all_tiles_cache = None
+
+
+def get_all_tiles():
+    """Every tile_*.png in the tileset folder, keyed by filename stem
+    (e.g. "tile_022"). Used by the map editor's palette, which — unlike
+    gameplay's fixed grass/stone choice — needs every tile art asset
+    available to paint with. Discovered once and cached, same reasoning
+    as _get_cached_tile."""
+    global _all_tiles_cache
+    if _all_tiles_cache is None:
+        _all_tiles_cache = {
+            os.path.splitext(os.path.basename(path))[0]: _get_cached_tile(path)
+            for path in sorted(glob.glob(os.path.join(TILE_DIR, "tile_*.png")))
+        }
+    return _all_tiles_cache

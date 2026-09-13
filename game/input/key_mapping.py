@@ -23,7 +23,36 @@ PLAYING_KEY_ACTIONS = {
     pygame.K_F13: "toggle_debug",
 }
 
+EDITOR_KEY_ACTIONS = {
+    pygame.K_UP: "pan_up",
+    pygame.K_DOWN: "pan_down",
+    pygame.K_LEFT: "pan_left",
+    pygame.K_RIGHT: "pan_right",
+    pygame.K_w: "pan_up",
+    pygame.K_s: "pan_down",
+    pygame.K_a: "pan_left",
+    pygame.K_d: "pan_right",
+    pygame.K_1: "select_tile_0",
+    pygame.K_2: "select_tile_1",
+    pygame.K_3: "select_tile_2",
+    pygame.K_4: "select_tile_3",
+    pygame.K_5: "select_tile_4",
+    pygame.K_6: "select_tile_5",
+    pygame.K_7: "select_tile_6",
+    pygame.K_8: "select_tile_7",
+    pygame.K_9: "select_tile_8",
+    pygame.K_0: "select_tile_9",
+    pygame.K_F5: "save_level",
+    pygame.K_F9: "load_level",
+    pygame.K_ESCAPE: "menu_back",
+}
+
+_STATE_KEY_ACTIONS = {
+    "menu": MENU_KEY_ACTIONS,
+    "editor": EDITOR_KEY_ACTIONS,
+}
+
 
 def map_key(state, key):
-    table = MENU_KEY_ACTIONS if state == "menu" else PLAYING_KEY_ACTIONS
+    table = _STATE_KEY_ACTIONS.get(state, PLAYING_KEY_ACTIONS)
     return table.get(key)

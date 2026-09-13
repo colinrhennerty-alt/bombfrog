@@ -47,5 +47,6 @@ Thumbs.db
 
 # Bomb Frog specific
 savegame.json
+levels/
 web_build/
 .claude/settings.local.json

@@ -30,11 +30,19 @@ def run_game():
                 action = game_input.map_key(app.state, event.key)
                 if action:
                     app.handle_action(action, now)
+            if app.state == "editor":
+                if event.type == pygame.MOUSEMOTION:
+                    app.editor_state.set_hover(*event.pos)
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    app.editor_state.paint_at_screen(*event.pos)
 
         screen.fill((18, 30, 50))
 
         if app.state == "menu":
             rendering.draw_menu(screen, font, small_font, app.menu_options, app.selected)
+
+        elif app.state == "editor":
+            rendering.draw_editor(screen, app.editor_state)
 
         elif app.state == "playing":
             app.tick(keys, dt, now)

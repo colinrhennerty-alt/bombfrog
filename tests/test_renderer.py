@@ -366,6 +366,34 @@ def test_draw_ground(surface, camera):
     rendering.draw_ground(surface, camera)
 
 
+def test_draw_editor_with_empty_tilemap(surface):
+    from game.scene.editor_state import EditorState
+
+    editor_state = EditorState(WIDTH, HEIGHT)
+    rendering.draw_editor(surface, editor_state)
+
+
+def test_draw_editor_with_painted_tiles_and_hover(surface):
+    from game.scene.editor_state import EditorState
+
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.camera.x, editor_state.camera.y = 0, 0
+    editor_state.tilemap.set_tile(2, 2, editor_state.palette[0])
+    editor_state.hover_col, editor_state.hover_row = 3, 3
+
+    rendering.draw_editor(surface, editor_state)
+
+
+def test_draw_editor_palette_highlights_the_selected_tile(surface):
+    from game.scene.editor_state import EditorState
+    from game.rendering.isometric_assets import get_all_tiles
+
+    editor_state = EditorState(WIDTH, HEIGHT)
+    editor_state.select_tile(1)
+
+    rendering.draw_editor_palette(surface, editor_state, get_all_tiles())
+
+
 def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
     # The camera sits at the world's top-left corner (0, 0) — the tile
     # range must not include negative columns/rows, since there's no
@@ -594,6 +622,47 @@ def test_is_border_tile_true_near_the_far_world_edge():
 
     far_col = int(WORLD_WIDTH / 64) - 1
     assert rendering.is_border_tile(col=far_col, row=10, tile_width=64, half_h=24) is True
+
+
+def test_screen_pos_to_tile_inverts_ground_tile_screen_pos_at_origin_camera():
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0
+
+    for col, row in [(0, 0), (5, 3), (12, 4), (20, 11)]:
+        sx, sy = rendering.ground_tile_screen_pos(col, row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
+        # click near the tile's own center, not its bounding box's corner
+        click_x, click_y = sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4
+        assert rendering.screen_pos_to_tile(click_x, click_y, camera) == (col, row)
+
+
+def test_screen_pos_to_tile_inverts_ground_tile_screen_pos_with_a_panned_camera():
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 640, 320
+
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / (TILE_FOOTPRINT_HEIGHT / 2)
+
+    for col, row in [(10, 8), (15, 9), (30, 20)]:
+        sx, sy = rendering.ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
+        click_x, click_y = sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4
+        assert rendering.screen_pos_to_tile(click_x, click_y, camera) == (col, row)
+
+
+def test_screen_pos_to_tile_accounts_for_odd_row_stagger():
+    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.x, camera.y = 0, 0
+
+    # An odd world row is staggered half a tile width to the right —
+    # inversion must account for that before recovering col.
+    sx, sy = rendering.ground_tile_screen_pos(7, 3, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=3)
+    click_x, click_y = sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4
+    assert rendering.screen_pos_to_tile(click_x, click_y, camera) == (7, 3)
 
 
 class _SurfaceIdentityRecordingSurface:

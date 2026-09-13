@@ -17,7 +17,7 @@ from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.rendering.assets import get_frog_frames
-from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
+from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_all_tiles, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
 
 
 def shadow_size_for(base_radius, height_offset):
@@ -184,6 +184,24 @@ def is_border_tile(col, row, tile_width, half_h):
     )
 
 
+def screen_pos_to_tile(screen_x, screen_y, camera):
+    """Inverse of ground_tile_screen_pos: given a screen-space point (e.g.
+    a mouse click) and the camera, recover the (col, row) of the ground
+    tile drawn under it.
+
+    Row inverts directly (row placement never staggers). Col depends on
+    that row's stagger, which itself depends on the row — so row must be
+    resolved first, then col computed against that row's own offset."""
+    half_h = TILE_FOOTPRINT_HEIGHT / 2
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / half_h
+
+    row = int(screen_y / half_h + cam_row)
+    stagger = (TILE_WIDTH / 2) if row % 2 else 0
+    col = int((screen_x - stagger) / TILE_WIDTH + cam_col)
+    return col, row
+
+
 def visible_tile_range(camera):
     """Which (col, row) tile grid range the camera can currently see,
     clamped to the world's own tile bounds so the ground never tiles past
@@ -251,6 +269,66 @@ def draw_ground(surface, camera):
         sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
         if sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT:
             surface.blit(tile, (sx, sy))
+
+
+PALETTE_MARGIN = 10
+PALETTE_CELL_SIZE = 48
+PALETTE_COLUMNS = 20
+
+
+def draw_editor(surface, editor_state):
+    """The map editor's ground grid, hover highlight, and palette strip.
+
+    Structurally parallel to draw_ground: same visible-range/tile-position
+    math, but each cell looks up its own painted tile (or an empty
+    placeholder) from editor_state.tilemap instead of the fixed
+    grass/border rule."""
+    surface.fill((30, 30, 40))
+    camera = editor_state.camera
+    all_tiles = get_all_tiles()
+    half_h = TILE_FOOTPRINT_HEIGHT / 2
+    cam_col = camera.x / TILE_WIDTH
+    cam_row = camera.y / half_h
+
+    min_col, max_col, min_row, max_row = visible_tile_range(camera)
+    coords = sorted(
+        (
+            (col, row)
+            for col in range(int(min_col), int(max_col))
+            for row in range(int(min_row), int(max_row))
+        ),
+        key=lambda cr: cr[1],
+    )
+
+    for col, row in coords:
+        sx, sy = ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
+        if not (sx + TILE_WIDTH >= 0 and sx <= WIDTH and sy + TILE_HEIGHT >= 0 and sy <= HEIGHT):
+            continue
+        tile_id = editor_state.tilemap.get_tile(col, row)
+        if tile_id is not None and tile_id in all_tiles:
+            surface.blit(all_tiles[tile_id], (sx, sy))
+        else:
+            pygame.draw.rect(surface, (60, 60, 70), (sx, sy, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT), 1)
+
+    if editor_state.hover_col is not None:
+        hx, hy = ground_tile_screen_pos(
+            editor_state.hover_col - cam_col, editor_state.hover_row - cam_row,
+            TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=editor_state.hover_row,
+        )
+        pygame.draw.rect(surface, (255, 255, 0), (hx, hy, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT), 2)
+
+    draw_editor_palette(surface, editor_state, all_tiles)
+
+
+def draw_editor_palette(surface, editor_state, all_tiles):
+    for i, tile_id in enumerate(editor_state.palette):
+        col, row = i % PALETTE_COLUMNS, i // PALETTE_COLUMNS
+        x = PALETTE_MARGIN + col * PALETTE_CELL_SIZE
+        y = PALETTE_MARGIN + row * PALETTE_CELL_SIZE
+        thumb = pygame.transform.scale(all_tiles[tile_id], (PALETTE_CELL_SIZE - 4, PALETTE_CELL_SIZE - 4))
+        surface.blit(thumb, (x, y))
+        if i == editor_state.selected_index:
+            pygame.draw.rect(surface, (255, 255, 0), (x, y, PALETTE_CELL_SIZE - 4, PALETTE_CELL_SIZE - 4), 2)
 
 
 def draw_overlay(surface, bombs, camera):

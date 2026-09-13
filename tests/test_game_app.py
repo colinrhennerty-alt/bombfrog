@@ -21,7 +21,7 @@ def test_app_starts_in_menu_with_no_world():
     assert app.world is None
     assert app.running is True
     assert app.selected == 0
-    assert app.menu_options == ["Start Game", "Load Game", "Quit"]
+    assert app.menu_options == ["Start Game", "Load Game", "Map Editor", "Quit"]
     assert app.high_score == 0
     assert app.debug is False
 
@@ -42,11 +42,9 @@ def test_menu_navigation_wraps_in_both_directions():
     assert app.selected == len(app.menu_options) - 1  # wraps backward past 0
 
     app.selected = 0
-    app.handle_action("menu_down", now=0)
-    assert app.selected == 1
-    app.handle_action("menu_down", now=0)
-    app.handle_action("menu_down", now=0)
-    assert app.selected == 0  # wraps forward past the end
+    for _ in range(len(app.menu_options)):
+        app.handle_action("menu_down", now=0)
+    assert app.selected == 0  # wraps forward past the end, back to start
 
 
 def test_menu_confirm_start_game_creates_world_and_switches_to_playing():
@@ -82,7 +80,7 @@ def test_menu_confirm_load_game_with_valid_save(tmp_path):
 
 def test_menu_confirm_quit_stops_running():
     app = GameApp()
-    app.selected = 2  # "Quit"
+    app.selected = 3  # "Quit"
     app.handle_action("menu_confirm", now=0)
     assert app.running is False
 
@@ -155,6 +153,66 @@ def test_save_action_does_not_reach_into_worlds_internals():
 
 def test_menu_back_returns_to_menu():
     app = _started_app()
+    app.handle_action("menu_back", now=0)
+    assert app.state == "menu"
+
+
+def test_menu_confirm_map_editor_creates_editor_state_and_switches_to_editor():
+    app = GameApp()
+    app.selected = 2  # "Map Editor"
+    app.handle_action("menu_confirm", now=0)
+    assert app.state == "editor"
+    assert app.editor_state is not None
+
+
+def _editor_app():
+    app = GameApp()
+    app.selected = 2  # "Map Editor"
+    app.handle_action("menu_confirm", now=0)
+    return app
+
+
+def test_editor_pan_actions_move_the_camera():
+    app = _editor_app()
+    app.editor_state.camera.x, app.editor_state.camera.y = 500, 500
+
+    app.handle_action("pan_right", now=0)
+    assert app.editor_state.camera.x > 500
+
+    app.handle_action("pan_left", now=0)
+    app.handle_action("pan_left", now=0)
+    assert app.editor_state.camera.x < 500
+
+    app.handle_action("pan_down", now=0)
+    assert app.editor_state.camera.y > 500
+
+    app.handle_action("pan_up", now=0)
+    app.handle_action("pan_up", now=0)
+    assert app.editor_state.camera.y < 500
+
+
+def test_editor_select_tile_action_changes_selected_index():
+    app = _editor_app()
+    app.handle_action("select_tile_2", now=0)
+    assert app.editor_state.selected_index == 2
+
+
+def test_editor_save_and_load_round_trip(tmp_path):
+    app = GameApp(level_file=str(tmp_path / "level.json"))
+    app.selected = 2
+    app.handle_action("menu_confirm", now=0)
+
+    app.editor_state.tilemap.set_tile(3, 3, app.editor_state.palette[0])
+    app.handle_action("save_level", now=0)
+
+    app.editor_state.tilemap.set_tile(3, 3, None)
+    app.handle_action("load_level", now=0)
+
+    assert app.editor_state.tilemap.get_tile(3, 3) == app.editor_state.palette[0]
+
+
+def test_editor_menu_back_returns_to_menu():
+    app = _editor_app()
     app.handle_action("menu_back", now=0)
     assert app.state == "menu"
 
