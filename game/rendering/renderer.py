@@ -355,30 +355,54 @@ def draw_overlay(surface, bombs, camera):
 
 
 def draw_hud(surface, font, small_font, score, high_score, bombs_left, lives, bomb_cooldown):
+    # Lines are stacked from a running y cursor advanced by each font's own
+    # linesize (plus a little breathing room) rather than hardcoded pixel
+    # offsets, so the column never overlaps if a font's rendered glyph
+    # height changes across platforms/fonts.
+    line_gap = 6
+    x = 20
+    y = 20
+
     score_text = font.render(f"Score: {score}", True, (255, 255, 255))
+    surface.blit(score_text, (x, y))
+    y += font.get_linesize() + line_gap
+
+    small_line_height = small_font.get_linesize() + line_gap
+
     high_text = small_font.render(f"High Score: {high_score}", True, (240, 240, 240))
+    surface.blit(high_text, (x, y))
+    y += small_line_height
+
     bomb_text = small_font.render(f"Bombs: {bombs_left}", True, (255, 220, 120))
+    surface.blit(bomb_text, (x, y))
+    y += small_line_height
+
     life_text = small_font.render(f"Lives: {lives}", True, (180, 210, 255))
+    surface.blit(life_text, (x, y))
+    y += small_line_height
+
+    cooldown_text = small_font.render(f"Bomb CD: {max(0, int(bomb_cooldown / 1000 * 10) / 10):.1f}s", True, (255, 200, 120))
+    surface.blit(cooldown_text, (x, y))
+    y += small_line_height + line_gap
+
     legend_title = small_font.render("Enemies:", True, (220, 220, 220))
-    grunt_text = small_font.render("Grunt", True, (190, 80, 80))
-    heavy_text = small_font.render("Heavy", True, (170, 130, 80))
-    elite_text = small_font.render("Elite", True, (150, 95, 185))
+    surface.blit(legend_title, (x, y))
+    y += small_line_height
+
+    legend_entries = (
+        ("Grunt", (190, 80, 80)),
+        ("Heavy", (170, 130, 80)),
+        ("Elite", (150, 95, 185)),
+    )
+    for label, color in legend_entries:
+        entry_text = small_font.render(label, True, color)
+        pygame.draw.circle(surface, color, (x + 10, y + small_font.get_height() // 2), 5)
+        surface.blit(entry_text, (x + 25, y))
+        y += small_line_height
+
     prompt_text = small_font.render(
         "SPACE = jump/save bomb | UP/DOWN = move | S=save | L=load | avoid shards", True, (210, 210, 210)
     )
-    surface.blit(score_text, (20, 20))
-    surface.blit(high_text, (20, 60))
-    surface.blit(bomb_text, (20, 100))
-    cooldown_text = small_font.render(f"Bomb CD: {max(0, int(bomb_cooldown / 1000 * 10) / 10):.1f}s", True, (255, 200, 120))
-    surface.blit(life_text, (20, 140))
-    surface.blit(cooldown_text, (20, 170))
-    surface.blit(legend_title, (20, 210))
-    pygame.draw.circle(surface, (190, 80, 80), (30, 210), 5)
-    surface.blit(grunt_text, (45, 204))
-    pygame.draw.circle(surface, (170, 130, 80), (30, 232), 5)
-    surface.blit(heavy_text, (45, 226))
-    pygame.draw.circle(surface, (150, 95, 185), (30, 254), 5)
-    surface.blit(elite_text, (45, 248))
     surface.blit(prompt_text, (20, HEIGHT - 40))
 
 
