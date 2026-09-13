@@ -1,6 +1,6 @@
 # Releasing
 
-Bomb Frog uses a simple version-tag-build-upload flow to ship to itch.io.
+Every push to `main` automatically builds and publishes to itch.io — there is no manual tag/release step.
 
 ## Version scheme
 
@@ -18,9 +18,9 @@ Every Linear ticket whose completion should trigger a new shipped build must car
 
 ## Release steps
 
-1. **Bump the version** in `pyproject.toml` and commit it (`git commit -m "Bump version to X.Y.Z"`).
-2. **Tag the release**: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-3. **CI builds the platform archives.** Pushing a `v*` tag triggers the release workflow (see `.github/workflows/`, added in the CI ticket), which runs PyInstaller on Windows, macOS, and Linux runners and uploads each as a build artifact named `bombfrog-X.Y.Z-<platform>.zip`.
-4. **CI publishes to itch.io automatically.** The same release workflow pushes each platform's build directly to the [itch.io project's](https://bjorndead.itch.io/bomb-frog) `linux`/`win64`/`macos` channels via `butler`, tagged with the release version.
-5. **Update the itch.io page changelog/devlog** with what changed in this version.
-6. **Smoke-test** at least one downloaded build before publishing the update live (see the itch.io publish ticket for the full checklist).
+1. **Bump the version** in `pyproject.toml` when the change warrants it (see the version scheme above) and commit it (`git commit -m "Bump version to X.Y.Z"`).
+2. **Merge/push to `main`.** Every push to `main` triggers the release workflow (`.github/workflows/release.yml`), which runs PyInstaller on Windows, macOS, and Linux runners, uploads each as a GitHub Actions build artifact, and pushes each platform's build directly to the [itch.io project's](https://bjorndead.itch.io/bomb-frog) `linux`/`win64`/`macos` channels via `butler`. The published `--userversion` is `pyproject.toml`'s version plus the short commit SHA (e.g. `0.1.0+abc1234`), so every push is distinguishable on itch.io even between version bumps.
+3. **Update the itch.io page changelog/devlog** with what changed, when a bump warrants a visible note to players.
+4. **Smoke-test** at least one downloaded build before flipping the page live (see the itch.io publish ticket for the full checklist) — publishing to itch.io's build channels does not by itself make the page public.
+
+Since every push to `main` publishes automatically, keep `main` deployable — don't merge work you don't want live on itch.io immediately.
