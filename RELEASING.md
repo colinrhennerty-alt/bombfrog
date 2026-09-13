@@ -12,6 +12,10 @@ The single source of truth for the version is `version` in [`pyproject.toml`](py
 
 Before `1.0.0`, expect frequent minor bumps as the game is still taking shape.
 
+## Ticket labeling
+
+Every Linear ticket whose completion should trigger a new shipped build must carry a `Release: patch`, `Release: minor`, or `Release: major` label, using the same rules as above. This is what decides the version bump when the release is cut: if any ticket since the last release is `major`, the release is major; else if any is `minor`, it's minor; otherwise it's a `patch` release. Pure infrastructure/tooling tickets that don't change what players experience (CI setup, docs, license audits) don't need this label.
+
 ## Release steps
 
 1. **Bump the version** in `pyproject.toml` and commit it (`git commit -m "Bump version to X.Y.Z"`).
