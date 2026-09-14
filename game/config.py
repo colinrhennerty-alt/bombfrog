@@ -25,4 +25,3 @@ SAVE_FILE = user_data_path("savegame.json")
 LEVEL_FILE = user_data_path("levels/level.json")
 EDITOR_SIDEBAR_WIDTH = 220
 DEBUG_ENV_VAR = "BOMBFROG_DEBUG"
-GAMEPAD_STICK_DEADZONE = 0.5
