@@ -13,7 +13,7 @@ from game.simulation.world import World
 
 NO_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
-    pygame.K_UP: False, pygame.K_DOWN: False,
+    pygame.K_UP: False, pygame.K_w: False, pygame.K_DOWN: False, pygame.K_s: False,
 }
 
 

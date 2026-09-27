@@ -12,10 +12,12 @@ from game.config import FROG_IDLE_FRAME_COUNT
 from game.paths import resource_path
 
 SHEET_PATH = resource_path("assets/frog_green_spritesheet.png")
+BOMB_EXPLOSION_SHEET_PATH = resource_path("assets/bomb_explosion.png")
 CELL = 32
 SPRITE_SIZE = 64
 
 _frames_cache = None
+_bomb_explosion_frames_cache = None
 
 
 def _slice_frame(sheet, col, row):
@@ -32,8 +34,24 @@ def _load_frames():
     }
 
 
+def _load_bomb_explosion_frames():
+    sheet = pygame.image.load(BOMB_EXPLOSION_SHEET_PATH).convert_alpha()
+    return [sheet.subsurface(pygame.Rect(col * CELL, 0, CELL, CELL)) for col in range(4)]
+
+
 def get_frog_frames():
     global _frames_cache
     if _frames_cache is None:
         _frames_cache = _load_frames()
     return _frames_cache
+
+
+def get_bomb_explosion_frames():
+    global _bomb_explosion_frames_cache
+    if _bomb_explosion_frames_cache is None:
+        _bomb_explosion_frames_cache = _load_bomb_explosion_frames()
+    return _bomb_explosion_frames_cache
+
+
+def get_bomb_sprite():
+    return get_bomb_explosion_frames()[0]

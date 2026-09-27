@@ -109,11 +109,18 @@ class Player:
         self._sync_rect()
         return spawn_bomb
 
+    @staticmethod
+    def _pressed(keys, key):
+        try:
+            return bool(keys[key])
+        except (KeyError, TypeError):
+            return False
+
     def _apply_horizontal_movement(self, keys):
         self.vx = 0
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        if self._pressed(keys, pygame.K_LEFT) or self._pressed(keys, pygame.K_a):
             self.vx = -PLAYER_SPEED
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+        if self._pressed(keys, pygame.K_RIGHT) or self._pressed(keys, pygame.K_d):
             self.vx = PLAYER_SPEED
         if self.vx != 0:
             self.facing = 1 if self.vx > 0 else -1
@@ -123,9 +130,9 @@ class Player:
 
     def _apply_vertical_movement(self, keys):
         vy_input = 0
-        if keys[pygame.K_UP]:
+        if self._pressed(keys, pygame.K_UP) or self._pressed(keys, pygame.K_w):
             vy_input = -PLAYER_SPEED
-        if keys[pygame.K_DOWN]:
+        if self._pressed(keys, pygame.K_DOWN) or self._pressed(keys, pygame.K_s):
             vy_input = PLAYER_SPEED
         self.y += vy_input
         self.y = clamp(self.y, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)

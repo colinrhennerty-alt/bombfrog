@@ -16,7 +16,7 @@ from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
-from game.rendering.assets import get_frog_frames
+from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames, get_bomb_sprite
 from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_all_tiles, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
 
 
@@ -53,7 +53,8 @@ def draw_player(surface, player, camera):
 
     # Scale to the collision rect's own size, not the spritesheet's native
     # cell size, so the drawn sprite and the hitbox always match exactly.
-    frame = pygame.transform.smoothscale(frame, player.rect.size)
+    # Use regular scale instead of smoothing for crisp pixel-art edges.
+    frame = pygame.transform.scale(frame, player.rect.size)
     screen_rect = camera.apply_rect(player.rect)
     screen_rect.y += int(player.jump_offset)
     surface.blit(frame, screen_rect.topleft)
@@ -71,6 +72,13 @@ def draw_bomb(surface, bomb, camera):
     sy += bomb.fall_offset
     r = int(14 * depth_scale_for(sy))
     pygame.draw.circle(surface, bomb.color, (int(sx), int(sy)), r)
+
+    sprite = get_bomb_sprite()
+    sprite_size = max(16, int(r * 2.4))
+    sprite = pygame.transform.scale(sprite, (sprite_size, sprite_size))
+    sprite_rect = sprite.get_rect(center=(int(sx), int(sy)))
+    surface.blit(sprite, sprite_rect)
+
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)
     arc_r = 20
     arc_rect = (sx - arc_r, sy - arc_r, arc_r * 2, arc_r * 2)
@@ -99,10 +107,13 @@ def draw_enemy(surface, enemy, camera):
 
 def draw_explosion_effect(surface, effect, camera):
     sx, sy = camera.apply(effect.x, effect.y)
-    alpha = int(180 * max(0, effect.life / 260))
-    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    pygame.draw.circle(overlay, (255, 180, 60, alpha), (int(sx), int(sy)), max(4, int(effect.radius)), 4)
-    surface.blit(overlay, (0, 0))
+    frames = get_bomb_explosion_frames()
+    frame_index = min(len(frames) - 1, max(0, int((260 - effect.life) / 260 * len(frames))))
+    frame = frames[frame_index]
+    sprite_size = max(24, min(160, int(effect.radius * 2.4)))
+    frame = pygame.transform.scale(frame, (sprite_size, sprite_size))
+    rect = frame.get_rect(center=(int(sx), int(sy)))
+    surface.blit(frame, rect)
 
 
 _ENTITY_DRAW_SPECS = {

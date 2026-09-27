@@ -1,7 +1,14 @@
 import pygame
 
-from game.rendering.assets import get_frog_frames
+from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames
 from game.config import FROG_IDLE_FRAME_COUNT
+
+
+def test_get_bomb_explosion_frames_returns_the_expected_frame_set():
+    frames = get_bomb_explosion_frames()
+    assert len(frames) == 4
+    assert all(isinstance(frame, pygame.Surface) for frame in frames)
+    assert all(frame.get_size() == (32, 32) for frame in frames)
 
 
 def test_get_frog_frames_returns_the_expected_frame_set():

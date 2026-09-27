@@ -5,7 +5,7 @@ from game.simulation.player import Player
 
 NO_MOVE_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
-    pygame.K_UP: False, pygame.K_DOWN: False,
+    pygame.K_UP: False, pygame.K_w: False, pygame.K_DOWN: False, pygame.K_s: False,
 }
 
 
@@ -70,6 +70,28 @@ def test_player_moves_up_and_down_by_player_speed():
     assert player.y == start_y + PLAYER_SPEED
 
     player.update(_keys({pygame.K_UP: True}), dt=16)
+    assert player.y == start_y
+
+
+def test_player_handles_pygame_scancode_wrapper_without_dict_get():
+    class ScancodeLike:
+        def __getitem__(self, key):
+            return key in {pygame.K_a: True}
+
+    player = Player()
+    start_x = player.x
+    player.update(ScancodeLike(), dt=16)
+    assert player.x < start_x
+
+
+def test_player_accepts_wasd_for_vertical_movement():
+    player = Player()
+    start_y = player.y
+
+    player.update(_keys({pygame.K_s: True}), dt=16)
+    assert player.y == start_y + PLAYER_SPEED
+
+    player.update(_keys({pygame.K_w: True}), dt=16)
     assert player.y == start_y
 
 
