@@ -447,7 +447,7 @@ def draw_hud(surface, font, small_font, score, high_score, bombs_left, lives, bo
         y += small_line_height
 
     prompt_text = small_font.render(
-        "SPACE = jump/save bomb | UP/DOWN = move | S=save | L=load | avoid shards", True, (210, 210, 210)
+        "SPACE = jump (drops a bomb) | ARROWS/WASD = move | F5 = save | F9 = load | ESC = menu", True, (210, 210, 210)
     )
     surface.blit(prompt_text, (20, HEIGHT - 40))
 
@@ -472,6 +472,6 @@ def draw_game_over_overlay(surface, font, small_font):
     overlay.fill((0, 0, 0, 180))
     surface.blit(overlay, (0, 0))
     game_over_text = font.render("Game Over", True, (255, 220, 90))
-    restart_text = small_font.render("Press SPACE or R to restart, ESC to quit.", True, (245, 245, 245))
+    restart_text = small_font.render("Press SPACE or R to restart, ESC for menu.", True, (245, 245, 245))
     surface.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 60))
     surface.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 10))
