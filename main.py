@@ -5,6 +5,7 @@ from game.config import WIDTH, HEIGHT, FPS, DEBUG_ENV_VAR
 from game.rendering import renderer as rendering
 from game.input import key_mapping as game_input
 from game.scene.game_app import GameApp
+from game.scene.modes import Mode
 from game.utils import env_flag
 
 pygame.init()
@@ -30,7 +31,7 @@ def run_game():
                 action = game_input.map_key(app.state, event.key)
                 if action:
                     app.handle_action(action, now)
-            if app.state == "editor":
+            if app.state == Mode.EDITOR:
                 editor = app.editor_state
                 if event.type == pygame.MOUSEMOTION:
                     if not editor.point_is_in_sidebar(*event.pos):
@@ -52,14 +53,14 @@ def run_game():
 
         screen.fill((18, 30, 50))
 
-        if app.state == "menu":
+        if app.state == Mode.MENU:
             rendering.draw_menu(screen, font, small_font, app.menu_options, app.selected)
 
-        elif app.state == "editor":
+        elif app.state == Mode.EDITOR:
             rendering.draw_editor(screen, app.editor_state)
             rendering.draw_editor_sidebar(screen, app.editor_state, small_font)
 
-        elif app.state == "playing":
+        elif app.state == Mode.PLAYING:
             app.tick(keys, dt, now)
             world = app.world
 

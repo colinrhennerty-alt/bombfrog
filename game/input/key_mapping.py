@@ -1,56 +1,55 @@
-"""Raw pygame key -> abstract action name, per UI context.
+"""Raw pygame key -> abstract Action, per Mode.
 
-Deliberately dumb: this only knows "what key, in what context (menu vs.
-playing)". Decisions that depend on game state — e.g. whether "space"
-means jump or restart — belong to game.scene.game_app.GameApp, not here.
+Deliberately dumb: this only knows "what key, in what mode". Decisions
+that depend on game state — e.g. whether JUMP means jump or restart —
+belong to game.scene.game_app.GameApp, not here.
 """
 
 import pygame
 
+from game.input.actions import Action, SELECT_TILE_ACTIONS
+from game.scene.modes import Mode
+
 MENU_KEY_ACTIONS = {
-    pygame.K_UP: "menu_up",
-    pygame.K_DOWN: "menu_down",
-    pygame.K_RETURN: "menu_confirm",
-    pygame.K_SPACE: "menu_confirm",
+    pygame.K_UP: Action.MENU_UP,
+    pygame.K_DOWN: Action.MENU_DOWN,
+    pygame.K_RETURN: Action.MENU_CONFIRM,
+    pygame.K_SPACE: Action.MENU_CONFIRM,
 }
 
 PLAYING_KEY_ACTIONS = {
-    pygame.K_SPACE: "space",
-    pygame.K_r: "restart",
-    pygame.K_s: "save",
-    pygame.K_l: "load",
-    pygame.K_ESCAPE: "menu_back",
-    pygame.K_F13: "toggle_debug",
+    pygame.K_SPACE: Action.JUMP,
+    pygame.K_r: Action.RESTART,
+    pygame.K_s: Action.SAVE,
+    pygame.K_l: Action.LOAD,
+    pygame.K_ESCAPE: Action.MENU_BACK,
+    pygame.K_F13: Action.TOGGLE_DEBUG,
 }
+
+_TILE_SELECT_KEYS = (
+    pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5,
+    pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9, pygame.K_0,
+)
 
 EDITOR_KEY_ACTIONS = {
-    pygame.K_UP: "pan_up",
-    pygame.K_DOWN: "pan_down",
-    pygame.K_LEFT: "pan_left",
-    pygame.K_RIGHT: "pan_right",
-    pygame.K_w: "pan_up",
-    pygame.K_s: "pan_down",
-    pygame.K_a: "pan_left",
-    pygame.K_d: "pan_right",
-    pygame.K_1: "select_tile_0",
-    pygame.K_2: "select_tile_1",
-    pygame.K_3: "select_tile_2",
-    pygame.K_4: "select_tile_3",
-    pygame.K_5: "select_tile_4",
-    pygame.K_6: "select_tile_5",
-    pygame.K_7: "select_tile_6",
-    pygame.K_8: "select_tile_7",
-    pygame.K_9: "select_tile_8",
-    pygame.K_0: "select_tile_9",
-    pygame.K_ESCAPE: "menu_back",
+    pygame.K_UP: Action.PAN_UP,
+    pygame.K_DOWN: Action.PAN_DOWN,
+    pygame.K_LEFT: Action.PAN_LEFT,
+    pygame.K_RIGHT: Action.PAN_RIGHT,
+    pygame.K_w: Action.PAN_UP,
+    pygame.K_s: Action.PAN_DOWN,
+    pygame.K_a: Action.PAN_LEFT,
+    pygame.K_d: Action.PAN_RIGHT,
+    **dict(zip(_TILE_SELECT_KEYS, SELECT_TILE_ACTIONS)),
+    pygame.K_ESCAPE: Action.MENU_BACK,
 }
 
-_STATE_KEY_ACTIONS = {
-    "menu": MENU_KEY_ACTIONS,
-    "editor": EDITOR_KEY_ACTIONS,
+_MODE_KEY_ACTIONS = {
+    Mode.MENU: MENU_KEY_ACTIONS,
+    Mode.PLAYING: PLAYING_KEY_ACTIONS,
+    Mode.EDITOR: EDITOR_KEY_ACTIONS,
 }
 
 
-def map_key(state, key):
-    table = _STATE_KEY_ACTIONS.get(state, PLAYING_KEY_ACTIONS)
-    return table.get(key)
+def map_key(mode, key):
+    return _MODE_KEY_ACTIONS[mode].get(key)
