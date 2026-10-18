@@ -14,6 +14,16 @@ WORLD_BORDER = 180
 # Every entity (and the sprite drawn into its hitbox) is its base pixel
 # size times ENTITY_SCALE — one knob to grow/shrink all characters at once.
 ENTITY_SCALE = 2
+# Ground tile grid. The source art is a 32x32 sprite of a diamond-topped
+# block: the diamond face itself only spans rows ~4-28 (24px, measured from
+# the sprite's alpha channel), not the full 32px height — the rest is the
+# block's side "skirt". Grid spacing must be based on the diamond's own
+# footprint, not the full sprite size, or adjacent tiles cover too much of
+# each other (or too little). 24/32 of TILE_WIDTH, scaled like the sprite.
+# Rows sit TILE_FOOTPRINT_HEIGHT / 2 apart (see tile_geometry).
+TILE_WIDTH = 64
+TILE_HEIGHT = 64
+TILE_FOOTPRINT_HEIGHT = TILE_WIDTH * 24 / 32
 # The frog's grounded body: its cropped art is 18 px wide and ~13 px tall
 # when sitting, at 1.5 base px per art px.
 PLAYER_BASE_SIZE = (27, 20)
