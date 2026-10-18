@@ -973,3 +973,51 @@ def test_injury_tint_is_cached_per_frame_and_injury():
     frame = _solid_frame((200, 200, 200))
     assert entities._tinted(frame, 0.5) is entities._tinted(frame, 0.5)
     assert entities._tinted(frame, 0.5) is not entities._tinted(frame, 1.0)
+
+
+class _AllBlitsSurface:
+    def __init__(self):
+        self.blits = []
+
+    def fill(self, color):
+        pass
+
+    def blit(self, source, dest):
+        self.blits.append((source, (round(dest[0]), round(dest[1]))))
+
+
+def test_draw_ground_draws_the_ground_maps_tiles_inside_the_border(monkeypatch, camera):
+    from game.simulation.tilemap import TileMap
+
+    marker = pygame.Surface((tile_geometry.TILE_WIDTH, tile_geometry.TILE_HEIGHT))
+    stone = pygame.Surface((tile_geometry.TILE_WIDTH, tile_geometry.TILE_HEIGHT))
+    meadow = pygame.Surface((tile_geometry.TILE_WIDTH, tile_geometry.TILE_HEIGHT))
+    monkeypatch.setattr(ground, "get_tile", lambda tile_id: marker)
+    monkeypatch.setattr(ground, "get_stone_tile", lambda: stone)
+    monkeypatch.setattr(ground, "get_grass_tile", lambda: meadow)
+
+    camera.snap_to(WORLD_WIDTH / 2, WORLD_HEIGHT / 2)
+    tilemap = TileMap(1, 1)
+    min_col, max_col, min_row, max_row = tile_geometry.visible_tile_range(camera)
+    for col in range(int(min_col), int(max_col)):
+        for row in range(int(min_row), int(max_row)):
+            tilemap.set_tile(col, row, "tile_000")
+
+    fake = _AllBlitsSurface()
+    ground.draw_ground(fake, camera, tilemap)
+    drawn = {id(source) for source, _ in fake.blits}
+    assert id(marker) in drawn
+    assert id(meadow) not in drawn
+
+
+def test_draw_ground_keeps_the_stone_border_and_meadow_without_a_map(monkeypatch, camera):
+    stone = pygame.Surface((tile_geometry.TILE_WIDTH, tile_geometry.TILE_HEIGHT))
+    meadow = pygame.Surface((tile_geometry.TILE_WIDTH, tile_geometry.TILE_HEIGHT))
+    monkeypatch.setattr(ground, "get_stone_tile", lambda: stone)
+    monkeypatch.setattr(ground, "get_grass_tile", lambda: meadow)
+
+    camera.snap_to(0, 0)  # top-left corner: border and interior both visible
+    fake = _AllBlitsSurface()
+    ground.draw_ground(fake, camera)
+    drawn = {id(source) for source, _ in fake.blits}
+    assert drawn == {id(stone), id(meadow)}

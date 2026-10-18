@@ -51,7 +51,7 @@ def run_game():
             app.tick(keys, dt, now)
             world = app.world
 
-            ground.draw_ground(screen, world.camera)
+            ground.draw_ground(screen, world.camera, world.ground)
             entities.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects, world.camera)
             if app.debug:
                 entities.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies, world.camera)

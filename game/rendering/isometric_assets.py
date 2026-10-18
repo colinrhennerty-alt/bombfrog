@@ -39,6 +39,12 @@ def get_stone_tile():
     return _get_cached_tile(STONE_TILE_PATH)
 
 
+def get_tile(tile_id):
+    """One tile by id (e.g. "tile_022"), for drawing a generated or
+    authored ground map without loading the editor's whole palette."""
+    return _get_cached_tile(f"{TILE_DIR}/{tile_id}.png")
+
+
 _all_tiles_cache = None
 
 

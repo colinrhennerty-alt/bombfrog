@@ -505,3 +505,40 @@ def test_spawned_enemies_roll_with_the_worlds_rng_and_chase_the_frog():
 
     assert enemy.following is True
     assert enemy.rect.centerx < world.player.centerx + 100
+
+
+# --- generated ground ------------------------------------------------------
+
+def test_a_new_world_has_generated_ground_from_its_seed():
+    from game.simulation.terrain import generate_ground
+
+    world = World(now=0, rng=random.Random(7))
+    assert world.ground.cells == generate_ground(random.Random(world.ground_seed)).cells
+
+
+def test_a_new_round_gets_a_new_map_but_losing_a_life_keeps_it():
+    world = World(now=0, rng=random.Random(7))
+    first = world.ground
+    world._respawn(now=0)
+    assert world.ground is first
+    world.reset(now=0)
+    assert world.ground.cells != first.cells
+
+
+def test_save_and_load_restore_the_same_ground(tmp_path):
+    world = World(now=0, rng=random.Random(7))
+    path = str(tmp_path / "save.json")
+    world.save(path, high_score=0)
+    from game.persistence.save_load import load_game
+
+    data = load_game(path)
+    assert World.from_save_data(data, now=0).ground.cells == world.ground.cells
+
+    other = World(now=0, rng=random.Random(8))
+    other.merge_save_data(data)
+    assert other.ground.cells == world.ground.cells
+
+
+def test_an_old_save_without_a_ground_seed_still_loads_with_ground():
+    loaded = World.from_save_data(_save_dict(), now=0, rng=random.Random(3))
+    assert loaded.ground.cells

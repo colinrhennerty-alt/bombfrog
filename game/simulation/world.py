@@ -19,6 +19,7 @@ from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.simulation.explosion_effect import ExplosionEffect
 from game.simulation.camera import Camera
+from game.simulation.terrain import generate_ground
 from game.simulation import debug_log
 from game.persistence.save_load import save_game
 
@@ -42,7 +43,9 @@ class World:
             debug_log.log(message)
 
     def reset(self, now=0):
-        """Start a brand new round: clears the arena and zeroes score/lives."""
+        """Start a brand new round: a freshly generated map, a cleared arena,
+        and zeroed score/lives."""
+        self._set_ground(self.rng.randrange(2**32))
         self._respawn(now)
         self.score = 0
         self.lives = STARTING_LIVES
@@ -58,6 +61,11 @@ class World:
         self.last_spawn = now
         self.camera.snap_to(self.player.centerx, self.player.centery)
 
+    def _set_ground(self, seed):
+        """The map is rebuilt from its seed, so a save only stores the seed."""
+        self.ground_seed = seed
+        self.ground = generate_ground(random.Random(seed))
+
     @classmethod
     def from_save_data(cls, data, now=0, rng=None):
         """Build a fresh World from a save dict (the menu's "Load Game")."""
@@ -66,6 +74,8 @@ class World:
         world.rng = rng if rng is not None else random.Random()
         world.camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
         world.player = Player.from_dict(data["player"])
+        seed = data.get("ground_seed")
+        world._set_ground(seed if seed is not None else world.rng.randrange(2**32))
         world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
         world.score = data.get("score", 0)
         world.lives = data.get("lives", STARTING_LIVES)
@@ -82,11 +92,14 @@ class World:
         save_game(
             filename, self.player, self.bombs, self.shards, self.enemies,
             self.score, high_score, self.lives, self.last_spawn,
+            ground_seed=self.ground_seed,
         )
 
     def merge_save_data(self, data):
         """Overlay a save dict onto this in-progress round (in-game load)."""
         self.player.apply_dict(data["player"])
+        if data.get("ground_seed") is not None and data["ground_seed"] != self.ground_seed:
+            self._set_ground(data["ground_seed"])
         self.bombs, self.shards, self.enemies = _load_bombs_shards_enemies(data)
         self.score = data.get("score", self.score)
         self.lives = data.get("lives", self.lives)

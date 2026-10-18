@@ -8,7 +8,7 @@ import json
 import os
 
 
-def save_game(filename, player, bombs, shards, enemies, score, high_score, lives, last_spawn):
+def save_game(filename, player, bombs, shards, enemies, score, high_score, lives, last_spawn, ground_seed=None):
     state = {
         "player": player.to_dict(),
         "bombs": [bomb.to_dict() for bomb in bombs],
@@ -18,6 +18,7 @@ def save_game(filename, player, bombs, shards, enemies, score, high_score, lives
         "high_score": high_score,
         "lives": lives,
         "last_spawn": last_spawn,
+        "ground_seed": ground_seed,
     }
     os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
     with open(filename, "w") as handle:

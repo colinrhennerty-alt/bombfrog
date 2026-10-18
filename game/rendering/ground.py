@@ -1,13 +1,19 @@
-"""Drawing the gameplay floor: grass inside the arena, stone on the border."""
+"""Drawing the gameplay floor: the round's ground map (see
+game.simulation.terrain) inside the arena, stone on the border."""
 
 from game.config import WIDTH, HEIGHT
-from game.rendering.isometric_assets import get_grass_tile, get_stone_tile
+from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_tile
 from game.rendering.tile_geometry import (
     TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT, ground_tile_screen_pos, is_border_tile, visible_tile_range,
 )
 
 
-def draw_ground(surface, camera):
+def _interior_tile(ground, col, row, fallback):
+    tile_id = ground.get_tile(col, row) if ground is not None else None
+    return get_tile(tile_id) if tile_id is not None else fallback
+
+
+def draw_ground(surface, camera, ground=None):
     surface.fill((52, 88, 58))
     grass_tile = get_grass_tile()
     stone_tile = get_stone_tile()
@@ -30,7 +36,10 @@ def draw_ground(surface, camera):
     )
 
     for col, row in coords:
-        tile = stone_tile if is_border_tile(col, row, TILE_WIDTH, half_h) else grass_tile
+        if is_border_tile(col, row, TILE_WIDTH, half_h):
+            tile = stone_tile
+        else:
+            tile = _interior_tile(ground, col, row, grass_tile)
         # (col - cam_col) * TILE_WIDTH == col * TILE_WIDTH - camera.x, i.e.
         # exactly Camera.apply's world-to-screen mapping — no extra
         # centering term. An earlier "+ WIDTH/2 - half_w" here shifted
