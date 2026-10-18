@@ -28,7 +28,9 @@ class Bomb:
 
     @property
     def shadow_radius(self):
-        return self.radius
+        # The body's full width (same convention as Player/Enemy) — not
+        # self.radius, which is the much larger blast radius.
+        return self.body_radius * 2
 
     @property
     def shadow_height_offset(self):

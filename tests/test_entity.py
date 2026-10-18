@@ -37,9 +37,12 @@ def test_enemy_shadow_radius_is_its_width():
     assert enemy.shadow_radius == enemy.width
 
 
-def test_bomb_shadow_radius_is_its_radius():
+def test_bomb_shadow_radius_is_its_bodys_width_not_its_blast():
+    # Same full-width convention as Player/Enemy. Regression: it used
+    # bomb.radius — the 140px blast radius — drawing a shadow twice the
+    # frog's width under a bomb smaller than the frog.
     bomb = Bomb(100, 100)
-    assert bomb.shadow_radius == bomb.radius
+    assert bomb.shadow_radius == bomb.body_radius * 2
 
 
 def test_shard_shadow_radius_is_its_radius():

@@ -86,3 +86,20 @@ def test_the_bomb_with_its_full_fuse_ring_is_no_wider_than_the_frog(camera):
     surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     rendering.draw_bomb(surface, bomb, camera)
     assert surface.get_bounding_rect(min_alpha=1).width <= player.width
+
+
+def test_a_grounded_bombs_shadow_is_no_wider_than_the_bomb(camera, monkeypatch):
+    _, bomb = _frog_and_bomb_at_its_feet(camera)
+    drawn = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    rendering.draw_bomb(drawn, bomb, camera)
+    bomb_width = drawn.get_bounding_rect(min_alpha=1).width
+
+    shadows = []
+    real_draw_shadow = rendering.draw_shadow
+    monkeypatch.setattr(rendering, "draw_shadow", lambda *a, **k: shadows.append(real_draw_shadow(*a, **k)))
+    shadow_only = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    monkeypatch.setattr(rendering, "draw_bomb", lambda *a, **k: None)
+    rendering.draw_scene(shadow_only, player=None, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+
+    assert shadows, "expected the bomb to cast a shadow"
+    assert shadow_only.get_bounding_rect(min_alpha=1).width <= bomb_width
