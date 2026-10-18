@@ -1,8 +1,11 @@
+import pytest
 import random
 
 from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, ENEMY_ANIM_MS
 from game.simulation.camera import Camera
 from game.simulation.enemy import Enemy
+from game.simulation.enemy_types import ENEMY_TYPES
+from game.simulation.rect import _round_half_away_from_zero
 
 
 def test_enemy_takes_damage_and_dies_at_zero_hp():
@@ -66,17 +69,27 @@ def test_enemy_spawns_off_screen_near_right_world_edge():
     assert enemy.x + enemy.width <= camera.x or enemy.x >= camera.x + camera.viewport_width
 
 
-def test_enemy_rect_matches_fixed_size():
-    enemy = Enemy("left", 500, 500)
+def _expected_midbottom(enemy):
+    # Rect anchors like pygame.Rect: half away from zero, not Python's
+    # banker's round() — they differ exactly at .5, which odd widths hit.
+    return (
+        _round_half_away_from_zero(enemy.x + enemy.width / 2),
+        _round_half_away_from_zero(enemy.y + enemy.height),
+    )
+
+
+@pytest.mark.parametrize("enemy_type", list(ENEMY_TYPES))
+def test_enemy_rect_matches_fixed_size(enemy_type):
+    enemy = Enemy.from_dict({"x": 1371, "y": 641, "vx": 2.2, "type": enemy_type, "dead": False})
     assert enemy.rect.size == (enemy.width, enemy.height)
-    assert enemy.rect.midbottom == (round(enemy.x + enemy.width / 2), round(enemy.y + enemy.height))
+    assert enemy.rect.midbottom == _expected_midbottom(enemy)
 
 
-def test_enemy_rect_moves_after_update():
-    enemy = Enemy("left", 500, 500)
-    enemy.vx = 3
+@pytest.mark.parametrize("enemy_type", list(ENEMY_TYPES))
+def test_enemy_rect_moves_after_update(enemy_type):
+    enemy = Enemy.from_dict({"x": 1371, "y": 641, "vx": 3, "type": enemy_type, "dead": False})
     enemy.update(dt=16)
-    assert enemy.rect.midbottom == (round(enemy.x + enemy.width / 2), round(enemy.y + enemy.height))
+    assert enemy.rect.midbottom == _expected_midbottom(enemy)
 
 
 def test_enemy_killed_by_explosion_within_range():

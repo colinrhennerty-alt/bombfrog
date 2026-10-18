@@ -12,7 +12,9 @@ ENTITY_SCALE = 2
 # The frog's grounded body: its cropped art is 18 px wide and ~13 px tall
 # when sitting, at 1.5 base px per art px.
 PLAYER_BASE_SIZE = (27, 20)
-ENEMY_BASE_SIZE = (40, 34)
+PLAYER_SIZE = (PLAYER_BASE_SIZE[0] * ENTITY_SCALE, PLAYER_BASE_SIZE[1] * ENTITY_SCALE)
+# Enemies have no base size of their own — each EnemyType is sized relative
+# to the frog (height_vs_frog), so they follow ENTITY_SCALE through PLAYER_SIZE.
 SHARD_BASE_RADIUS = 4
 FROG_ANIM_MS = 220
 ENEMY_ANIM_MS = 100

@@ -2,7 +2,7 @@ import math
 import random
 
 from game.config import (
-    WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS, ENTITY_SCALE, ENEMY_BASE_SIZE,
+    WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS, PLAYER_SIZE,
 )
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
@@ -11,15 +11,20 @@ from game.simulation.rect import Rect
 from game.simulation.shard import Shard
 
 
-ENEMY_SIZE = (ENEMY_BASE_SIZE[0] * ENTITY_SCALE, ENEMY_BASE_SIZE[1] * ENTITY_SCALE)
+def size_for_type(enemy_type):
+    """Hitbox (width, height): the frog's height times the type's
+    height_vs_frog, with width following the critter art's proportions."""
+    spec = ENEMY_TYPES[enemy_type]
+    height = round(PLAYER_SIZE[1] * spec.height_vs_frog)
+    return round(height * spec.art_aspect), height
 
 
 class Enemy:
     def __init__(self, spawn_side, center_x, center_y, camera=None, rng=random):
-        self.width, self.height = ENEMY_SIZE
         self.type = rng.choices(
             list(ENEMY_TYPES.keys()), [t.spawn_weight for t in ENEMY_TYPES.values()]
         )[0]
+        self.width, self.height = size_for_type(self.type)
         if camera is not None:
             viewport_left, viewport_right = camera.x, camera.x + camera.viewport_width
         else:
@@ -107,11 +112,11 @@ class Enemy:
         (which rolls a random type/spawn-side/y-offset) since every field
         is already fully determined by `data`."""
         enemy = cls.__new__(cls)
-        enemy.width, enemy.height = ENEMY_SIZE
         enemy.x = data["x"]
         enemy.y = data["y"]
         enemy.vx = data["vx"]
         enemy.type = data["type"]
+        enemy.width, enemy.height = size_for_type(enemy.type)
         enemy.color = ENEMY_TYPES[enemy.type].color
         enemy.rect = Rect(0, 0, enemy.width, enemy.height)
         enemy._sync_rect()

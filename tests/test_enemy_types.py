@@ -1,3 +1,4 @@
+import pytest
 import math
 
 from game.simulation.enemy_types import ENEMY_TYPES
@@ -54,3 +55,15 @@ def test_every_types_sprite_has_loaded_critter_frames():
     frames = get_critter_frames()
     for enemy_type in ENEMY_TYPES.values():
         assert enemy_type.sprite in frames
+
+
+def test_each_types_art_aspect_matches_its_cropped_critter_art():
+    # art_aspect lives in the simulation (hitboxes need a shape without
+    # importing pygame art); this keeps it from drifting from the real art.
+    from game.rendering.assets import get_critter_frames
+
+    frames = get_critter_frames()
+    for enemy_type in ENEMY_TYPES.values():
+        for facing_frames in frames[enemy_type.sprite].values():
+            width, height = facing_frames[0].get_size()
+            assert enemy_type.art_aspect == pytest.approx(width / height, rel=0.05)
