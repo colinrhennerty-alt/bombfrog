@@ -7,9 +7,11 @@ from game.config import (
     ENTITY_SCALE,
     PLAYER_BASE_SIZE,
     SHARD_BASE_RADIUS,
+    BOMB_BODY_BASE_RADIUS,
 )
 from game.simulation.player import Player
 from game.simulation.shard import Shard
+from game.simulation.bomb import Bomb
 
 
 def _scaled(size):
@@ -22,3 +24,8 @@ def test_player_hitbox_is_its_base_size_scaled():
 
 def test_shard_radius_is_its_base_radius_scaled():
     assert Shard(0, 0, angle=0, speed=0).radius == SHARD_BASE_RADIUS * ENTITY_SCALE
+
+
+def test_bomb_body_radius_is_its_base_radius_scaled():
+    # A bomb's rect/radius is its blast area; body_radius is the bomb itself.
+    assert Bomb(0, 0).body_radius == BOMB_BODY_BASE_RADIUS * ENTITY_SCALE

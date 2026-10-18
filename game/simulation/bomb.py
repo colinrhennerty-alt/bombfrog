@@ -1,6 +1,8 @@
 import random
 
-from game.config import BOMB_RADIUS, BOMB_FUSE_MS, BOMB_FALL_SPEED, BOMB_CONTACT_GRACE_MS
+from game.config import (
+    BOMB_RADIUS, BOMB_FUSE_MS, BOMB_FALL_SPEED, BOMB_CONTACT_GRACE_MS, BOMB_BODY_BASE_RADIUS, ENTITY_SCALE,
+)
 from game.simulation.rect import Rect
 
 
@@ -8,7 +10,8 @@ class Bomb:
     def __init__(self, x, y, fall_offset=0, rng=random):
         self.x = x
         self.y = y
-        self.radius = BOMB_RADIUS
+        self.radius = BOMB_RADIUS  # blast radius; also the size of self.rect
+        self.body_radius = BOMB_BODY_BASE_RADIUS * ENTITY_SCALE
         self.timer = BOMB_FUSE_MS
         self.color = (210, 70, 70)
         self.has_shrapnel = rng.random() < 0.05

@@ -16,6 +16,9 @@ PLAYER_SIZE = (PLAYER_BASE_SIZE[0] * ENTITY_SCALE, PLAYER_BASE_SIZE[1] * ENTITY_
 # Enemies have no base size of their own — each EnemyType is sized relative
 # to the frog (height_vs_frog), so they follow ENTITY_SCALE through PLAYER_SIZE.
 SHARD_BASE_RADIUS = 4
+# The bomb itself (not its blast — that's BOMB_RADIUS); reads slightly
+# smaller than the frog (tests/test_visual_size.py).
+BOMB_BODY_BASE_RADIUS = 9.5
 FROG_ANIM_MS = 220
 ENEMY_ANIM_MS = 100
 FROG_IDLE_FRAME_COUNT = 6

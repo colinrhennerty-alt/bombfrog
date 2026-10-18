@@ -867,12 +867,12 @@ def test_draw_game_over_overlay(surface, fonts):
     rendering.draw_game_over_overlay(surface, font, small_font)
 
 
-def test_bomb_body_radius_scales_with_entity_scale():
-    # Bombs have no sprite-sized hitbox (bomb.rect is the blast area), so
-    # their drawn size scales with ENTITY_SCALE directly in the renderer.
+def test_bomb_is_drawn_at_its_body_radius_with_depth_scaling():
+    # bomb.rect is the blast area, so the drawn size comes from body_radius.
+    bomb = Bomb(500, 500)
     mid_screen_y = HEIGHT / 2
-    unscaled = rendering.BOMB_BODY_BASE_RADIUS * rendering.depth_scale_for(mid_screen_y)
-    assert rendering.bomb_body_radius(mid_screen_y) == int(unscaled * ENTITY_SCALE)
+    expected = int(bomb.body_radius * rendering.depth_scale_for(mid_screen_y))
+    assert rendering.bomb_body_radius(bomb, mid_screen_y) == expected
 
 
 def test_explosion_effect_sprite_size_caps_at_a_scaled_maximum(camera):
