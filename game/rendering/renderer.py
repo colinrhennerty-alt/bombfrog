@@ -16,7 +16,8 @@ from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
-from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames, get_bomb_sprite
+from game.simulation.enemy_types import ENEMY_TYPES
+from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames, get_bomb_sprite, get_critter_frames
 from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_all_tiles, TILE_WIDTH, TILE_HEIGHT, TILE_FOOTPRINT_HEIGHT
 
 
@@ -97,12 +98,16 @@ def draw_shard(surface, shard, camera):
 
 
 def draw_enemy(surface, enemy, camera):
-    # enemy.rect is already sized/positioned in world space — draw exactly
-    # into its camera-translated screen rect so the body and hitbox match.
-    screen_rect = camera.apply_rect(enemy.rect)
-    pygame.draw.rect(surface, enemy.color, screen_rect, border_radius=8)
-    if enemy.type == "elite":
-        pygame.draw.circle(surface, (255, 255, 255), screen_rect.center, 6)
+    # Enemies only move horizontally, so the sign of vx picks between the
+    # critter's down-right (SE) and down-left (SW) isometric facings.
+    facing = "SE" if enemy.vx > 0 else "SW"
+    frames = get_critter_frames()[ENEMY_TYPES[enemy.type].sprite][facing]
+    frame = frames[enemy.anim_index % len(frames)]
+
+    # Same contract as draw_player: scale into the collision rect itself so
+    # the drawn sprite and the hitbox always match exactly.
+    frame = pygame.transform.scale(frame, enemy.rect.size)
+    surface.blit(frame, camera.apply_rect(enemy.rect).topleft)
 
 
 def draw_explosion_effect(surface, effect, camera):

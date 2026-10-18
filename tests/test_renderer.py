@@ -95,6 +95,7 @@ class _BlitRecordingSurface:
     def blit(self, source, dest):
         dest_rect = pygame.Rect(dest, source.get_size()) if not isinstance(dest, pygame.Rect) else dest
         self.captured = (source.get_size(), dest_rect.topleft)
+        self.source = source
 
 
 def test_draw_player_blits_sprite_sized_and_positioned_to_match_the_collision_rect(camera):
@@ -124,19 +125,63 @@ def test_draw_player_moves_up_the_screen_while_airborne(camera):
     assert topleft[1] < grounded_y
 
 
-def test_draw_enemy_draws_exactly_the_camera_translated_collision_rect(surface, camera, monkeypatch):
+def test_draw_enemy_blits_sprite_sized_and_positioned_to_match_the_collision_rect(camera):
     enemy = Enemy("left", 500, 500)
-    captured = {}
-    original_rect = pygame.draw.rect
+    fake_surface = _BlitRecordingSurface()
 
-    def fake_rect(surface_, color, rect, *args, **kwargs):
-        captured["rect"] = pygame.Rect(rect)
-        return original_rect(surface_, color, rect, *args, **kwargs)
+    rendering.draw_enemy(fake_surface, enemy, camera)
 
-    monkeypatch.setattr(pygame.draw, "rect", fake_rect)
-    rendering.draw_enemy(surface, enemy, camera)
+    size, topleft = fake_surface.captured
+    assert size == enemy.rect.size
+    assert topleft == camera.apply_rect(enemy.rect).topleft
 
-    assert captured["rect"] == camera.apply_rect(enemy.rect)
+
+def _solid_frame(color):
+    frame = pygame.Surface((8, 8))
+    frame.fill(color)
+    return frame
+
+
+@pytest.fixture
+def colored_critter_frames(monkeypatch):
+    """Stubs every critter with solid-color frames so a test can tell
+    which facing/frame was drawn from the blitted surface's color alone:
+    red channel = facing (SE 100, SW 200), green channel = frame index."""
+    frames = {
+        critter: {
+            facing: [_solid_frame((red, i, 0)) for i in range(3)]
+            for facing, red in (("SE", 100), ("SW", 200))
+        }
+        for critter in ("badger", "boar", "stag")
+    }
+    monkeypatch.setattr(rendering, "get_critter_frames", lambda: frames)
+    return frames
+
+
+def _drawn_color(enemy, camera):
+    fake_surface = _BlitRecordingSurface()
+    rendering.draw_enemy(fake_surface, enemy, camera)
+    return tuple(fake_surface.source.get_at((0, 0)))[:3]
+
+
+def test_draw_enemy_uses_se_frames_moving_right_and_sw_frames_moving_left(camera, colored_critter_frames):
+    enemy = Enemy("left", 500, 500)
+    enemy.type = "grunt"
+    enemy.vx = 2.2
+    assert _drawn_color(enemy, camera)[0] == 100
+    enemy.vx = -2.2
+    assert _drawn_color(enemy, camera)[0] == 200
+
+
+def test_draw_enemy_cycles_frames_with_anim_index(camera, colored_critter_frames):
+    enemy = Enemy("left", 500, 500)
+    enemy.type = "grunt"
+    enemy.vx = 2.2
+    frame_count = len(colored_critter_frames["badger"]["SE"])
+    enemy.anim_index = 1
+    assert _drawn_color(enemy, camera)[1] == 1
+    enemy.anim_index = frame_count + 1
+    assert _drawn_color(enemy, camera)[1] == 1
 
 
 def test_depth_scale_is_smaller_near_the_top_than_the_bottom_of_the_viewport():
