@@ -1,3 +1,5 @@
+import pygame
+import pytest
 from game.simulation.rect import Rect
 
 
@@ -77,3 +79,21 @@ def test_rect_is_frozen():
         assert False, "Rect should be immutable"
     except AttributeError:
         pass
+
+
+@pytest.mark.parametrize("width, height", [(63, 69), (62, 68)])
+@pytest.mark.parametrize("anchor", [(1406, 500), (1404.5, 500.5), (100.3, 7)])
+def test_odd_sized_rects_anchor_and_report_points_like_pygame(width, height, anchor):
+    # Regression: odd widths (first hit by per-type enemy sizes) put this
+    # Rect 1px left of pygame's, and midbottom/center came back as .5
+    # floats — pygame uses integer halving (w // 2) both ways.
+    expected = pygame.Rect(0, 0, width, height)
+    expected.midbottom = anchor
+    ours = Rect.from_midbottom(*anchor, width, height)
+    assert (ours.x, ours.y) == expected.topleft
+    assert ours.midbottom == expected.midbottom
+    assert ours.center == expected.center
+    assert (ours.centerx, ours.centery) == expected.center
+
+    expected.center = anchor
+    assert Rect.from_center(*anchor, width, height).center == expected.center

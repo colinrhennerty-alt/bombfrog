@@ -47,29 +47,29 @@ class Rect:
     def from_midbottom(cls, mid_x, bottom_y, width, height) -> "Rect":
         mid_x = _round_half_away_from_zero(mid_x)
         bottom_y = _round_half_away_from_zero(bottom_y)
-        return cls(mid_x - width / 2, bottom_y - height, width, height)
+        return cls(mid_x - int(width) // 2, bottom_y - height, width, height)
 
     @classmethod
     def from_center(cls, center_x, center_y, width, height) -> "Rect":
         center_x = _round_half_away_from_zero(center_x)
         center_y = _round_half_away_from_zero(center_y)
-        return cls(center_x - width / 2, center_y - height / 2, width, height)
+        return cls(center_x - int(width) // 2, center_y - int(height) // 2, width, height)
 
     @property
     def center(self):
-        return (self.x + self.width / 2, self.y + self.height / 2)
+        return (self.x + self.width // 2, self.y + self.height // 2)
 
     @property
     def centerx(self):
-        return self.x + self.width / 2
+        return self.x + self.width // 2
 
     @property
     def centery(self):
-        return self.y + self.height / 2
+        return self.y + self.height // 2
 
     @property
     def midbottom(self):
-        return (self.x + self.width / 2, self.y + self.height)
+        return (self.x + self.width // 2, self.y + self.height)
 
     @property
     def size(self):
