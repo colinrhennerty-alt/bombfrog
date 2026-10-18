@@ -8,6 +8,7 @@ from game.config import SAVE_FILE
 from game.simulation.player import Player
 from game.persistence.save_load import save_game
 from game.scene.game_app import GameApp
+from game.rendering.renderer import screen_pos_to_tile
 
 NO_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,
@@ -197,21 +198,80 @@ def test_editor_select_tile_action_changes_selected_index():
     assert app.editor_state.selected_index == 2
 
 
-def test_editor_save_and_load_round_trip_via_sidebar_buttons(tmp_path):
-    # Save/Load are sidebar buttons now, not keyboard actions — main.py
-    # calls EditorState.save/load directly off a sidebar click result,
-    # so exercise that same path here rather than handle_action.
+def _center(rect):
+    x, y, w, h = rect
+    return x + w // 2, y + h // 2
+
+
+def _tile_at(app, screen_x, screen_y):
+    editor = app.editor_state
+    return editor.tilemap.get_tile(*screen_pos_to_tile(screen_x, screen_y, editor.camera))
+
+
+# Three on-map points that land on different tiles.
+MAP_A, MAP_B, MAP_C = (100, 100), (400, 250), (700, 400)
+
+
+def test_map_points_used_by_mouse_tests_are_distinct_tiles():
+    camera = _editor_app().editor_state.camera
+    tiles = {screen_pos_to_tile(x, y, camera) for x, y in (MAP_A, MAP_B, MAP_C)}
+    assert len(tiles) == 3
+
+
+def test_editor_mouse_press_on_map_paints_selected_tile():
+    app = _editor_app()
+    app.handle_mouse_press(*MAP_A)
+    assert _tile_at(app, *MAP_A) == app.editor_state.selected_tile_id
+
+
+def test_editor_mouse_motion_hovers_but_only_paints_while_held():
+    app = _editor_app()
+    editor = app.editor_state
+
+    app.handle_mouse_motion(*MAP_B)
+    assert (editor.hover_col, editor.hover_row) == screen_pos_to_tile(*MAP_B, editor.camera)
+    assert _tile_at(app, *MAP_B) is None
+
+    app.handle_mouse_press(*MAP_A)
+    app.handle_mouse_motion(*MAP_B)
+    assert _tile_at(app, *MAP_B) == editor.selected_tile_id
+
+    app.handle_mouse_release()
+    app.handle_mouse_motion(*MAP_C)
+    assert _tile_at(app, *MAP_C) is None
+
+
+def test_editor_press_on_sidebar_does_not_start_painting():
+    app = _editor_app()
+    app.handle_mouse_press(*_center(app.editor_state.wall_mode_button_rect))
+    app.handle_mouse_motion(*MAP_A)
+    assert _tile_at(app, *MAP_A) is None
+
+
+def test_editor_sidebar_save_and_load_buttons_round_trip_the_level(tmp_path):
     app = GameApp(level_file=str(tmp_path / "level.json"))
-    app.selected = 2
+    app.selected = 2  # "Map Editor"
     app.handle_action(Action.MENU_CONFIRM, now=0)
+    editor = app.editor_state
+    app.handle_mouse_press(*MAP_A)
+    app.handle_mouse_release()
+    painted = _tile_at(app, *MAP_A)
 
-    app.editor_state.tilemap.set_tile(3, 3, app.editor_state.palette[0])
-    app.editor_state.save(app.level_file)
+    app.handle_mouse_press(*_center(editor.save_button_rect))
+    assert (tmp_path / "level.json").exists()
 
-    app.editor_state.tilemap.set_tile(3, 3, None)
-    app.editor_state.load(app.level_file)
+    editor.tilemap.set_tile(*screen_pos_to_tile(*MAP_A, editor.camera), None)
+    app.handle_mouse_press(*_center(app.editor_state.load_button_rect))
+    assert _tile_at(app, *MAP_A) == painted
 
-    assert app.editor_state.tilemap.get_tile(3, 3) == app.editor_state.palette[0]
+
+def test_mouse_input_is_ignored_outside_the_editor():
+    app = GameApp()
+    app.handle_mouse_press(*MAP_A)
+    app.handle_mouse_motion(*MAP_B)
+    app.handle_mouse_release()
+    assert app.state == Mode.MENU
+    assert app.editor_state is None
 
 
 def test_editor_menu_back_returns_to_menu():

@@ -93,6 +93,27 @@ class EditorState:
     def point_is_in_sidebar(self, screen_x, screen_y):
         return screen_x >= self.camera.viewport_width
 
+    def mouse_motion(self, screen_x, screen_y):
+        """Track the hovered tile, and paint it while the button is held."""
+        if self.point_is_in_sidebar(screen_x, screen_y):
+            return
+        self.set_hover(screen_x, screen_y)
+        if self.is_dragging:
+            self.paint_at_screen(screen_x, screen_y)
+
+    def mouse_press(self, screen_x, screen_y):
+        """Left-button press. On the map: paint and start a drag. On the
+        sidebar: returns handle_sidebar_click's result for the caller to
+        act on (e.g. "save"/"load", which need a file path)."""
+        if self.point_is_in_sidebar(screen_x, screen_y):
+            return self.handle_sidebar_click(screen_x, screen_y)
+        self.is_dragging = True
+        self.paint_at_screen(screen_x, screen_y)
+        return None
+
+    def mouse_release(self):
+        self.is_dragging = False
+
     def handle_sidebar_click(self, screen_x, screen_y):
         """Hit-tests a click against the sidebar's controls (palette
         tiles, Save/Load, Wall Mode, Reset). Returns "select" (selection

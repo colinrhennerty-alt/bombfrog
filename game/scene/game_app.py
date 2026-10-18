@@ -102,6 +102,25 @@ class GameApp:
         elif action == Action.MENU_BACK:
             self.state = Mode.MENU
 
+    # Mouse input only matters in the editor; elsewhere it's ignored.
+
+    def handle_mouse_motion(self, screen_x, screen_y):
+        if self.state == Mode.EDITOR:
+            self.editor_state.mouse_motion(screen_x, screen_y)
+
+    def handle_mouse_press(self, screen_x, screen_y):
+        if self.state != Mode.EDITOR:
+            return
+        result = self.editor_state.mouse_press(screen_x, screen_y)
+        if result == "save":
+            self.editor_state.save(self.level_file)
+        elif result == "load":
+            self.editor_state.load(self.level_file)
+
+    def handle_mouse_release(self):
+        if self.state == Mode.EDITOR:
+            self.editor_state.mouse_release()
+
     def tick(self, keys, dt, now):
         if self.state != Mode.PLAYING:
             return
