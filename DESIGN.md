@@ -1,44 +1,74 @@
 # Bomb Frog Design Notes
 
-## Fun combo
+## Hook
 
-"Leapfrog with bombs" is doing a lot of work as a hook because it implies both a movement mechanic and an offense mechanic are the same button. Let's pull that thread.
+"Leapfrog with bombs": movement and offense share one button. You use bombs to get
+through the arena, hopping from safe spot to safe spot while it fills up with shrapnel
+behind you.
 
-## Core fantasy
+## Implemented
 
-You're not just dodging a bullet-hell pattern, you're using bombs to reposition through it — leapfrogging from safe spot to safe spot while the arena tries to fill in behind you with shrapnel.
+What the game does today (code pointers in parentheses).
 
-## The central mechanic: bomb-leap
+- **Top-down view, gravity on a jump axis.** You move freely with WASD/arrows, and Space
+  jumps. The jump is a height offset over the ground, not a vertical move on screen
+  (`game/simulation/player.py`).
+- **Bombs launch at the jump apex.** Each jump spends a bomb, if one is available and off
+  cooldown. You carry 2 and get one back per explosion (`bomb_launcher.py`,
+  `BOMB_LIMIT`, `BOMB_COOLDOWN_MS`).
+- **Bomb-leap.** An explosion pushes the frog away from the blast and upward, scaled by
+  distance (`Player.apply_explosion`, `BOMB_FORCE`). It adds to normal movement rather
+  than replacing it.
+- **Detonation.** A bomb explodes once it has landed and its fuse is done, or the moment
+  an enemy touches it. A bomb spawned on top of an enemy survives its first tick
+  (`World._bomb_should_explode`). About 5% of bombs also throw a ring of shrapnel.
+- **Airborne = safe.** Enemies and shards only hurt a grounded frog, so timing the jump
+  is the core dodge.
+- **The shrapnel layer.** Each enemy type has its own death pattern (`enemy_types.py`):
+  | Enemy (sprite) | HP | Death shrapnel |
+  |---|---|---|
+  | grunt (badger) | 1 | ring of 6 |
+  | heavy (boar) | 2 | 5-shard cone in the direction it faced |
+  | elite (stag) | 3 | slower ring of 8 |
+- **Shrapnel hurts enemies too**, so kill order and chain reactions matter.
+- **Lives, not chip damage.** Any hit costs one of 3 lives and respawns the frog; score
+  and lives carry over. Score is +1 per frame survived and +100 per kill.
+- **Map editor** for painting isometric tile levels (`game/scene/editor_state.py`; spec in
+  `docs/superpowers/specs/2026-09-06-map-editor-design.md`). Not yet used by gameplay.
 
-Instead of a dash, your primary mobility tool is a bomb-jump — you throw/place a bomb and leap off the blast to reach the next safe tile, similar to rocket-jumping but as your core traversal, not an exploit. This solves the classic bullet-hell problem where dodging is purely evasive and passive; here movement is offense, since the bomb also damages whatever's under it.
+## Settled design questions
 
-Design implications:
-- Risk/reward on timing: leap too early, you undershoot and land in the blast radius yourself. Leap late, you eat the bullets you were trying to skip.
-- Bombs have arc + fuse, so skilled play means pre-placing a bomb a beat before you need it, turning the whole game into a rhythm puzzle layered on top of dodging.
-- Chaining: landing near a second bomb (yours or an enemy corpse's future explosion) lets you chain leaps — a skill-expression "no-hit run" loop, very Spire-ish in that mastery comes from reading the board a step ahead rather than raw reflexes.
+1. **Is the bomb-leap the only movement?** No. It's a supplement to free WASD movement.
+2. **Top-down or side-view?** Top-down, with the jump drawn as height above an
+   isometric ground.
+3. **Chip damage or instant death?** Each hit costs a life (3 per run). It's
+   forgiving across a run but each hit still matters.
 
-## The shrapnel layer
+## Ideas — not built
 
-This is your best idea and worth designing around explicitly: enemy death is not the end of the threat, it's a second bullet pattern.
+Nothing below exists in code yet.
 
-- Each enemy type could have a distinct death-burst signature — a grunt might pop 6 shards in a ring, a heavier unit might spray a directional cone toward wherever it was facing, an elite might drop a delayed mine-shrapnel that goes off half a second later to punish greedy leaping.
-- This means kill order matters — popping enemies in the wrong sequence stacks overlapping shrapnel fields you can't leap through cleanly. Good players will bait enemies into clusters and detonate them in a spot that clears the leap path, essentially using enemy corpses as terrain manipulation.
-- You could let bomb-leaps catch shrapnel mid-flight as a high-skill parry — leaping through the shard ring at the right instant nets bonus currency/score, rewarding aggression instead of pure avoidance.
+### Shrapnel
 
-## Roguelike meta-layer ideas
+- An elite that drops a delayed mine-shrapnel which goes off half a second after it dies,
+  to punish greedy leaping.
+- Baiting enemies into clusters and detonating them so the shrapnel clears your leap path
+  instead of blocking it (partly possible today; nothing in the design rewards it yet).
+- Shrapnel parry: leaping through a shard ring at the right instant earns bonus
+  currency/score, rewarding aggression over pure avoidance.
 
-- Bomb variants as your "deck": sticky bombs (delay + bigger leap arc), shard bombs (denser shrapnel, better area denial), null bombs (kill without shrapnel, for cleanup safety at a damage/cost tradeoff). Runs are built around which bomb types you draft, Spire-style.
-- Leap upgrades that change the verb itself: double-leap (chain two jumps off one bomb), phase-leap (brief bullet immunity mid-arc), shrapnel-magnet (shards curve toward you slightly, for a build that leans into the parry-for-reward loop instead of avoiding it entirely).
-- Room modifiers that mess with the leap/shrapnel interaction specifically — wind that drifts shrapnel, low-gravity rooms with longer arcs, "glass floor" rooms where landing off-target has its own penalty.
+### Roguelike meta-layer
 
-## Open design questions
+- **Bomb variants as a drafted "deck"**, Spire-style: sticky bombs (delay + bigger leap
+  arc), shard bombs (denser shrapnel, better area denial), null bombs (kill without
+  shrapnel, at a damage/cost tradeoff).
+- **Leap upgrades** that change the verb: double-leap (two jumps off one bomb), phase-leap
+  (brief immunity mid-arc), shrapnel-magnet (shards curve toward you, for a parry build).
+- **Room modifiers** that bend the leap/shrapnel interaction: wind that drifts shrapnel,
+  low-gravity rooms with longer arcs, "glass floor" rooms that punish off-target landings.
 
-A few open design questions worth pinning down early since they'll shape everything else:
+### Levels
 
-1. Is the bomb-leap your only movement, or a supplement to normal dodging/movement? (Only-option is more distinctive but much less forgiving — worth prototyping both.)
-2. Top-down or side-view? Side-view leapfrog reads more literally and lets gravity do work on the arc; top-down keeps the pure bullet-hell readability.
-3. Does shrapnel deal chip damage or is it instant-death like classic bullet hell? That decision basically determines whether this is a "twitch precision" game or a "tense but forgiving" one.
-
-## Next step offer
-
-Want me to sketch out a rough enemy roster with specific shrapnel patterns, or storyboard a single arena encounter to see how the leap/shrapnel interplay actually plays out moment to moment?
+- Load editor-authored levels in `World` instead of the generated arena.
+- A fourth critter. Wolf art exists (`assets/critters/wolf/`) but has no `ENEMY_TYPES`
+  entry.
