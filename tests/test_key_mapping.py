@@ -7,7 +7,7 @@ import pygame
 
 from game.input.actions import Action
 from game.scene.modes import Mode
-from game.input.key_mapping import map_key, EDITOR_KEY_ACTIONS
+from game.input.key_mapping import map_key, EDITOR_KEY_ACTIONS, PLAYING_KEY_ACTIONS
 
 
 def test_menu_up_and_down():
@@ -28,8 +28,8 @@ def test_menu_unknown_key_returns_none():
 def test_playing_space_restart_save_load_escape():
     assert map_key(Mode.PLAYING, pygame.K_SPACE) == Action.JUMP
     assert map_key(Mode.PLAYING, pygame.K_r) == Action.RESTART
-    assert map_key(Mode.PLAYING, pygame.K_s) == Action.SAVE
-    assert map_key(Mode.PLAYING, pygame.K_l) == Action.LOAD
+    assert map_key(Mode.PLAYING, pygame.K_F5) == Action.SAVE
+    assert map_key(Mode.PLAYING, pygame.K_F9) == Action.LOAD
     assert map_key(Mode.PLAYING, pygame.K_ESCAPE) == Action.MENU_BACK
 
 
@@ -86,3 +86,13 @@ def test_editor_key_actions_table_has_no_duplicate_conflicting_actions_for_wasd_
     assert EDITOR_KEY_ACTIONS[pygame.K_DOWN] == EDITOR_KEY_ACTIONS[pygame.K_s]
     assert EDITOR_KEY_ACTIONS[pygame.K_LEFT] == EDITOR_KEY_ACTIONS[pygame.K_a]
     assert EDITOR_KEY_ACTIONS[pygame.K_RIGHT] == EDITOR_KEY_ACTIONS[pygame.K_d]
+
+
+def test_no_playing_action_shares_a_key_with_held_movement():
+    # Player movement reads these keys as held every frame; a KEYDOWN action
+    # on the same key would fire whenever the player starts moving.
+    movement_keys = {
+        pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN,
+        pygame.K_a, pygame.K_d, pygame.K_w, pygame.K_s,
+    }
+    assert movement_keys.isdisjoint(PLAYING_KEY_ACTIONS)

@@ -20,8 +20,8 @@ MENU_KEY_ACTIONS = {
 PLAYING_KEY_ACTIONS = {
     pygame.K_SPACE: Action.JUMP,
     pygame.K_r: Action.RESTART,
-    pygame.K_s: Action.SAVE,
-    pygame.K_l: Action.LOAD,
+    pygame.K_F5: Action.SAVE,
+    pygame.K_F9: Action.LOAD,
     pygame.K_ESCAPE: Action.MENU_BACK,
     pygame.K_F13: Action.TOGGLE_DEBUG,
 }

@@ -32,7 +32,7 @@ jump you drop a bomb, and enemies that die burst into shrapnel you then have to 
 | Arrows / WASD | Move |
 | Space | Jump (launches a bomb at the apex). Restarts after game over |
 | R | Restart after game over |
-| S / L | Save / load the current round |
+| F5 / F9 | Save / load the current round |
 | Esc | Back to menu |
 | F13 | Toggle hitbox debug overlay |
 
