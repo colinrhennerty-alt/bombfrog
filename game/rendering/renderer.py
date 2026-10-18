@@ -23,10 +23,13 @@ from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_
 # Visual-only sizes for things whose rect isn't their drawn size (a bomb's
 # rect is its blast area; an explosion has no rect). Base pixel sizes,
 # multiplied by ENTITY_SCALE like every entity hitbox.
-BOMB_BODY_BASE_RADIUS = 14
+# The bomb reads slightly smaller than the frog (tests/test_visual_size.py).
+BOMB_BODY_BASE_RADIUS = 9.5
 BOMB_SPRITE_BASE_MIN_SIZE = 16
-BOMB_FUSE_ARC_BASE_RADIUS = 20
-BOMB_FUSE_ARC_BASE_WIDTH = 4
+# The fuse ring hugs the bomb body, so it's sized relative to it (and
+# follows its depth scaling) rather than being a fixed size of its own.
+FUSE_RING_RADIUS_VS_BODY = 1.4
+FUSE_RING_WIDTH_VS_BODY = 0.28
 EXPLOSION_SPRITE_BASE_MIN_SIZE = 24
 EXPLOSION_SPRITE_BASE_MAX_SIZE = 160
 
@@ -97,11 +100,11 @@ def draw_bomb(surface, bomb, camera):
     surface.blit(sprite, sprite_rect)
 
     fuse_ratio = max(0, bomb.timer / BOMB_FUSE_MS)
-    arc_r = BOMB_FUSE_ARC_BASE_RADIUS * ENTITY_SCALE
+    arc_r = int(r * FUSE_RING_RADIUS_VS_BODY)
     arc_rect = (sx - arc_r, sy - arc_r, arc_r * 2, arc_r * 2)
     pygame.draw.arc(
         surface, (255, 240, 120), arc_rect, math.pi * 0.5, math.pi * 0.5 + math.pi * 2 * fuse_ratio,
-        BOMB_FUSE_ARC_BASE_WIDTH * ENTITY_SCALE,
+        max(1, int(r * FUSE_RING_WIDTH_VS_BODY)),
     )
 
 
