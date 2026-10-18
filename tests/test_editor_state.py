@@ -1,7 +1,7 @@
 from game.config import WIDTH, HEIGHT, EDITOR_SIDEBAR_WIDTH
 from game.scene.editor_state import EditorState
 from game.rendering.isometric_assets import get_all_tiles
-from game.rendering.renderer import ground_tile_screen_pos, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+from game.rendering.tile_geometry import ground_tile_screen_pos, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
 
 def test_starts_with_an_empty_tilemap():

@@ -1,7 +1,6 @@
 """Every drawable/simulated entity duck-types the same shape (x, y, rect,
-shadow_anchor) so game.rendering.renderer can treat them polymorphically.
-Pins that contract explicitly via the Entity Protocol, rather than only
-being implicitly relied on by renderer's getattr fallbacks.
+shadow_anchor, ...) so game.rendering.entities can treat them
+polymorphically. Pins that contract via the Entity Protocol.
 """
 
 from game.simulation.entity import Entity

@@ -1,6 +1,7 @@
 import pygame
 
-from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_all_tiles, TILE_WIDTH, TILE_HEIGHT
+from game.rendering.isometric_assets import get_grass_tile, get_stone_tile, get_all_tiles
+from game.rendering.tile_geometry import TILE_WIDTH, TILE_HEIGHT
 
 
 def test_get_grass_tile_returns_a_surface():

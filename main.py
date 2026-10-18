@@ -2,7 +2,7 @@ import sys
 import pygame
 
 from game.config import WIDTH, HEIGHT, FPS, DEBUG_ENV_VAR
-from game.rendering import renderer as rendering
+from game.rendering import entities, ground, editor_view, hud
 from game.input import key_mapping as game_input
 from game.scene.game_app import GameApp
 from game.scene.modes import Mode
@@ -41,24 +41,24 @@ def run_game():
         screen.fill((18, 30, 50))
 
         if app.state == Mode.MENU:
-            rendering.draw_menu(screen, font, small_font, app.menu_options, app.selected)
+            hud.draw_menu(screen, font, small_font, app.menu_options, app.selected)
 
         elif app.state == Mode.EDITOR:
-            rendering.draw_editor(screen, app.editor_state)
-            rendering.draw_editor_sidebar(screen, app.editor_state, small_font)
+            editor_view.draw_editor(screen, app.editor_state)
+            editor_view.draw_editor_sidebar(screen, app.editor_state, small_font)
 
         elif app.state == Mode.PLAYING:
             app.tick(keys, dt, now)
             world = app.world
 
-            rendering.draw_ground(screen, world.camera)
-            rendering.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects, world.camera)
+            ground.draw_ground(screen, world.camera)
+            entities.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects, world.camera)
             if app.debug:
-                rendering.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies, world.camera)
-            rendering.draw_hud(screen, font, small_font, world.score, app.high_score, world.player.bombs_left, world.lives, world.player.bomb_cooldown)
+                entities.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies, world.camera)
+            hud.draw_hud(screen, font, small_font, world.score, app.high_score, world.player.bombs_left, world.lives, world.player.bomb_cooldown)
 
             if world.game_over:
-                rendering.draw_game_over_overlay(screen, font, small_font)
+                hud.draw_game_over_overlay(screen, font, small_font)
 
         pygame.display.flip()
 

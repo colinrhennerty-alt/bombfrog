@@ -23,7 +23,7 @@ CI (`.github/workflows/ci.yml`) runs the same `pytest` on every push and PR.
 | `game/simulation/` | Round state and per-frame rules. `World` owns one round; `Player`, `Bomb`, `Shard`, `Enemy`, `Camera`, `Rect`, `TileMap` | Draw anything |
 | `game/scene/` | Mode state machine (`GameApp`, modes in `modes.py`: menu ↔ playing ↔ editor) and `EditorState` | Touch pygame events or surfaces |
 | `game/input/` | Every key binding: KEYDOWN → `Action` (`actions.py`) per `Mode`, and the held movement keys `Player` reads | Decide what an action means |
-| `game/rendering/` | Drawing only, from simulation/scene state | Mutate game state |
+| `game/rendering/` | Drawing only: `entities` (sprites, shadows, debug boxes), `ground`, `editor_view`, `hud`; plus `tile_geometry` (pure tile-grid math, also used by the editor) and cached asset loaders | Mutate game state |
 | `game/persistence/` | JSON save files and level files | — |
 | `main.py` | pygame init, event pump, picking what to draw | Hold game logic |
 

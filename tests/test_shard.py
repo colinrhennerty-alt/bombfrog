@@ -28,7 +28,7 @@ def test_shard_dies_when_it_leaves_the_world():
 def test_shard_shadow_anchor_is_its_center_not_its_feet():
     # Shard is circular (no "feet") — its shadow belongs at rect.center,
     # matching the rendering contract every drawable entity exposes
-    # (see rendering.draw_scene).
+    # (see game.rendering.entities.draw_scene).
     shard = Shard(100, 100, angle=0, speed=0)
     assert shard.shadow_anchor == shard.rect.center
 

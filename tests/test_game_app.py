@@ -8,7 +8,7 @@ from game.config import SAVE_FILE
 from game.simulation.player import Player
 from game.persistence.save_load import save_game
 from game.scene.game_app import GameApp
-from game.rendering.renderer import screen_pos_to_tile
+from game.rendering.tile_geometry import screen_pos_to_tile
 
 NO_KEYS = {
     pygame.K_LEFT: False, pygame.K_a: False, pygame.K_RIGHT: False, pygame.K_d: False,

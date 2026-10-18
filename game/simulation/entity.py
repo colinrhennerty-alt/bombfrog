@@ -1,7 +1,6 @@
-"""The implicit contract every drawable/simulated entity (Player, Bomb,
-Shard, Enemy) satisfies via duck typing. Declared here as a Protocol so
-the contract is self-documenting instead of only discoverable by reading
-game.rendering.renderer's getattr/hasattr fallbacks.
+"""The contract every drawable/simulated entity (Player, Bomb, Shard,
+Enemy) satisfies via duck typing, declared as a Protocol so it's written
+down in one place. game.rendering.entities relies on exactly this shape.
 """
 
 from typing import Protocol, Tuple, runtime_checkable

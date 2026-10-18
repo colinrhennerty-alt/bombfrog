@@ -12,7 +12,7 @@ from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.simulation.explosion_effect import ExplosionEffect
-from game.rendering import renderer as rendering
+from game.rendering import entities, tile_geometry, ground, editor_view, hud
 from game.rendering.assets import get_frog_frames
 
 
@@ -33,7 +33,7 @@ def fonts():
 
 
 def test_draw_shadow(surface):
-    rendering.draw_shadow(surface, 100, 100, base_radius=20)
+    entities.draw_shadow(surface, 100, 100, base_radius=20)
 
 
 def test_draw_shadow_shrinks_with_height_offset(surface):
@@ -41,13 +41,13 @@ def test_draw_shadow_shrinks_with_height_offset(surface):
     # (same magnitude convention as jump_offset/fall_offset — 0 is grounded).
     # The shadow should shrink and fade as height increases, since that's
     # the depth cue that sells verticality.
-    grounded = rendering.shadow_size_for(base_radius=20, height_offset=0)
-    airborne = rendering.shadow_size_for(base_radius=20, height_offset=80)
+    grounded = entities.shadow_size_for(base_radius=20, height_offset=0)
+    airborne = entities.shadow_size_for(base_radius=20, height_offset=80)
     assert airborne < grounded
 
 
 def test_draw_shadow_accepts_height_offset(surface):
-    rendering.draw_shadow(surface, 100, 100, base_radius=20, height_offset=80)
+    entities.draw_shadow(surface, 100, 100, base_radius=20, height_offset=80)
 
 
 def test_grounded_shadow_width_stays_within_the_entitys_own_footprint():
@@ -56,33 +56,33 @@ def test_grounded_shadow_width_stays_within_the_entitys_own_footprint():
     # returns a radius, so double it) must not exceed that, or it visibly
     # overhangs the sprite's own silhouette instead of sitting under it.
     base_radius = 52  # e.g. Player.width
-    shadow_radius = rendering.shadow_size_for(base_radius, height_offset=0)
+    shadow_radius = entities.shadow_size_for(base_radius, height_offset=0)
     assert shadow_radius * 2 <= base_radius
 
 
 def test_draw_player(surface, camera):
-    rendering.draw_player(surface, Player(), camera)
+    entities.draw_player(surface, Player(), camera)
 
 
 def test_draw_player_jump_pose(surface, camera):
     player = Player()
     player.on_ground = False
-    rendering.draw_player(surface, player, camera)
+    entities.draw_player(surface, player, camera)
 
 
 def test_draw_player_landing_pose(surface, camera):
     player = Player()
     player.land_timer = 60
-    rendering.draw_player(surface, player, camera)
+    entities.draw_player(surface, player, camera)
 
 
 def test_draw_player_idle_animation_frame_and_facing_flip(surface, camera):
     player = Player()
     player.anim_index = 3
     player.facing = -1
-    rendering.draw_player(surface, player, camera)
+    entities.draw_player(surface, player, camera)
     player.facing = 1
-    rendering.draw_player(surface, player, camera)
+    entities.draw_player(surface, player, camera)
 
 
 class _BlitRecordingSurface:
@@ -107,7 +107,7 @@ def test_draw_player_blits_the_frog_unstretched_with_its_feet_on_the_hitbox_bott
     player = Player()
     fake_surface = _BlitRecordingSurface()
 
-    rendering.draw_player(fake_surface, player, camera)
+    entities.draw_player(fake_surface, player, camera)
 
     (width, height), topleft = fake_surface.captured
     native_w, native_h = get_frog_frames()["idle"][0].get_size()
@@ -126,12 +126,12 @@ def test_draw_player_moves_up_the_screen_while_airborne(camera):
     player.jump_offset = -50
     fake_surface = _BlitRecordingSurface()
 
-    rendering.draw_player(fake_surface, player, camera)
+    entities.draw_player(fake_surface, player, camera)
 
     _, airborne_topleft = fake_surface.captured
     player.on_ground = True
     player.jump_offset = 0
-    rendering.draw_player(fake_surface, player, camera)
+    entities.draw_player(fake_surface, player, camera)
     _, grounded_topleft = fake_surface.captured
     assert airborne_topleft[1] == grounded_topleft[1] - 50
 
@@ -140,7 +140,7 @@ def test_draw_enemy_blits_sprite_sized_and_positioned_to_match_the_collision_rec
     enemy = Enemy("left", 500, 500)
     fake_surface = _BlitRecordingSurface()
 
-    rendering.draw_enemy(fake_surface, enemy, camera)
+    entities.draw_enemy(fake_surface, enemy, camera)
 
     size, topleft = fake_surface.captured
     assert size == enemy.rect.size
@@ -165,13 +165,13 @@ def colored_critter_frames(monkeypatch):
         }
         for critter in ("badger", "boar", "stag")
     }
-    monkeypatch.setattr(rendering, "get_critter_frames", lambda: frames)
+    monkeypatch.setattr(entities, "get_critter_frames", lambda: frames)
     return frames
 
 
 def _drawn_color(enemy, camera):
     fake_surface = _BlitRecordingSurface()
-    rendering.draw_enemy(fake_surface, enemy, camera)
+    entities.draw_enemy(fake_surface, enemy, camera)
     return tuple(fake_surface.source.get_at((0, 0)))[:3]
 
 
@@ -199,8 +199,8 @@ def test_depth_scale_is_smaller_near_the_top_than_the_bottom_of_the_viewport():
     # Mimics a camera looking down at an angle rather than straight down:
     # entities drawn near the top of the screen (further away) read smaller
     # than ones near the bottom (closer), independent of their world size.
-    near_top = rendering.depth_scale_for(0)
-    near_bottom = rendering.depth_scale_for(HEIGHT)
+    near_top = entities.depth_scale_for(0)
+    near_bottom = entities.depth_scale_for(HEIGHT)
     assert near_top < near_bottom
 
 
@@ -213,18 +213,18 @@ def test_draw_bomb_is_smaller_near_the_top_of_the_viewport(surface, camera, monk
         return original_circle(surface_, color, center, radius, *args, **kwargs)
 
     monkeypatch.setattr(pygame.draw, "circle", fake_circle)
-    rendering.draw_bomb(surface, Bomb(100, 0), camera)
+    entities.draw_bomb(surface, Bomb(100, 0), camera)
     top_radius = captured_radii[0]
 
     captured_radii.clear()
-    rendering.draw_bomb(surface, Bomb(100, HEIGHT), camera)
+    entities.draw_bomb(surface, Bomb(100, HEIGHT), camera)
     bottom_radius = captured_radii[0]
 
     assert top_radius < bottom_radius
 
 
 def test_draw_bomb(surface, camera):
-    rendering.draw_bomb(surface, Bomb(100, 100), camera)
+    entities.draw_bomb(surface, Bomb(100, 100), camera)
 
 
 def test_draw_bomb_draws_above_ground_while_falling(surface, camera, monkeypatch):
@@ -240,7 +240,7 @@ def test_draw_bomb_draws_above_ground_while_falling(surface, camera, monkeypatch
         return original_circle(surface_, color, center, *args, **kwargs)
 
     monkeypatch.setattr(pygame.draw, "circle", fake_circle)
-    rendering.draw_bomb(surface, bomb, camera)
+    entities.draw_bomb(surface, bomb, camera)
 
     ground_x, ground_y = camera.apply(bomb.x, bomb.y)
     drawn_x, drawn_y = captured["centers"][0]
@@ -249,11 +249,11 @@ def test_draw_bomb_draws_above_ground_while_falling(surface, camera, monkeypatch
 
 
 def test_draw_bomb_explosion_radius(surface, camera):
-    rendering.draw_bomb_explosion_radius(surface, Bomb(100, 100), camera)
+    entities.draw_bomb_explosion_radius(surface, Bomb(100, 100), camera)
 
 
 def test_draw_shard(surface, camera):
-    rendering.draw_shard(surface, Shard(100, 100, angle=0, speed=5), camera)
+    entities.draw_shard(surface, Shard(100, 100, angle=0, speed=5), camera)
 
 
 def test_draw_shard_is_smaller_near_the_top_of_the_viewport(surface, camera, monkeypatch):
@@ -265,11 +265,11 @@ def test_draw_shard_is_smaller_near_the_top_of_the_viewport(surface, camera, mon
         return original_circle(surface_, color, center, radius, *args, **kwargs)
 
     monkeypatch.setattr(pygame.draw, "circle", fake_circle)
-    rendering.draw_shard(surface, Shard(100, 0, angle=0, speed=5), camera)
+    entities.draw_shard(surface, Shard(100, 0, angle=0, speed=5), camera)
     top_radius = captured_radii[0]
 
     captured_radii.clear()
-    rendering.draw_shard(surface, Shard(100, HEIGHT, angle=0, speed=5), camera)
+    entities.draw_shard(surface, Shard(100, HEIGHT, angle=0, speed=5), camera)
     bottom_radius = captured_radii[0]
 
     assert top_radius < bottom_radius
@@ -279,11 +279,11 @@ def test_draw_enemy_each_type(surface, camera):
     for enemy_type in ("grunt", "heavy", "elite"):
         enemy = Enemy("left", 500, 500)
         enemy.type = enemy_type
-        rendering.draw_enemy(surface, enemy, camera)
+        entities.draw_enemy(surface, enemy, camera)
 
 
 def test_draw_explosion_effect(surface, camera):
-    rendering.draw_explosion_effect(surface, ExplosionEffect(100, 100, radius=140), camera)
+    entities.draw_explosion_effect(surface, ExplosionEffect(100, 100, radius=140), camera)
 
 
 def test_draw_scene_shrinks_airborne_players_shadow(surface, camera, monkeypatch):
@@ -295,14 +295,14 @@ def test_draw_scene_shrinks_airborne_players_shadow(surface, camera, monkeypatch
     bomb = Bomb(300, 300, fall_offset=-90)
 
     captured_offsets = []
-    original_shadow = rendering.draw_shadow
+    original_shadow = entities.draw_shadow
 
     def fake_shadow(surface_, x, y, base_radius, height_offset=0):
         captured_offsets.append(height_offset)
         return original_shadow(surface_, x, y, base_radius, height_offset)
 
-    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
-    rendering.draw_scene(surface, player=player, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+    monkeypatch.setattr(entities, "draw_shadow", fake_shadow)
+    entities.draw_scene(surface, player=player, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
 
     assert -90 in captured_offsets
 
@@ -323,15 +323,15 @@ def test_draw_scene_draws_the_players_shadow_at_its_feet_not_its_topleft(monkeyp
     camera.snap_to(player.centerx, player.centery)
 
     captured_positions = []
-    original_shadow = rendering.draw_shadow
+    original_shadow = entities.draw_shadow
 
     def fake_shadow(surface_, x, y, base_radius, height_offset=0):
         captured_positions.append((x, y))
         return original_shadow(surface_, x, y, base_radius, height_offset)
 
-    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    monkeypatch.setattr(entities, "draw_shadow", fake_shadow)
     fake_surface = pygame.Surface((WIDTH, HEIGHT))
-    rendering.draw_scene(fake_surface, player=player, bombs=[], shards=[], enemies=[], effects=[], camera=camera)
+    entities.draw_scene(fake_surface, player=player, bombs=[], shards=[], enemies=[], effects=[], camera=camera)
 
     expected = camera.apply(*player.rect.midbottom)
     assert captured_positions[0] == expected
@@ -347,9 +347,9 @@ def test_draw_scene_skips_the_generated_shadow_for_enemies_whose_art_has_one(mon
     enemy = Enemy("left", 500, 500)
 
     shadow_calls = []
-    monkeypatch.setattr(rendering, "draw_shadow", lambda *args, **kwargs: shadow_calls.append(args))
+    monkeypatch.setattr(entities, "draw_shadow", lambda *args, **kwargs: shadow_calls.append(args))
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
-    rendering.draw_scene(
+    entities.draw_scene(
         pygame.Surface((WIDTH, HEIGHT)), player=player, bombs=[], shards=[], enemies=[enemy], effects=[], camera=camera
     )
 
@@ -362,23 +362,23 @@ def test_draw_scene_draws_a_bombs_shadow_at_its_center(monkeypatch):
     bomb = Bomb(500, 500)
 
     captured_positions = []
-    original_shadow = rendering.draw_shadow
+    original_shadow = entities.draw_shadow
 
     def fake_shadow(surface_, x, y, base_radius, height_offset=0):
         captured_positions.append((x, y))
         return original_shadow(surface_, x, y, base_radius, height_offset)
 
-    monkeypatch.setattr(rendering, "draw_shadow", fake_shadow)
+    monkeypatch.setattr(entities, "draw_shadow", fake_shadow)
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     fake_surface = pygame.Surface((WIDTH, HEIGHT))
-    rendering.draw_scene(fake_surface, player=None, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+    entities.draw_scene(fake_surface, player=None, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
 
     expected = camera.apply(*bomb.rect.center)
     assert captured_positions[0] == expected
 
 
 def test_draw_scene_with_full_cast(surface, camera):
-    rendering.draw_scene(
+    entities.draw_scene(
         surface,
         player=Player(),
         bombs=[Bomb(100, 100)],
@@ -390,11 +390,11 @@ def test_draw_scene_with_full_cast(surface, camera):
 
 
 def test_draw_scene_with_no_player(surface, camera):
-    rendering.draw_scene(surface, player=None, bombs=[], shards=[], enemies=[], effects=[], camera=camera)
+    entities.draw_scene(surface, player=None, bombs=[], shards=[], enemies=[], effects=[], camera=camera)
 
 
 def test_draw_debug_boxes_with_full_cast(surface, camera):
-    rendering.draw_debug_boxes(
+    entities.draw_debug_boxes(
         surface,
         player=Player(),
         bombs=[Bomb(100, 100)],
@@ -405,7 +405,7 @@ def test_draw_debug_boxes_with_full_cast(surface, camera):
 
 
 def test_draw_debug_boxes_with_no_player(surface, camera):
-    rendering.draw_debug_boxes(surface, player=None, bombs=[], shards=[], enemies=[], camera=camera)
+    entities.draw_debug_boxes(surface, player=None, bombs=[], shards=[], enemies=[], camera=camera)
 
 
 def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
@@ -415,7 +415,7 @@ def test_draw_debug_boxes_draws_each_entitys_actual_collision_rect(surface):
     player.x, player.y = 100, 100  # comfortably inside the viewport regardless of camera clamp
     player._sync_rect()
     camera.snap_to(player.centerx, player.centery)
-    rendering.draw_debug_boxes(surface, player=player, bombs=[], shards=[], enemies=[], camera=camera)
+    entities.draw_debug_boxes(surface, player=player, bombs=[], shards=[], enemies=[], camera=camera)
     # the outline is drawn exactly on the camera-translated rect: sample its border pixel
     screen_rect = camera.apply_rect(player.rect)
     color_at_top_left = surface.get_at(screen_rect.topleft)[:3]
@@ -438,14 +438,14 @@ class _MultiBlitRecordingSurface:
 
 
 def test_draw_ground(surface, camera):
-    rendering.draw_ground(surface, camera)
+    ground.draw_ground(surface, camera)
 
 
 def test_draw_editor_with_empty_tilemap(surface):
     from game.scene.editor_state import EditorState
 
     editor_state = EditorState(WIDTH, HEIGHT)
-    rendering.draw_editor(surface, editor_state)
+    editor_view.draw_editor(surface, editor_state)
 
 
 def test_draw_editor_with_painted_tiles_and_hover(surface):
@@ -456,7 +456,7 @@ def test_draw_editor_with_painted_tiles_and_hover(surface):
     editor_state.tilemap.set_tile(2, 2, editor_state.palette[0])
     editor_state.hover_col, editor_state.hover_row = 3, 3
 
-    rendering.draw_editor(surface, editor_state)
+    editor_view.draw_editor(surface, editor_state)
 
 
 def test_draw_editor_with_a_wall_cell(surface):
@@ -466,7 +466,7 @@ def test_draw_editor_with_a_wall_cell(surface):
     editor_state.camera.x, editor_state.camera.y = 0, 0
     editor_state.tilemap.set_tile(2, 2, editor_state.palette[0], is_wall=True)
 
-    rendering.draw_editor(surface, editor_state)
+    editor_view.draw_editor(surface, editor_state)
 
 
 def test_draw_editor_sidebar_without_a_font(surface):
@@ -475,7 +475,7 @@ def test_draw_editor_sidebar_without_a_font(surface):
     editor_state = EditorState(WIDTH, HEIGHT)
     editor_state.select_tile(1)
 
-    rendering.draw_editor_sidebar(surface, editor_state)
+    editor_view.draw_editor_sidebar(surface, editor_state)
 
 
 def test_draw_editor_sidebar_with_a_font_renders_button_labels(surface, fonts):
@@ -485,7 +485,7 @@ def test_draw_editor_sidebar_with_a_font_renders_button_labels(surface, fonts):
     editor_state = EditorState(WIDTH, HEIGHT)
     editor_state.select_tile(1)
 
-    rendering.draw_editor_sidebar(surface, editor_state, small_font)
+    editor_view.draw_editor_sidebar(surface, editor_state, small_font)
 
 
 def test_draw_editor_sidebar_with_wall_mode_on(surface, fonts):
@@ -495,7 +495,7 @@ def test_draw_editor_sidebar_with_wall_mode_on(surface, fonts):
     editor_state = EditorState(WIDTH, HEIGHT)
     editor_state.wall_mode = True
 
-    rendering.draw_editor_sidebar(surface, editor_state, small_font)
+    editor_view.draw_editor_sidebar(surface, editor_state, small_font)
 
 
 def test_draw_editor_sidebar_with_reset_pending(surface, fonts):
@@ -505,7 +505,7 @@ def test_draw_editor_sidebar_with_reset_pending(surface, fonts):
     editor_state = EditorState(WIDTH, HEIGHT)
     editor_state.reset_pending = True
 
-    rendering.draw_editor_sidebar(surface, editor_state, small_font)
+    editor_view.draw_editor_sidebar(surface, editor_state, small_font)
 
 
 def test_draw_editor_does_not_draw_ground_tiles_into_the_sidebar_region(surface):
@@ -515,7 +515,7 @@ def test_draw_editor_does_not_draw_ground_tiles_into_the_sidebar_region(surface)
     editor_state.camera.x, editor_state.camera.y = 0, 0
     # Every ground tile the map draws must stay left of its own (shrunk)
     # viewport — the sidebar area is reserved for draw_editor_sidebar.
-    rendering.draw_editor(surface, editor_state)
+    editor_view.draw_editor(surface, editor_state)
 
 
 def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
@@ -525,7 +525,7 @@ def test_visible_tile_range_does_not_extend_below_zero_at_the_worlds_origin():
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = 0, 0
 
-    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+    min_col, max_col, min_row, max_row = tile_geometry.visible_tile_range(camera)
 
     assert min_col >= 0
     assert min_row >= 0
@@ -537,12 +537,12 @@ def test_visible_tile_range_does_not_exceed_the_worlds_far_edge():
     # units are TILE_FOOTPRINT_HEIGHT/2 (matching the scroll rate fix, see
     # test_ground_scrolls_at_the_same_rate_as_every_other_entity), not
     # TILE_WIDTH — cols and rows use different pixel-per-unit scales.
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+    from game.rendering.tile_geometry import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = WORLD_WIDTH, WORLD_HEIGHT
 
-    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+    min_col, max_col, min_row, max_row = tile_geometry.visible_tile_range(camera)
 
     assert max_col <= WORLD_WIDTH / TILE_WIDTH
     assert max_row <= WORLD_HEIGHT / (TILE_FOOTPRINT_HEIGHT / 2)
@@ -556,12 +556,12 @@ def test_draw_ground_scrolls_straight_when_camera_moves_purely_vertically():
     camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
 
     before = _MultiBlitRecordingSurface()
-    rendering.draw_ground(before, camera)
+    ground.draw_ground(before, camera)
 
     camera.y -= 100  # pure vertical move, x unchanged
 
     after = _MultiBlitRecordingSurface()
-    rendering.draw_ground(after, camera)
+    ground.draw_ground(after, camera)
 
     before_xs = sorted({topleft[0] for _, topleft in before.calls})
     after_xs = sorted({topleft[0] for _, topleft in after.calls})
@@ -578,7 +578,7 @@ def test_ground_scrolls_at_the_same_rate_as_every_other_entity():
     # (fixed world_row, camera-relative row recomputed each time) across
     # a vertical camera move and confirm it shifts by exactly the delta,
     # matching what camera.apply produces for any entity.
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+    from game.rendering.tile_geometry import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
@@ -587,7 +587,7 @@ def test_ground_scrolls_at_the_same_rate_as_every_other_entity():
 
     def screen_y_of_fixed_tile():
         cam_row = camera.y / half_h
-        _, sy = rendering.ground_tile_screen_pos(
+        _, sy = tile_geometry.ground_tile_screen_pos(
             0, fixed_world_row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=fixed_world_row
         )
         return sy
@@ -608,10 +608,10 @@ def test_ground_scrolls_at_the_same_rate_as_every_other_entity():
 
 
 def test_draw_ground_tiles_the_grass_tile_across_the_viewport(camera):
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_HEIGHT
+    from game.rendering.tile_geometry import TILE_WIDTH, TILE_HEIGHT
 
     fake_surface = _MultiBlitRecordingSurface()
-    rendering.draw_ground(fake_surface, camera)
+    ground.draw_ground(fake_surface, camera)
 
     assert len(fake_surface.calls) > 1
     assert all(size == (TILE_WIDTH, TILE_HEIGHT) for size, _ in fake_surface.calls)
@@ -627,7 +627,7 @@ def test_draw_ground_covers_the_full_viewport_away_from_world_edges():
     camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2
 
     fake_surface = _MultiBlitRecordingSurface()
-    rendering.draw_ground(fake_surface, camera)
+    ground.draw_ground(fake_surface, camera)
 
     covered = pygame.Rect(0, 0, 0, 0)
     for size, topleft in fake_surface.calls:
@@ -657,7 +657,7 @@ def test_draw_ground_covers_the_full_viewport_across_a_sweep_of_camera_positions
             camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
             camera.x, camera.y = cx, cy
             fake_surface = _MultiBlitRecordingSurface()
-            rendering.draw_ground(fake_surface, camera)
+            ground.draw_ground(fake_surface, camera)
 
             covered = pygame.Rect(0, 0, 0, 0)
             for size, topleft in fake_surface.calls:
@@ -670,15 +670,15 @@ def test_draw_ground_does_not_tile_past_the_worlds_edges():
     # At the world's origin corner, no tile should be blitted representing
     # ground above/left of world (0, 0) — there's nothing there for the
     # player to ever reach.
-    from game.rendering.isometric_assets import TILE_WIDTH
+    from game.rendering.tile_geometry import TILE_WIDTH
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = 0, 0
 
     fake_surface = _MultiBlitRecordingSurface()
-    rendering.draw_ground(fake_surface, camera)
+    ground.draw_ground(fake_surface, camera)
 
-    min_col, max_col, min_row, max_row = rendering.visible_tile_range(camera)
+    min_col, max_col, min_row, max_row = tile_geometry.visible_tile_range(camera)
     assert min_col == 0
     assert min_row == 0
     # Sanity: draw_ground actually blit tiles at all (not an empty range).
@@ -689,8 +689,8 @@ def test_ground_tile_screen_position_moves_right_as_col_increases_only():
     # The ground must scroll the same straight way as every other entity
     # (Camera.apply maps world x -> screen x independently of y) — col
     # increasing should shift screen_x only, never screen_y.
-    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
-    next_col = rendering.ground_tile_screen_pos(1, 0, tile_width=64, tile_height=32, world_row=0)
+    origin = tile_geometry.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    next_col = tile_geometry.ground_tile_screen_pos(1, 0, tile_width=64, tile_height=32, world_row=0)
     assert next_col[0] > origin[0]
     assert next_col[1] == origin[1]
 
@@ -702,8 +702,8 @@ def test_ground_tile_screen_position_moves_down_as_row_increases_on_the_same_wor
     # the previous true-isometric formula mixed col and row into both axes).
     # Held to world_row=0 for both calls so the brick stagger (tested
     # separately below) doesn't also shift screen_x here.
-    origin = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
-    next_row = rendering.ground_tile_screen_pos(0, 1, tile_width=64, tile_height=32, world_row=0)
+    origin = tile_geometry.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    next_row = tile_geometry.ground_tile_screen_pos(0, 1, tile_width=64, tile_height=32, world_row=0)
     assert next_row[0] == origin[0]
     assert next_row[1] > origin[1]
 
@@ -712,8 +712,8 @@ def test_ground_tile_screen_position_staggers_odd_world_rows_by_half_a_tile_widt
     # The diamond tile art needs a brick-course offset every other row to
     # interlock cleanly — without it, rows stack directly on top of each
     # other and the diamonds overlap into a wavy, scalloped mess.
-    even_row = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
-    odd_row = rendering.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=1)
+    even_row = tile_geometry.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=0)
+    odd_row = tile_geometry.ground_tile_screen_pos(0, 0, tile_width=64, tile_height=32, world_row=1)
     assert odd_row[0] == even_row[0] + 32
 
 
@@ -722,8 +722,8 @@ def test_ground_tile_screen_position_stagger_is_fixed_to_the_world_grid():
     # camera-relative value — otherwise it would flicker between offsets
     # as the camera scrolls smoothly instead of staying locked to the
     # same physical tiles.
-    pos_a = rendering.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=5)
-    pos_b = rendering.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=7)
+    pos_a = tile_geometry.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=5)
+    pos_b = tile_geometry.ground_tile_screen_pos(0, 2.3, tile_width=64, tile_height=32, world_row=7)
     assert pos_a[0] == pos_b[0]
 
 
@@ -731,38 +731,38 @@ def test_is_border_tile_true_for_a_column_inside_the_border_zone():
     from game.config import WORLD_BORDER
 
     # A col near world (0,0) — well within the border band — is a border tile.
-    assert rendering.is_border_tile(col=0, row=10, tile_width=64, half_h=24) is True
+    assert tile_geometry.is_border_tile(col=0, row=10, tile_width=64, half_h=24) is True
 
 
 def test_is_border_tile_false_for_a_column_well_inside_the_playable_area():
     from game.config import WORLD_BORDER, WORLD_WIDTH
 
     mid_col = int((WORLD_WIDTH / 2) / 64)
-    assert rendering.is_border_tile(col=mid_col, row=10, tile_width=64, half_h=24) is False
+    assert tile_geometry.is_border_tile(col=mid_col, row=10, tile_width=64, half_h=24) is False
 
 
 def test_is_border_tile_true_near_the_far_world_edge():
     from game.config import WORLD_WIDTH
 
     far_col = int(WORLD_WIDTH / 64) - 1
-    assert rendering.is_border_tile(col=far_col, row=10, tile_width=64, half_h=24) is True
+    assert tile_geometry.is_border_tile(col=far_col, row=10, tile_width=64, half_h=24) is True
 
 
 def test_screen_pos_to_tile_inverts_ground_tile_screen_pos_at_origin_camera():
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+    from game.rendering.tile_geometry import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = 0, 0
 
     for col, row in [(0, 0), (5, 3), (12, 4), (20, 11)]:
-        sx, sy = rendering.ground_tile_screen_pos(col, row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
+        sx, sy = tile_geometry.ground_tile_screen_pos(col, row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
         # click near the tile's own center, not its bounding box's corner
         click_x, click_y = sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4
-        assert rendering.screen_pos_to_tile(click_x, click_y, camera) == (col, row)
+        assert tile_geometry.screen_pos_to_tile(click_x, click_y, camera) == (col, row)
 
 
 def test_screen_pos_to_tile_inverts_ground_tile_screen_pos_with_a_panned_camera():
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+    from game.rendering.tile_geometry import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = 640, 320
@@ -771,22 +771,22 @@ def test_screen_pos_to_tile_inverts_ground_tile_screen_pos_with_a_panned_camera(
     cam_row = camera.y / (TILE_FOOTPRINT_HEIGHT / 2)
 
     for col, row in [(10, 8), (15, 9), (30, 20)]:
-        sx, sy = rendering.ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
+        sx, sy = tile_geometry.ground_tile_screen_pos(col - cam_col, row - cam_row, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=row)
         click_x, click_y = sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4
-        assert rendering.screen_pos_to_tile(click_x, click_y, camera) == (col, row)
+        assert tile_geometry.screen_pos_to_tile(click_x, click_y, camera) == (col, row)
 
 
 def test_screen_pos_to_tile_accounts_for_odd_row_stagger():
-    from game.rendering.isometric_assets import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
+    from game.rendering.tile_geometry import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
 
     camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
     camera.x, camera.y = 0, 0
 
     # An odd world row is staggered half a tile width to the right —
     # inversion must account for that before recovering col.
-    sx, sy = rendering.ground_tile_screen_pos(7, 3, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=3)
+    sx, sy = tile_geometry.ground_tile_screen_pos(7, 3, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, world_row=3)
     click_x, click_y = sx + TILE_WIDTH / 2, sy + TILE_FOOTPRINT_HEIGHT / 4
-    assert rendering.screen_pos_to_tile(click_x, click_y, camera) == (7, 3)
+    assert tile_geometry.screen_pos_to_tile(click_x, click_y, camera) == (7, 3)
 
 
 class _SurfaceIdentityRecordingSurface:
@@ -811,7 +811,7 @@ def test_draw_ground_uses_the_stone_tile_in_the_border_zone():
     camera.x, camera.y = 0, 0  # world's top-left corner, deep in the border
 
     fake_surface = _SurfaceIdentityRecordingSurface()
-    rendering.draw_ground(fake_surface, camera)
+    ground.draw_ground(fake_surface, camera)
 
     assert get_stone_tile() in fake_surface.blitted_surfaces
 
@@ -823,7 +823,7 @@ def test_draw_ground_uses_the_grass_tile_away_from_the_border():
     camera.x, camera.y = WORLD_WIDTH / 2, WORLD_HEIGHT / 2  # deep in the playable area
 
     fake_surface = _SurfaceIdentityRecordingSurface()
-    rendering.draw_ground(fake_surface, camera)
+    ground.draw_ground(fake_surface, camera)
 
     assert get_grass_tile() in fake_surface.blitted_surfaces
     assert all(s is get_grass_tile() for s in fake_surface.blitted_surfaces)
@@ -843,49 +843,49 @@ def test_draw_ground_border_is_visible_when_the_camera_reaches_the_true_world_ed
     camera.snap_to(WORLD_WIDTH, WORLD_HEIGHT)  # clamps to the max reachable position
 
     fake_surface = _SurfaceIdentityRecordingSurface()
-    rendering.draw_ground(fake_surface, camera)
+    ground.draw_ground(fake_surface, camera)
 
     assert get_stone_tile() in fake_surface.blitted_surfaces
 
 
 def test_draw_overlay(surface, camera):
-    rendering.draw_overlay(surface, [Bomb(100, 100)], camera)
+    entities.draw_overlay(surface, [Bomb(100, 100)], camera)
 
 
 def test_draw_hud(surface, fonts):
     font, small_font = fonts
-    rendering.draw_hud(surface, font, small_font, score=10, high_score=20, bombs_left=2, lives=3, bomb_cooldown=0)
+    hud.draw_hud(surface, font, small_font, score=10, high_score=20, bombs_left=2, lives=3, bomb_cooldown=0)
 
 
 def test_draw_menu(surface, fonts):
     font, small_font = fonts
-    rendering.draw_menu(surface, font, small_font, ["Start Game", "Load Game", "Quit"], selected=0)
+    hud.draw_menu(surface, font, small_font, ["Start Game", "Load Game", "Quit"], selected=0)
 
 
 def test_draw_game_over_overlay(surface, fonts):
     font, small_font = fonts
-    rendering.draw_game_over_overlay(surface, font, small_font)
+    hud.draw_game_over_overlay(surface, font, small_font)
 
 
 def test_bomb_is_drawn_at_its_body_radius_with_depth_scaling():
     # bomb.rect is the blast area, so the drawn size comes from body_radius.
     bomb = Bomb(500, 500)
     mid_screen_y = HEIGHT / 2
-    expected = int(bomb.body_radius * rendering.depth_scale_for(mid_screen_y))
-    assert rendering.bomb_body_radius(bomb, mid_screen_y) == expected
+    expected = int(bomb.body_radius * entities.depth_scale_for(mid_screen_y))
+    assert entities.bomb_body_radius(bomb, mid_screen_y) == expected
 
 
 def test_explosion_effect_sprite_size_caps_at_a_scaled_maximum(camera):
     fake_surface = _BlitRecordingSurface()
-    rendering.draw_explosion_effect(fake_surface, ExplosionEffect(500, 500, radius=10_000), camera)
+    entities.draw_explosion_effect(fake_surface, ExplosionEffect(500, 500, radius=10_000), camera)
     size, _ = fake_surface.captured
-    expected = rendering.EXPLOSION_SPRITE_BASE_MAX_SIZE * ENTITY_SCALE
+    expected = entities.EXPLOSION_SPRITE_BASE_MAX_SIZE * ENTITY_SCALE
     assert size == (expected, expected)
 
 
 def test_explosion_effect_sprite_size_floors_at_a_scaled_minimum(camera):
     fake_surface = _BlitRecordingSurface()
-    rendering.draw_explosion_effect(fake_surface, ExplosionEffect(500, 500, radius=1), camera)
+    entities.draw_explosion_effect(fake_surface, ExplosionEffect(500, 500, radius=1), camera)
     size, _ = fake_surface.captured
-    expected = rendering.EXPLOSION_SPRITE_BASE_MIN_SIZE * ENTITY_SCALE
+    expected = entities.EXPLOSION_SPRITE_BASE_MIN_SIZE * ENTITY_SCALE
     assert size == (expected, expected)

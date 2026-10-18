@@ -171,7 +171,7 @@ def test_enemy_injected_rng_controls_spawn_y_offset_deterministically():
 def test_enemy_shadow_anchor_is_its_feet_not_its_topleft():
     # Enemy stands upright (a rect entity, not circular) — its shadow
     # belongs at rect.midbottom (feet), matching the rendering contract
-    # every drawable entity exposes (see rendering.draw_scene).
+    # every drawable entity exposes (see game.rendering.entities.draw_scene).
     enemy = Enemy("left", 500, 500)
     assert enemy.shadow_anchor == enemy.rect.midbottom
 

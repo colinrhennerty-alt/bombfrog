@@ -61,7 +61,7 @@ class Player:
         """Where rendering should anchor this entity's shadow: an
         upright rect entity reads as cast on the ground beneath its feet
         (rect.midbottom), not floating near its torso/center (see
-        rendering.draw_scene)."""
+        game.rendering.entities.draw_scene)."""
         return self.rect.midbottom
 
     @property

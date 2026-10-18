@@ -10,7 +10,7 @@ import pygame
 import pytest
 
 from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, BOMB_FUSE_MS
-from game.rendering import renderer as rendering
+from game.rendering import entities
 from game.rendering.assets import get_critter_frames
 from game.simulation.bomb import Bomb
 from game.simulation.camera import Camera
@@ -36,7 +36,7 @@ def _frog_solid_pixels(camera):
     player = Player()
     player.x, player.y = camera.x + 100, camera.y + 100
     player._sync_rect()
-    return _solid_pixels(lambda s: rendering.draw_player(s, player, camera))
+    return _solid_pixels(lambda s: entities.draw_player(s, player, camera))
 
 
 def _enemy_solid_pixels(enemy_type, camera):
@@ -48,7 +48,7 @@ def _enemy_solid_pixels(enemy_type, camera):
     total = 0
     for index in range(frame_count):
         enemy.anim_index = index
-        total += _solid_pixels(lambda s: rendering.draw_enemy(s, enemy, camera))
+        total += _solid_pixels(lambda s: entities.draw_enemy(s, enemy, camera))
     return total / frame_count
 
 
@@ -75,8 +75,8 @@ def _frog_and_bomb_at_its_feet(camera):
 
 def test_the_bomb_reads_slightly_smaller_than_the_frog(camera):
     player, bomb = _frog_and_bomb_at_its_feet(camera)
-    frog = _solid_pixels(lambda s: rendering.draw_player(s, player, camera))
-    bomb_pixels = _solid_pixels(lambda s: rendering.draw_bomb(s, bomb, camera))
+    frog = _solid_pixels(lambda s: entities.draw_player(s, player, camera))
+    bomb_pixels = _solid_pixels(lambda s: entities.draw_bomb(s, bomb, camera))
     assert 0.7 * frog <= bomb_pixels <= 0.95 * frog, (bomb_pixels, frog)
 
 
@@ -84,22 +84,22 @@ def test_the_bomb_with_its_full_fuse_ring_is_no_wider_than_the_frog(camera):
     player, bomb = _frog_and_bomb_at_its_feet(camera)
     bomb.timer = BOMB_FUSE_MS
     surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    rendering.draw_bomb(surface, bomb, camera)
+    entities.draw_bomb(surface, bomb, camera)
     assert surface.get_bounding_rect(min_alpha=1).width <= player.width
 
 
 def test_a_grounded_bombs_shadow_is_no_wider_than_the_bomb(camera, monkeypatch):
     _, bomb = _frog_and_bomb_at_its_feet(camera)
     drawn = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    rendering.draw_bomb(drawn, bomb, camera)
+    entities.draw_bomb(drawn, bomb, camera)
     bomb_width = drawn.get_bounding_rect(min_alpha=1).width
 
     shadows = []
-    real_draw_shadow = rendering.draw_shadow
-    monkeypatch.setattr(rendering, "draw_shadow", lambda *a, **k: shadows.append(real_draw_shadow(*a, **k)))
+    real_draw_shadow = entities.draw_shadow
+    monkeypatch.setattr(entities, "draw_shadow", lambda *a, **k: shadows.append(real_draw_shadow(*a, **k)))
     shadow_only = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    monkeypatch.setattr(rendering, "draw_bomb", lambda *a, **k: None)
-    rendering.draw_scene(shadow_only, player=None, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
+    monkeypatch.setattr(entities, "draw_bomb", lambda *a, **k: None)
+    entities.draw_scene(shadow_only, player=None, bombs=[bomb], shards=[], enemies=[], effects=[], camera=camera)
 
     assert shadows, "expected the bomb to cast a shadow"
     assert shadow_only.get_bounding_rect(min_alpha=1).width <= bomb_width

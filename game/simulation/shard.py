@@ -54,7 +54,7 @@ class Shard:
     def shadow_anchor(self):
         """Where rendering should anchor this entity's shadow: circular
         entities have no "feet", so their rect.center is the natural
-        anchor (see rendering.draw_scene)."""
+        anchor (see game.rendering.entities.draw_scene)."""
         return self.rect.center
 
     @property

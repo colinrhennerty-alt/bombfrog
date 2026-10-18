@@ -9,8 +9,8 @@ pan/select/paint/save/load actions.
 from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, EDITOR_SIDEBAR_WIDTH
 from game.simulation.camera import Camera
 from game.simulation.tilemap import TileMap
-from game.rendering.isometric_assets import get_all_tiles, TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
-from game.rendering.renderer import screen_pos_to_tile
+from game.rendering.isometric_assets import get_all_tiles
+from game.rendering.tile_geometry import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT, screen_pos_to_tile
 from game.persistence.level_io import save_level, load_level
 
 PAN_STEP = 32
