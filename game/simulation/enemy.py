@@ -1,7 +1,9 @@
 import math
 import random
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS
+from game.config import (
+    WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS, ENTITY_SCALE, ENEMY_BASE_SIZE,
+)
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
 from game.simulation.hitbox import sync_rect
@@ -9,10 +11,12 @@ from game.simulation.rect import Rect
 from game.simulation.shard import Shard
 
 
+ENEMY_SIZE = (ENEMY_BASE_SIZE[0] * ENTITY_SCALE, ENEMY_BASE_SIZE[1] * ENTITY_SCALE)
+
+
 class Enemy:
     def __init__(self, spawn_side, center_x, center_y, camera=None, rng=random):
-        self.width = 40
-        self.height = 34
+        self.width, self.height = ENEMY_SIZE
         self.type = rng.choices(
             list(ENEMY_TYPES.keys()), [t.spawn_weight for t in ENEMY_TYPES.values()]
         )[0]
@@ -103,8 +107,7 @@ class Enemy:
         (which rolls a random type/spawn-side/y-offset) since every field
         is already fully determined by `data`."""
         enemy = cls.__new__(cls)
-        enemy.width = 40
-        enemy.height = 34
+        enemy.width, enemy.height = ENEMY_SIZE
         enemy.x = data["x"]
         enemy.y = data["y"]
         enemy.vx = data["vx"]

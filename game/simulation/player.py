@@ -17,6 +17,8 @@ from game.config import (
     BOMB_FORCE,
     FROG_ANIM_MS,
     FROG_IDLE_FRAME_COUNT,
+    ENTITY_SCALE,
+    PLAYER_BASE_SIZE,
 )
 from game.utils import clamp
 from game.simulation.position import Position
@@ -28,8 +30,8 @@ from game.simulation.bomb_launcher import BombLauncher
 
 class Player:
     def __init__(self):
-        self.width = 52
-        self.height = 40
+        self.width = PLAYER_BASE_SIZE[0] * ENTITY_SCALE
+        self.height = PLAYER_BASE_SIZE[1] * ENTITY_SCALE
         spawn = Position(WORLD_WIDTH // 2 - self.width // 2, WORLD_HEIGHT // 2 - self.height // 2).clamped(
             WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width,
             WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height,

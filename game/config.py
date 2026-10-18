@@ -6,6 +6,12 @@ FPS = 60
 WORLD_WIDTH = WIDTH * 4
 WORLD_HEIGHT = HEIGHT * 4
 WORLD_BORDER = 180
+# Every entity (and the sprite drawn into its hitbox) is its base pixel
+# size times ENTITY_SCALE — one knob to grow/shrink all characters at once.
+ENTITY_SCALE = 2
+PLAYER_BASE_SIZE = (52, 40)
+ENEMY_BASE_SIZE = (40, 34)
+SHARD_BASE_RADIUS = 4
 FROG_ANIM_MS = 220
 ENEMY_ANIM_MS = 100
 FROG_IDLE_FRAME_COUNT = 6

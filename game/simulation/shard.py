@@ -1,6 +1,6 @@
 import math
 
-from game.config import WORLD_WIDTH, WORLD_HEIGHT, GRAVITY, SHARD_LIFETIME
+from game.config import WORLD_WIDTH, WORLD_HEIGHT, GRAVITY, SHARD_LIFETIME, SHARD_BASE_RADIUS, ENTITY_SCALE
 from game.simulation.rect import Rect
 
 
@@ -11,7 +11,7 @@ class Shard:
         self.vx = math.cos(angle) * speed
         self.vy = math.sin(angle) * speed
         self.life = SHARD_LIFETIME
-        self.radius = 4
+        self.radius = SHARD_BASE_RADIUS * ENTITY_SCALE
         self.color = color or (255, 220, 100)
         self.rect = Rect(self.x - self.radius, self.y - self.radius, self.radius * 2, self.radius * 2)
 
