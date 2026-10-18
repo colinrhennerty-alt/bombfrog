@@ -1,3 +1,8 @@
+"""pygame-compatible Rect for simulation code, so game.simulation never
+imports pygame for geometry. See the Rect docstring for the exact
+rounding rules it copies.
+"""
+
 import math
 from dataclasses import dataclass
 

@@ -1,3 +1,11 @@
+"""A launched bomb: falls from the jump apex to the ground, then explodes
+when its fuse is done (or an enemy touches it, after a short grace period).
+
+Note `rect` is the blast area (BOMB_RADIUS), not the bomb's body; the
+body size (`body_radius`) is only for drawing. World decides when it
+explodes and applies the blast.
+"""
+
 import random
 
 from game.config import (

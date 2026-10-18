@@ -1,3 +1,9 @@
+"""Save-game JSON: one in-progress round plus the high score.
+
+Each entity serializes itself (`to_dict` / `from_dict`); this module only
+assembles the top-level dict and handles the file.
+"""
+
 import json
 import os
 

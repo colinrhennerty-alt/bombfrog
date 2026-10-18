@@ -1,3 +1,5 @@
+"""Immutable world-space point."""
+
 from dataclasses import dataclass
 
 from game.utils import clamp
@@ -5,11 +7,7 @@ from game.utils import clamp
 
 @dataclass(frozen=True)
 class Position:
-    """A world-space point, clamped to arena bounds.
-
-    Centralizes the bounds-clamping expression that was previously
-    duplicated across Player and Enemy's movement/spawn code.
-    """
+    """A world-space point, with clamping to arena bounds."""
 
     x: float
     y: float

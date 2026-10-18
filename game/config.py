@@ -1,3 +1,8 @@
+"""Every tuning constant: screen/world size, entity sizes, physics,
+timings, and file locations. Times are in milliseconds; speeds are
+pixels per frame (the game runs at a fixed FPS).
+"""
+
 from game.paths import user_data_path
 
 WIDTH = 1700

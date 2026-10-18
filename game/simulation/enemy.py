@@ -1,3 +1,10 @@
+"""A critter: spawns just off-screen on one side, walks back and forth
+across the arena, and bursts into its type's shrapnel when its HP runs out.
+
+Per-type stats (HP, size, spawn weight, shrapnel pattern) come from
+game.simulation.enemy_types.ENEMY_TYPES.
+"""
+
 import math
 import random
 

@@ -1,13 +1,12 @@
-"""Owns one round's simulation state and advances it frame by frame.
+"""One round of play: the player, bombs, shards, enemies, effects, score
+and lives, plus the per-frame rules that connect them.
 
-This is the logic that used to live inline inside main.py's event loop,
-where it had zero test coverage. `World.update()` is the pure-ish
-"given input, advance by dt" step; main.py stays responsible for input
-polling, the menu, and handing frames to game.rendering.
+`World.update(keys, dt, now)` advances the round by one frame, in the
+stages listed in its body. It never polls pygame or the clock: input and
+time come in as arguments, so tests drive it directly.
 
-Session-level state that outlives any single round — the high score —
-intentionally is NOT stored here; it belongs to the caller, same as it
-was a variable in run_game() that start_new_game() never touched.
+Not owned here: the high score (session-level, kept by
+game.scene.game_app.GameApp), the menu, and drawing (game.rendering).
 """
 
 import math

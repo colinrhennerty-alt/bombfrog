@@ -1,3 +1,7 @@
+"""Level-file JSON for map-editor TileMaps. `load_level` returns None when
+the file doesn't exist yet.
+"""
+
 import json
 import os
 

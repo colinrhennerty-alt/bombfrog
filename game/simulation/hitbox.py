@@ -1,3 +1,5 @@
+"""Shared hitbox placement for sprites anchored at their bottom-center."""
+
 from game.simulation.rect import Rect
 
 

@@ -1,3 +1,5 @@
+"""Small helpers with no game knowledge."""
+
 import os
 
 

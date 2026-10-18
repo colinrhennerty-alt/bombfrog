@@ -1,9 +1,9 @@
-"""The menu <-> playing <-> game-over state machine.
+"""The top-level mode state machine: menu <-> playing <-> editor.
 
-This is the logic that used to live as loose local variables and a
-sprawling if/elif KEYDOWN dispatch inside main.py's run_game(). GameApp
-owns that state; main.py stays responsible only for the pygame event
-pump and handing frames to game.rendering.
+GameApp holds the current mode, the active World or EditorState, and the
+session's high score, and turns abstract actions (from game.input) into
+mode changes and game commands. main.py only pumps pygame events into
+`handle_action` / `tick` and draws whatever mode is active.
 """
 
 from game.config import SAVE_FILE, LEVEL_FILE

@@ -1,3 +1,8 @@
+"""A shrapnel shard: flies in a straight line with slight gravity until its
+lifetime runs out or it leaves the world. Hurts a grounded player and any
+enemy it touches.
+"""
+
 import math
 
 from game.config import WORLD_WIDTH, WORLD_HEIGHT, GRAVITY, SHARD_LIFETIME, SHARD_BASE_RADIUS, ENTITY_SCALE

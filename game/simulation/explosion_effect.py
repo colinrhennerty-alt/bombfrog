@@ -1,3 +1,8 @@
+"""A short-lived visual-only explosion. It has no collision; the blast's
+gameplay effects are applied once, in World._explode_bomb.
+"""
+
+
 class ExplosionEffect:
     def __init__(self, x, y, radius):
         self.x = x
