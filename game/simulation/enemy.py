@@ -5,6 +5,9 @@ The first time the frog comes within ENEMY_NOTICE_RADIUS, the critter rolls
 its type's follow_chance once. On a hit it chases the frog until the frog
 gets beyond ENEMY_GIVE_UP_RADIUS, then goes back to walking side to side.
 
+A multi-HP critter limps once hurt: its `injury` (0 unhurt, 1 on its last
+HP) slows it by up to ENEMY_INJURY_SLOWDOWN, and the renderer reddens it.
+
 Per-type stats (HP, size, spawn weight, shrapnel pattern) come from
 game.simulation.enemy_types.ENEMY_TYPES.
 """
@@ -14,7 +17,7 @@ import random
 
 from game.config import (
     WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS, PLAYER_SIZE,
-    ENEMY_SPEED, ENEMY_NOTICE_RADIUS, ENEMY_GIVE_UP_RADIUS,
+    ENEMY_SPEED, ENEMY_NOTICE_RADIUS, ENEMY_GIVE_UP_RADIUS, ENEMY_INJURY_SLOWDOWN,
 )
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
@@ -78,6 +81,17 @@ class Enemy:
         self.rect = sync_rect(self.x, self.y, self.width, self.height)
 
     @property
+    def injury(self):
+        """0.0 unhurt, 1.0 one hit from death; one-HP types are never hurt."""
+        if self.max_hp <= 1:
+            return 0.0
+        return clamp((self.max_hp - self.hp) / (self.max_hp - 1), 0.0, 1.0)
+
+    @property
+    def speed(self):
+        return ENEMY_SPEED * (1 - ENEMY_INJURY_SLOWDOWN * self.injury)
+
+    @property
     def shadow_anchor(self):
         """Where rendering should anchor this entity's shadow: an
         upright rect entity reads as cast on the ground beneath its feet
@@ -120,10 +134,10 @@ class Enemy:
             self.following = False
             self.vy = 0.0
             heading = self.vx if self.vx != 0 else dx
-            self.vx = math.copysign(ENEMY_SPEED, heading)
+            self.vx = math.copysign(self.speed, heading)
         if self.following and distance > 0:
-            self.vx = ENEMY_SPEED * dx / distance
-            self.vy = ENEMY_SPEED * dy / distance
+            self.vx = self.speed * dx / distance
+            self.vy = self.speed * dy / distance
 
     def _update_animation(self, dt):
         # anim_index counts up without wrapping; the renderer wraps it by
@@ -142,6 +156,9 @@ class Enemy:
         self.hp -= amount
         if self.hp <= 0:
             self.dead = True
+        elif not self.following:
+            # Followers pick up their slower speed on their next steer.
+            self.vx = math.copysign(self.speed, self.vx)
 
     @classmethod
     def from_dict(cls, data):

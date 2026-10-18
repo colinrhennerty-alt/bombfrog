@@ -923,3 +923,53 @@ def test_explosion_effect_sprite_size_floors_at_a_scaled_minimum(camera):
     size, _ = fake_surface.captured
     expected = entities.EXPLOSION_SPRITE_BASE_MIN_SIZE * ENTITY_SCALE
     assert size == (expected, expected)
+
+
+def _hurt_enemy(hp):
+    enemy = Enemy("left", 500, 500)
+    enemy.type = "elite"
+    enemy.max_hp = 3
+    enemy.hp = hp
+    enemy.vx = 2.2
+    return enemy
+
+
+def test_draw_enemy_leaves_an_unhurt_critters_colors_alone(camera, colored_critter_frames):
+    assert _drawn_color(_hurt_enemy(hp=3), camera) == (100, 0, 0)
+
+
+def _blend(channel, target, t):
+    return channel * (1 - t) + target * t
+
+
+@pytest.mark.parametrize("base", [(200, 200, 200), (30, 40, 50)])
+def test_draw_enemy_blends_a_hurt_critter_toward_injury_red(monkeypatch, camera, base):
+    # A multiply-only tint just blackens dark art (the boar), so hurt
+    # critters blend toward a fixed red instead: light and dark art alike
+    # end up reading red.
+    frames = {c: {f: [_solid_frame(base)] for f in ("SE", "SW")} for c in ("badger", "boar", "stag")}
+    monkeypatch.setattr(entities, "get_critter_frames", lambda: frames)
+
+    for hp, injury in ((2, 0.5), (1, 1.0)):
+        t = entities.ENEMY_INJURY_TINT * injury
+        drawn = _drawn_color(_hurt_enemy(hp=hp), camera)
+        for channel, base_channel, red_channel in zip(drawn, base, entities.ENEMY_INJURY_RED):
+            assert channel == pytest.approx(_blend(base_channel, red_channel, t), abs=2)
+
+    last = _drawn_color(_hurt_enemy(hp=1), camera)
+    assert last[0] > last[1] and last[0] > last[2]
+
+
+def test_injury_tint_keeps_transparent_pixels_transparent():
+    frame = pygame.Surface((4, 4), pygame.SRCALPHA)
+    frame.fill((200, 200, 200, 0))
+    frame.set_at((0, 0), (200, 200, 200, 255))
+    tinted = entities._tinted(frame, 1.0)
+    assert tinted.get_at((1, 1)).a == 0
+    assert tinted.get_at((0, 0)).a == 255
+
+
+def test_injury_tint_is_cached_per_frame_and_injury():
+    frame = _solid_frame((200, 200, 200))
+    assert entities._tinted(frame, 0.5) is entities._tinted(frame, 0.5)
+    assert entities._tinted(frame, 0.5) is not entities._tinted(frame, 1.0)

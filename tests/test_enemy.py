@@ -356,3 +356,68 @@ def test_enemy_follow_state_round_trips_through_dict():
     assert restored.following is True
     assert restored.follow_rolled is True
     assert restored.vy == pytest.approx(enemy.vy)
+
+
+# --- injury: hurt enemies slow down ----------------------------------------
+
+from game.config import ENEMY_INJURY_SLOWDOWN, PLAYER_SPEED
+
+
+def _enemy_of_type(name, hp=None):
+    enemy = _wandering_enemy(StubRng(0.999))
+    enemy.type = name
+    enemy.max_hp = ENEMY_TYPES[name].max_hp
+    enemy.hp = enemy.max_hp if hp is None else hp
+    return enemy
+
+
+def test_unhurt_enemies_have_no_injury():
+    for name in ENEMY_TYPES:
+        assert _enemy_of_type(name).injury == 0
+
+
+def test_injury_reaches_one_on_every_multi_hit_types_last_hp():
+    for name, enemy_type in ENEMY_TYPES.items():
+        if enemy_type.max_hp > 1:
+            assert _enemy_of_type(name, hp=1).injury == pytest.approx(1.0)
+
+
+def test_injury_climbs_evenly_between_full_and_last_hp():
+    elite_max = ENEMY_TYPES["elite"].max_hp
+    assert elite_max == 3  # the halfway check below assumes 3 HP
+    assert _enemy_of_type("elite", hp=2).injury == pytest.approx(0.5)
+
+
+def test_speed_drops_with_injury():
+    assert _enemy_of_type("elite").speed == pytest.approx(ENEMY_SPEED)
+    assert _enemy_of_type("elite", hp=1).speed == pytest.approx(ENEMY_SPEED * (1 - ENEMY_INJURY_SLOWDOWN))
+
+
+def test_hit_wanderer_keeps_its_direction_but_slows():
+    for vx in (ENEMY_SPEED, -ENEMY_SPEED):
+        enemy = _enemy_of_type("elite")
+        enemy.vx = vx
+        enemy.take_damage()
+        assert math.copysign(1, enemy.vx) == math.copysign(1, vx)
+        assert abs(enemy.vx) == pytest.approx(enemy.speed)
+        assert enemy.speed < ENEMY_SPEED
+
+
+def test_hurt_follower_chases_at_its_slower_speed():
+    enemy = _enemy_of_type("elite", hp=1)
+    enemy.rng = StubRng(0.0)
+    x_before, y_before = enemy.x, enemy.y
+    enemy.update(dt=16, target=_target_at_distance(enemy, 10 + ENEMY_SPEED * 5))
+    assert enemy.following is True
+    assert math.hypot(enemy.x - x_before, enemy.y - y_before) == pytest.approx(enemy.speed)
+
+
+def test_injury_survives_a_save_round_trip():
+    enemy = _enemy_of_type("elite", hp=2)
+    restored = Enemy.from_dict(enemy.to_dict())
+    assert restored.injury == pytest.approx(enemy.injury)
+    assert restored.speed == pytest.approx(enemy.speed)
+
+
+def test_the_frog_outruns_even_an_unhurt_enemy():
+    assert PLAYER_SPEED > ENEMY_SPEED

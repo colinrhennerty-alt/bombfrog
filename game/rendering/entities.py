@@ -27,6 +27,12 @@ BOMB_SPRITE_BASE_MIN_SIZE = 16
 FUSE_RING_RADIUS_VS_BODY = 1.4
 FUSE_RING_WIDTH_VS_BODY = 0.28
 EXPLOSION_SPRITE_BASE_MIN_SIZE = 24
+# A hurt critter's colors blend toward ENEMY_INJURY_RED, by up to
+# ENEMY_INJURY_TINT on its last HP (Enemy.injury == 1). Blending (rather
+# than multiplying green/blue away) keeps dark art like the boar from just
+# going black.
+ENEMY_INJURY_RED = (220, 30, 30)
+ENEMY_INJURY_TINT = 0.5
 EXPLOSION_SPRITE_BASE_MAX_SIZE = 160
 
 
@@ -115,12 +121,31 @@ def draw_shard(surface, shard, camera):
     pygame.draw.circle(surface, shard.color, (int(sx), int(sy)), r)
 
 
+_tint_cache = {}
+
+
+def _tinted(frame, injury):
+    """`frame` blended toward ENEMY_INJURY_RED by injury; alpha is untouched.
+    Cached per (frame, injury) since critter frames are themselves cached."""
+    key = (frame, round(injury, 2))
+    if key not in _tint_cache:
+        t = ENEMY_INJURY_TINT * injury
+        keep = round(255 * (1 - t))
+        tinted = frame.copy()
+        tinted.fill((keep, keep, keep), special_flags=pygame.BLEND_RGB_MULT)
+        tinted.fill(tuple(round(c * t) for c in ENEMY_INJURY_RED), special_flags=pygame.BLEND_RGB_ADD)
+        _tint_cache[key] = tinted
+    return _tint_cache[key]
+
+
 def draw_enemy(surface, enemy, camera):
     # Enemies only move horizontally, so the sign of vx picks between the
     # critter's down-right (SE) and down-left (SW) isometric facings.
     facing = "SE" if enemy.vx > 0 else "SW"
     frames = get_critter_frames()[ENEMY_TYPES[enemy.type].sprite][facing]
     frame = frames[enemy.anim_index % len(frames)]
+    if enemy.injury > 0:
+        frame = _tinted(frame, enemy.injury)
 
     # Same contract as draw_player: scale into the collision rect itself so
     # the drawn sprite and the hitbox always match exactly.

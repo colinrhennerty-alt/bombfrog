@@ -14,6 +14,8 @@ jump you drop a bomb, and enemies that die burst into shrapnel you then have to 
   touches it. The blast also pushes you, so you can use it to leap.
 - Each enemy type bursts into its own shrapnel pattern when it dies. Shrapnel hurts other
   enemies too.
+- Tougher enemies turn red and slow down as you wear them down. Some enemies start chasing
+  you if you get close.
 - You have 3 lives. Score goes up the longer you survive, with +100 per kill.
 
 ## Controls

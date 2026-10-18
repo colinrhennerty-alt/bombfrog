@@ -41,6 +41,9 @@ BOMB_COOLDOWN_MS = 1200
 BOMB_FALL_SPEED = 40
 ENEMY_SPAWN_MS = 1800
 ENEMY_SPEED = 2.2
+# Fraction of ENEMY_SPEED a multi-HP enemy has lost by its last HP (it
+# limps more with each hit; one-HP enemies are never hurt, only dead).
+ENEMY_INJURY_SLOWDOWN = 0.4
 # Center-to-center distances. The first time the frog comes within
 # ENEMY_NOTICE_RADIUS an enemy rolls its type's follow_chance once; a
 # follower gives up past ENEMY_GIVE_UP_RADIUS (wider, so it doesn't flicker).

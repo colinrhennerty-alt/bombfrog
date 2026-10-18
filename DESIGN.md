@@ -35,6 +35,9 @@ What the game does today (code pointers in parentheses).
   chases at walking speed until the frog is past `ENEMY_GIVE_UP_RADIUS`, then goes back
   to walking side to side for good (`Enemy._steer_toward`).
 - **Shrapnel hurts enemies too**, so kill order and chain reactions matter.
+- **Hurt enemies show it.** Multi-HP critters (boar, stag) blend toward red and limp with
+  each hit, down to 60% speed on their last HP (`Enemy.injury`, `ENEMY_INJURY_SLOWDOWN`,
+  `ENEMY_INJURY_TINT`).
 - **Lives, not chip damage.** Any hit costs one of 3 lives and respawns the frog; score
   and lives carry over. Score is +1 per frame survived and +100 per kill.
 - **Map editor** for painting isometric tile levels (`game/scene/editor_state.py`; spec in
