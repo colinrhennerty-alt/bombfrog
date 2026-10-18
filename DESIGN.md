@@ -40,9 +40,9 @@ What the game does today (code pointers in parentheses).
   `ENEMY_INJURY_TINT`).
 - **Lives, not chip damage.** Any hit costs one of 3 lives and respawns the frog; score
   and lives carry over. Score is +1 per frame survived and +100 per kill.
-- **Generated ground.** Each new round gets a fresh map of Gridwright floor tiles: patches
-  of autumn leaves, dirt and occasional tilled soil on a grass meadow, never lone tiles
-  (`game/simulation/terrain.py`, `GROUND_KINDS`). Cosmetic only for now; nothing
+- **Generated ground.** Each new round gets a fresh map: patches of lush grass, dark tall
+  grass, dirt (with a sprouting rim) and occasional tilled soil on a meadow, never lone
+  tiles (`game/simulation/terrain.py`, `GROUND_KINDS`). Cosmetic only for now; nothing
   blocks movement. Saves store the map's seed.
 - **Map editor** for painting isometric tile levels (`game/scene/editor_state.py`; spec in
   `docs/superpowers/specs/2026-09-06-map-editor-design.md`). Not yet used by gameplay.

@@ -14,8 +14,7 @@ def _interior_tile(ground, col, row, fallback):
 
 
 def draw_ground(surface, camera, ground=None):
-    # Only shows past the world's edge, so match the stone border tiles.
-    surface.fill((141, 147, 158))
+    surface.fill((52, 88, 58))
     grass_tile = get_grass_tile()
     stone_tile = get_stone_tile()
     half_h = TILE_FOOTPRINT_HEIGHT / 2
