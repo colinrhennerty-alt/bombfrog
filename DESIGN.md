@@ -42,8 +42,9 @@ What the game does today (code pointers in parentheses).
   and lives carry over. Score is +1 per frame survived and +100 per kill.
 - **Generated ground.** Each new round gets a fresh map: patches of lush grass, dark tall
   grass, dirt (with a sprouting rim) and occasional tilled soil on a meadow, never lone
-  tiles (`game/simulation/terrain.py`, `GROUND_KINDS`). Cosmetic only for now; nothing
-  blocks movement. Saves store the map's seed.
+  tiles (`game/simulation/terrain.py`, `GROUND_KINDS`), dotted with groves of trees
+  (`game/simulation/trees.py`, `TREE_KINDS`) that fade when the frog is behind one.
+  Cosmetic only for now; nothing blocks movement. Saves store the map's seed.
 - **Map editor** for painting isometric tile levels (`game/scene/editor_state.py`; spec in
   `docs/superpowers/specs/2026-09-06-map-editor-design.md`). Not yet used by gameplay.
 

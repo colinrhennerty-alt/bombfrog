@@ -50,7 +50,8 @@ user-data paths, including PyInstaller bundles.
 - The map editor (menu → Map Editor) paints and saves `LEVEL_FILE` (a user-data path,
   see `game/paths.py`), but `World` does not load levels yet. Each new round instead
   generates its ground (`game/simulation/terrain.py`: patches of dirt, grass and tilled
-  soil on a meadow, purely cosmetic) as a `TileMap`; saves store only its seed.
+  soil on a meadow, purely cosmetic) as a `TileMap`, then scatters cosmetic tree groves
+  on it (`game/simulation/trees.py`, Gridwright art); saves store only the seed.
 - `DESIGN.md` lists bomb variants, leap upgrades and room modifiers as unbuilt ideas.
 
 ## Workflow

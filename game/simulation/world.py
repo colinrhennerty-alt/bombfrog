@@ -20,6 +20,7 @@ from game.simulation.enemy import Enemy
 from game.simulation.explosion_effect import ExplosionEffect
 from game.simulation.camera import Camera
 from game.simulation.terrain import generate_ground
+from game.simulation.trees import generate_trees
 from game.simulation import debug_log
 from game.persistence.save_load import save_game
 
@@ -62,9 +63,12 @@ class World:
         self.camera.snap_to(self.player.centerx, self.player.centery)
 
     def _set_ground(self, seed):
-        """The map is rebuilt from its seed, so a save only stores the seed."""
+        """The map (ground, then its trees) is rebuilt from its seed, so a
+        save only stores the seed."""
         self.ground_seed = seed
-        self.ground = generate_ground(random.Random(seed))
+        rng = random.Random(seed)
+        self.ground = generate_ground(rng)
+        self.trees = generate_trees(rng, self.ground)
 
     @classmethod
     def from_save_data(cls, data, now=0, rng=None):

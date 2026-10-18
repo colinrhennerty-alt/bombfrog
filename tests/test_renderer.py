@@ -1021,3 +1021,79 @@ def test_draw_ground_keeps_the_stone_border_and_meadow_without_a_map(monkeypatch
     ground.draw_ground(fake, camera)
     drawn = {id(source) for source, _ in fake.blits}
     assert drawn == {id(stone), id(meadow)}
+
+
+# --- trees -----------------------------------------------------------------
+
+def _frog_at(x, y):
+    player = Player()
+    player.x, player.y = x, y
+    player._sync_rect()
+    return player
+
+
+def _record_scene(monkeypatch, player, trees):
+    """Run draw_scene and return the order of shadow/sprite draws, e.g.
+    [("tree_shadow", tree), ("shadow",), ("player",), ("tree", tree, faded)]."""
+    from game.rendering import entities as ents
+
+    events = []
+    monkeypatch.setattr(ents, "draw_shadow", lambda *a, **k: events.append(("shadow",)))
+    monkeypatch.setattr(ents, "draw_tree_shadow", lambda s, tree, cam: events.append(("tree_shadow", tree)))
+    monkeypatch.setattr(ents, "draw_tree", lambda s, tree, cam, faded=False: events.append(("tree", tree, faded)))
+    monkeypatch.setitem(ents._ENTITY_DRAW_SPECS, Player, (lambda s, p, cam: events.append(("player",)), (0, 0, 0)))
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.snap_to(player.centerx, player.centery)
+    ents.draw_scene(
+        pygame.Surface((WIDTH, HEIGHT)), player=player, bombs=[], shards=[], enemies=[], effects=[],
+        camera=camera, trees=trees,
+    )
+    return events
+
+
+def test_a_tree_behind_the_frog_draws_before_it_and_one_in_front_after(monkeypatch):
+    from game.simulation.trees import Tree
+
+    player = _frog_at(1000, 1000)
+    feet_y = player.rect.midbottom[1]
+    behind = Tree("tree_oak_large", player.centerx - 400, feet_y - 1)
+    in_front = Tree("tree_oak_large", player.centerx + 400, feet_y + 1)
+    sprites = [e for e in _record_scene(monkeypatch, player, [in_front, behind]) if e[0] in ("tree", "player")]
+    assert sprites == [("tree", behind, False), ("player",), ("tree", in_front, False)]
+
+
+def test_tree_shadows_draw_before_any_sprite(monkeypatch):
+    from game.simulation.trees import Tree
+
+    player = _frog_at(1000, 1000)
+    trees = [Tree("tree_pine", player.centerx + 300, player.rect.midbottom[1] + 50)]
+    events = _record_scene(monkeypatch, player, trees)
+    first_sprite = next(i for i, e in enumerate(events) if e[0] in ("tree", "player"))
+    assert ("tree_shadow", trees[0]) in events[:first_sprite]
+
+
+def test_a_tree_in_front_of_the_frog_fades_only_when_it_covers_it(monkeypatch):
+    from game.simulation.trees import Tree
+
+    player = _frog_at(1000, 1000)
+    covering = Tree("tree_oak_large", player.centerx, player.rect.midbottom[1] + 20)
+    off_to_the_side = Tree("tree_oak_large", player.centerx + 600, player.rect.midbottom[1] + 20)
+    trees_drawn = {e[1]: e[2] for e in _record_scene(monkeypatch, player, [covering, off_to_the_side]) if e[0] == "tree"}
+    assert trees_drawn == {covering: True, off_to_the_side: False}
+
+
+def test_draw_tree_puts_the_trunk_base_at_the_trees_ground_point():
+    from game.rendering.tree_assets import get_tree_sprite
+    from game.simulation.trees import Tree
+
+    tree = Tree("tree_oak_large", 1000, 1000)
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    camera.snap_to(1000, 1000)
+    rect = entities.tree_screen_rect(tree, camera)
+    sprite, _ = get_tree_sprite(tree.kind)
+    base_x, base_y = camera.apply(tree.x, tree.y)
+    assert rect.size == sprite.get_size()
+    # Centered on the trunk, and the base sits inside the sprite's lower part.
+    assert rect.centerx == pytest.approx(base_x, abs=1)
+    assert rect.top < base_y < rect.bottom
+    assert base_y - rect.top > rect.height * 0.6

@@ -103,3 +103,22 @@ def test_a_grounded_bombs_shadow_is_no_wider_than_the_bomb(camera, monkeypatch):
 
     assert shadows, "expected the bomb to cast a shadow"
     assert shadow_only.get_bounding_rect(min_alpha=1).width <= bomb_width
+
+
+def _drawn_height(draw):
+    surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    draw(surface)
+    return pygame.mask.from_surface(surface, FULLY_OPAQUE).get_bounding_rects()[0].height
+
+
+def test_a_large_oak_stands_a_few_frogs_tall(camera):
+    # The user picked trees that read as trees next to the frog (TREE_SCALE),
+    # not saplings and not skyscrapers.
+    from game.simulation.trees import Tree
+
+    player = Player()
+    player.x, player.y = camera.x + 100, camera.y + 100
+    player._sync_rect()
+    frog = _drawn_height(lambda s: entities.draw_player(s, player, camera))
+    oak = _drawn_height(lambda s: entities.draw_tree(s, Tree("tree_oak_large", camera.x + 400, camera.y + 600), camera))
+    assert 3 <= oak / frog <= 6

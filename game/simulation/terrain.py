@@ -67,6 +67,14 @@ def cell_center_px(col, row):
     return col * TILE_WIDTH + stagger + TILE_WIDTH / 2, row * ROW_HEIGHT + ROW_HEIGHT / 2
 
 
+def cell_at_px(x, y):
+    """The ground cell whose staggered slot holds world point (x, y); the
+    inverse of cell_center_px."""
+    row = int(y // ROW_HEIGHT)
+    stagger = TILE_WIDTH / 2 if row % 2 else 0
+    return int((x - stagger) // TILE_WIDTH), row
+
+
 def neighbors(col, row):
     """The 8 cells around (col, row) in the staggered grid, clipped to the
     grid: left/right in the same row, straight up/down two rows, and the

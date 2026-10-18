@@ -52,7 +52,10 @@ def run_game():
             world = app.world
 
             ground.draw_ground(screen, world.camera, world.ground)
-            entities.draw_scene(screen, world.player, world.bombs, world.shards, world.enemies, world.effects, world.camera)
+            entities.draw_scene(
+                screen, world.player, world.bombs, world.shards, world.enemies, world.effects, world.camera,
+                trees=world.trees,
+            )
             if app.debug:
                 entities.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies, world.camera)
             hud.draw_hud(screen, font, small_font, world.score, app.high_score, world.player.bombs_left, world.lives, world.player.bomb_cooldown)

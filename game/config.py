@@ -24,6 +24,17 @@ ENTITY_SCALE = 2
 TILE_WIDTH = 64
 TILE_HEIGHT = 64
 TILE_FOOTPRINT_HEIGHT = TILE_WIDTH * 24 / 32
+# Cosmetic tree groves (game/simulation/trees.py; art in assets/gridwright).
+# Tree art is drawn at TREE_SCALE screen px per art px — a notch above the
+# ground's 2x so trees read as trees next to the frog, not saplings.
+# Distances are world px between trunk bases.
+TREE_SCALE = 3
+TREE_GROVES = (12, 18)
+TREES_PER_GROVE = (2, 5)
+TREE_GROVE_RADIUS = 200
+TREE_MIN_SPACING = 80
+TREE_BORDER_MARGIN = 100  # beyond WORLD_BORDER, so canopies don't sit on the stone
+TREE_SPAWN_CLEARANCE = 320  # around the frog's spawn point
 # The frog's grounded body: its cropped art is 18 px wide and ~13 px tall
 # when sitting, at 1.5 base px per art px.
 PLAYER_BASE_SIZE = (27, 20)

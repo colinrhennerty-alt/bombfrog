@@ -542,3 +542,42 @@ def test_save_and_load_restore_the_same_ground(tmp_path):
 def test_an_old_save_without_a_ground_seed_still_loads_with_ground():
     loaded = World.from_save_data(_save_dict(), now=0, rng=random.Random(3))
     assert loaded.ground.cells
+
+
+# --- trees -----------------------------------------------------------------
+
+def test_a_new_world_plants_trees_from_its_ground_seed():
+    from game.simulation.terrain import generate_ground
+    from game.simulation.trees import generate_trees
+
+    world = World(now=0, rng=random.Random(7))
+    rng = random.Random(world.ground_seed)
+    ground = generate_ground(rng)
+    assert world.trees and world.trees == generate_trees(rng, ground)
+
+
+def test_trees_do_not_change_the_ground_a_seed_makes():
+    # Trees draw from the seed's rng only after the ground, so every seed
+    # (and every existing save) still gets exactly the map it always did.
+    from game.simulation.terrain import generate_ground
+
+    world = World(now=0, rng=random.Random(7))
+    assert world.ground.cells == generate_ground(random.Random(world.ground_seed)).cells
+
+
+def test_save_and_load_restore_the_same_trees(tmp_path):
+    world = World(now=0, rng=random.Random(7))
+    path = str(tmp_path / "save.json")
+    world.save(path, high_score=0)
+    from game.persistence.save_load import load_game
+
+    assert World.from_save_data(load_game(path), now=0).trees == world.trees
+
+
+def test_a_new_round_replants_but_losing_a_life_keeps_the_trees():
+    world = World(now=0, rng=random.Random(7))
+    first = world.trees
+    world._respawn(now=0)
+    assert world.trees is first
+    world.reset(now=0)
+    assert world.trees != first

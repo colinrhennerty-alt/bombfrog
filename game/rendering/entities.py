@@ -1,8 +1,9 @@
 """Drawing for everything that moves: the frog, bombs, shards, enemies and
-explosion effects, plus their shadows and the debug hitbox overlay.
+explosion effects, plus their shadows and the debug hitbox overlay — and
+the round's trees, which have to depth-sort in among them.
 
-`draw_scene` is the entry point: it depth-sorts entities by y, draws
-shadows, then sprites, then effects.
+`draw_scene` is the entry point: it depth-sorts entities and trees by
+where they touch the ground, draws shadows, then sprites, then effects.
 """
 
 import math
@@ -16,7 +17,9 @@ from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.simulation.enemy_types import ENEMY_TYPES
+from game.simulation.trees import Tree
 from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames, get_bomb_sprite, get_critter_frames
+from game.rendering.tree_assets import get_tree_sprite, get_tree_shadow
 
 # Visual-only sizes for things whose rect isn't their drawn size (a bomb's
 # rect is its blast area; an explosion has no rect). Base pixel sizes,
@@ -197,21 +200,63 @@ def draw_debug_boxes(surface, player, bombs, shards, enemies, camera):
         pygame.draw.rect(surface, color, camera.apply_rect(entity.rect), width=2)
 
 
-def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
-    """Depth-sort everything by y, draw shadows, then sprites, then effects on top."""
-    drawables = _collect_entities(player, bombs, shards, enemies)
-    drawables.sort(key=lambda entity: entity.y)
+def _placed_rect(image_and_offset, tree, camera):
+    image, (dx, dy) = image_and_offset
+    sx, sy = camera.apply(tree.x, tree.y)
+    return pygame.Rect(int(sx + dx), int(sy + dy), image.get_width(), image.get_height())
 
+
+def tree_screen_rect(tree, camera):
+    """Where a tree's sprite lands on screen, trunk base at tree.x/y."""
+    return _placed_rect(get_tree_sprite(tree.kind), tree, camera)
+
+
+def draw_tree_shadow(surface, tree, camera):
+    shadow = get_tree_shadow(tree.kind)
+    surface.blit(shadow[0], _placed_rect(shadow, tree, camera))
+
+
+def draw_tree(surface, tree, camera, faded=False):
+    sprite = get_tree_sprite(tree.kind, faded)
+    surface.blit(sprite[0], _placed_rect(sprite, tree, camera))
+
+
+def _ground_y(drawable):
+    """Where a drawable touches the ground — the depth-sort key, so a tall
+    tree and a short frog compare at their bases, not their tops."""
+    return drawable.y if isinstance(drawable, Tree) else drawable.shadow_anchor[1]
+
+
+def draw_scene(surface, player, bombs, shards, enemies, effects, camera, trees=()):
+    """Depth-sort entities and trees by where they touch the ground, draw
+    shadows, then sprites, then effects on top. A tree drawn over the frog
+    is see-through so the frog never vanishes behind a canopy."""
+    screen = surface.get_rect()
+    visible_trees = [tree for tree in trees if tree_screen_rect(tree, camera).colliderect(screen)]
+    drawables = _collect_entities(player, bombs, shards, enemies) + visible_trees
+    drawables.sort(key=_ground_y)
+
+    for tree in visible_trees:
+        draw_tree_shadow(surface, tree, camera)
     for entity in drawables:
-        if isinstance(entity, _ENTITIES_WITH_BAKED_SHADOWS):
+        if isinstance(entity, (Tree,) + _ENTITIES_WITH_BAKED_SHADOWS):
             continue
         sx, sy = camera.apply(*entity.shadow_anchor)
         draw_shadow(surface, sx, sy, entity.shadow_radius, entity.shadow_height_offset)
 
-    for entity in drawables:
-        spec = _ENTITY_DRAW_SPECS.get(type(entity))
+    player_rect = camera.apply_rect(player.rect) if player else None
+    for drawable in drawables:
+        if isinstance(drawable, Tree):
+            covers_frog = (
+                player_rect is not None
+                and _ground_y(drawable) > _ground_y(player)
+                and tree_screen_rect(drawable, camera).colliderect(player_rect)
+            )
+            draw_tree(surface, drawable, camera, faded=covers_frog)
+            continue
+        spec = _ENTITY_DRAW_SPECS.get(type(drawable))
         if spec:
-            spec[0](surface, entity, camera)
+            spec[0](surface, drawable, camera)
 
     for effect in effects:
         draw_explosion_effect(surface, effect, camera)
