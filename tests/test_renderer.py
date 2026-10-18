@@ -5,7 +5,7 @@ raising. Rendering correctness itself stays a manual/visual check.
 import pygame
 import pytest
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, ENTITY_SCALE
 from game.simulation.camera import Camera
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
@@ -854,3 +854,27 @@ def test_draw_menu(surface, fonts):
 def test_draw_game_over_overlay(surface, fonts):
     font, small_font = fonts
     rendering.draw_game_over_overlay(surface, font, small_font)
+
+
+def test_bomb_body_radius_scales_with_entity_scale():
+    # Bombs have no sprite-sized hitbox (bomb.rect is the blast area), so
+    # their drawn size scales with ENTITY_SCALE directly in the renderer.
+    mid_screen_y = HEIGHT / 2
+    unscaled = rendering.BOMB_BODY_BASE_RADIUS * rendering.depth_scale_for(mid_screen_y)
+    assert rendering.bomb_body_radius(mid_screen_y) == int(unscaled * ENTITY_SCALE)
+
+
+def test_explosion_effect_sprite_size_caps_at_a_scaled_maximum(camera):
+    fake_surface = _BlitRecordingSurface()
+    rendering.draw_explosion_effect(fake_surface, ExplosionEffect(500, 500, radius=10_000), camera)
+    size, _ = fake_surface.captured
+    expected = rendering.EXPLOSION_SPRITE_BASE_MAX_SIZE * ENTITY_SCALE
+    assert size == (expected, expected)
+
+
+def test_explosion_effect_sprite_size_floors_at_a_scaled_minimum(camera):
+    fake_surface = _BlitRecordingSurface()
+    rendering.draw_explosion_effect(fake_surface, ExplosionEffect(500, 500, radius=1), camera)
+    size, _ = fake_surface.captured
+    expected = rendering.EXPLOSION_SPRITE_BASE_MIN_SIZE * ENTITY_SCALE
+    assert size == (expected, expected)
