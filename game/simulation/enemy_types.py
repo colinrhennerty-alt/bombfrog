@@ -33,10 +33,11 @@ class EnemyType:
     max_hp: int
     spawn_weight: float
     shrapnel_pattern: Callable[[float], List[ShardSpec]]
+    sprite: str  # key into game.rendering.assets.get_critter_frames()
 
 
 ENEMY_TYPES = {
-    "grunt": EnemyType("grunt", (190, 80, 80), 1, 0.55, _ring(6, 1.1)),
-    "heavy": EnemyType("heavy", (170, 130, 80), 2, 0.30, _cone(5, 1.3, (220, 140, 80), 0.3)),
-    "elite": EnemyType("elite", (150, 95, 185), 3, 0.15, _ring(8, 0.9, (200, 140, 240))),
+    "grunt": EnemyType("grunt", (190, 80, 80), 1, 0.55, _ring(6, 1.1), "badger"),
+    "heavy": EnemyType("heavy", (170, 130, 80), 2, 0.30, _cone(5, 1.3, (220, 140, 80), 0.3), "boar"),
+    "elite": EnemyType("elite", (150, 95, 185), 3, 0.15, _ring(8, 0.9, (200, 140, 240)), "stag"),
 }

@@ -38,3 +38,19 @@ def test_heavy_shrapnel_cone_points_toward_facing_direction():
     backward = [angle for angle, _, _ in heavy.shrapnel_pattern(direction=math.pi)]
 
     assert min(abs(a) for a in forward) < min(abs(a) for a in backward)
+
+
+EXPECTED_SPRITE = {"grunt": "badger", "heavy": "boar", "elite": "stag"}
+
+
+def test_each_type_is_drawn_with_its_assigned_critter():
+    for name, enemy_type in ENEMY_TYPES.items():
+        assert enemy_type.sprite == EXPECTED_SPRITE[name]
+
+
+def test_every_types_sprite_has_loaded_critter_frames():
+    from game.rendering.assets import get_critter_frames
+
+    frames = get_critter_frames()
+    for enemy_type in ENEMY_TYPES.values():
+        assert enemy_type.sprite in frames
