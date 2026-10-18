@@ -1,10 +1,11 @@
-"""Cosmetic tree groves scattered over each round's meadow.
+"""Tree groves scattered over each round's meadow.
 
 A round gets a handful of grove centers; each grove plants a few trees
 around its center. Trees stay off the stone border, off tilled soil and
 away from the frog's spawn, and never crowd each other. Like GROUND_KINDS,
 a new kind of tree is one entry in TREE_KINDS (named after its sprite in
-assets/gridwright/trees). Purely cosmetic: nothing here blocks movement.
+assets/gridwright/trees), including how wide its trunk is and whether the
+frog can jump it — trunks block movement (game.simulation.obstacles).
 """
 
 import math
@@ -21,17 +22,25 @@ from game.simulation.terrain import GROUND_KINDS, cell_at_px
 class TreeKind:
     name: str
     weight: float
+    trunk_art_px: int  # trunk width at its base in the art, before TREE_SCALE
+    jumpable: bool = False  # a stump; a full tree is too tall to jump
 
 
 TREE_KINDS = [
-    TreeKind("tree_oak_large", 4),
-    TreeKind("tree_oak_small", 4),
-    TreeKind("tree_birch", 4),
-    TreeKind("tree_pine", 4),
-    TreeKind("tree_oak_autumn", 1),
-    TreeKind("tree_oak_blossom", 1),
-    TreeKind("tree_dead", 0.5),
+    TreeKind("tree_oak_large", 4, trunk_art_px=6),
+    TreeKind("tree_oak_small", 4, trunk_art_px=6),
+    TreeKind("tree_birch", 4, trunk_art_px=6),
+    TreeKind("tree_pine", 4, trunk_art_px=6),
+    TreeKind("tree_oak_autumn", 1, trunk_art_px=6),
+    TreeKind("tree_oak_blossom", 1, trunk_art_px=6),
+    TreeKind("tree_dead", 0.5, trunk_art_px=6),
+    TreeKind("stump", 1.5, trunk_art_px=10, jumpable=True),
 ]
+_KINDS_BY_NAME = {kind.name: kind for kind in TREE_KINDS}
+
+
+def kind_named(name):
+    return _KINDS_BY_NAME[name]
 
 
 @dataclass(frozen=True)

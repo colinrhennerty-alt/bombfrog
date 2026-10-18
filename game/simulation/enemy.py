@@ -22,6 +22,7 @@ from game.config import (
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
 from game.simulation.hitbox import sync_rect
+from game.simulation.obstacles import blocks, feet_rect
 from game.simulation.rect import Rect
 from game.simulation.shard import Shard
 
@@ -107,13 +108,28 @@ class Enemy:
     def shadow_height_offset(self):
         return 0
 
-    def update(self, dt, target=None):
+    def _step_blocked(self, obstacles, new_x, new_y):
+        return blocks(
+            obstacles,
+            feet_rect(self.x, self.y, self.width, self.height),
+            feet_rect(new_x, new_y, self.width, self.height),
+        )
+
+    def update(self, dt, target=None, obstacles=()):
         """`target` is the frog's (centerx, centery); without one the
-        critter just walks side to side."""
+        critter just walks side to side. `obstacles` block its feet: a
+        wandering critter turns around at one like at the arena wall, a
+        chasing one keeps its other axis and slides around it."""
         if target is not None:
             self._steer_toward(target)
-        self.x += self.vx
-        self.y = clamp(self.y + self.vy, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
+        if self._step_blocked(obstacles, self.x + self.vx, self.y):
+            if not self.following:
+                self.vx *= -1
+        else:
+            self.x += self.vx
+        new_y = clamp(self.y + self.vy, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
+        if not self._step_blocked(obstacles, self.x, new_y):
+            self.y = new_y
         if self.x <= WORLD_BORDER:
             self.x = WORLD_BORDER
             self.vx *= -1

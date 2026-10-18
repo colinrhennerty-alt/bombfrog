@@ -57,7 +57,10 @@ def run_game():
                 trees=world.trees,
             )
             if app.debug:
-                entities.draw_debug_boxes(screen, world.player, world.bombs, world.shards, world.enemies, world.camera)
+                entities.draw_debug_boxes(
+                    screen, world.player, world.bombs, world.shards, world.enemies, world.camera,
+                    obstacles=world.obstacles,
+                )
             hud.draw_hud(screen, font, small_font, world.score, app.high_score, world.player.bombs_left, world.lives, world.player.bomb_cooldown)
 
             if world.game_over:

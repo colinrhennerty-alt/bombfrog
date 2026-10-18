@@ -35,6 +35,14 @@ TREE_GROVE_RADIUS = 200
 TREE_MIN_SPACING = 80
 TREE_BORDER_MARGIN = 100  # beyond WORLD_BORDER, so canopies don't sit on the stone
 TREE_SPAWN_CLEARANCE = 320  # around the frog's spawn point
+# Trunks block movement (game/simulation/obstacles.py). A trunk's footprint
+# is as wide as its trunk art and TREE_TRUNK_DEPTH deep, centered on the
+# tree's base. Only a mover's feet collide: a FEET_HEIGHT strip along the
+# bottom of its hitbox, FEET_WIDTH_RATIO of its width — so it can walk
+# behind a tree (feet above the trunk) or in front of it.
+TREE_TRUNK_DEPTH = 12
+FEET_HEIGHT = 8
+FEET_WIDTH_RATIO = 0.6
 # The frog's grounded body: its cropped art is 18 px wide and ~13 px tall
 # when sitting, at 1.5 base px per art px.
 PLAYER_BASE_SIZE = (27, 20)

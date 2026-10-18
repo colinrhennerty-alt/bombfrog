@@ -18,6 +18,7 @@ from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.simulation.enemy_types import ENEMY_TYPES
 from game.simulation.trees import Tree
+from game.simulation.obstacles import feet_rect
 from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames, get_bomb_sprite, get_critter_frames
 from game.rendering.tree_assets import get_tree_sprite, get_tree_shadow
 
@@ -192,12 +193,24 @@ def _collect_entities(player, bombs, shards, enemies):
     return entities
 
 
-def draw_debug_boxes(surface, player, bombs, shards, enemies, camera):
+DEBUG_TRUNK_COLOR = (150, 90, 40)
+DEBUG_STUMP_COLOR = (230, 200, 60)  # jumpable
+DEBUG_FEET_COLOR = (255, 255, 255)
+
+
+def draw_debug_boxes(surface, player, bombs, shards, enemies, camera, obstacles=()):
     """Outlines the exact .rect each entity uses for colliderect checks
-    in game.world — not an approximation, the real hitbox."""
+    in game.world — not an approximation, the real hitbox — plus the
+    tree-trunk footprints and the feet strips that collide with them."""
     for entity in _collect_entities(player, bombs, shards, enemies):
         _, color = _ENTITY_DRAW_SPECS.get(type(entity), (None, (255, 255, 255)))
         pygame.draw.rect(surface, color, camera.apply_rect(entity.rect), width=2)
+    for obstacle in obstacles:
+        color = DEBUG_STUMP_COLOR if obstacle.jumpable else DEBUG_TRUNK_COLOR
+        pygame.draw.rect(surface, color, camera.apply_rect(obstacle.rect), width=2)
+    for mover in ([player] if player else []) + list(enemies):
+        feet = feet_rect(mover.x, mover.y, mover.width, mover.height)
+        pygame.draw.rect(surface, DEBUG_FEET_COLOR, camera.apply_rect(feet), width=1)
 
 
 def _placed_rect(image_and_offset, tree, camera):

@@ -21,6 +21,7 @@ from game.simulation.explosion_effect import ExplosionEffect
 from game.simulation.camera import Camera
 from game.simulation.terrain import generate_ground
 from game.simulation.trees import generate_trees
+from game.simulation.obstacles import trunk_obstacle
 from game.simulation import debug_log
 from game.persistence.save_load import save_game
 
@@ -69,6 +70,7 @@ class World:
         rng = random.Random(seed)
         self.ground = generate_ground(rng)
         self.trees = generate_trees(rng, self.ground)
+        self.obstacles = [trunk_obstacle(tree) for tree in self.trees]
 
     @classmethod
     def from_save_data(cls, data, now=0, rng=None):
@@ -127,7 +129,7 @@ class World:
     # --- per-frame stages, one responsibility each ------------------------
 
     def _update_player(self, keys, dt):
-        spawn_bomb = self.player.update(keys, dt)
+        spawn_bomb = self.player.update(keys, dt, obstacles=self.obstacles)
         if spawn_bomb:
             self.bombs.append(self.player.create_bomb())
 
@@ -205,7 +207,7 @@ class World:
 
     def _advance_enemy(self, enemy, dt):
         """Movement, shard damage, and death for one enemy this tick."""
-        enemy.update(dt, target=(self.player.centerx, self.player.centery))
+        enemy.update(dt, target=(self.player.centerx, self.player.centery), obstacles=self.obstacles)
         if not enemy.dead:
             self._damage_enemy_with_touching_shard(enemy)
         if enemy.dead:

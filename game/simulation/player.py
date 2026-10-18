@@ -22,6 +22,7 @@ from game.input.key_mapping import MOVE_LEFT_KEYS, MOVE_RIGHT_KEYS, MOVE_UP_KEYS
 from game.simulation.position import Position
 from game.simulation.rect import Rect
 from game.simulation.hitbox import sync_rect
+from game.simulation.obstacles import blocks, feet_rect
 from game.simulation.bomb import Bomb
 from game.simulation.bomb_launcher import BombLauncher
 
@@ -99,9 +100,11 @@ class Player:
     def _sync_rect(self):
         self.rect = sync_rect(self.x, self.y, self.width, self.height)
 
-    def update(self, keys, dt):
-        self._apply_horizontal_movement(keys)
-        vy_input = self._apply_vertical_movement(keys)
+    def update(self, keys, dt, obstacles=()):
+        """`obstacles` (game.simulation.obstacles) block the frog's feet;
+        each axis is stepped separately so it slides along them."""
+        self._apply_horizontal_movement(keys, obstacles)
+        vy_input = self._apply_vertical_movement(keys, obstacles)
         self.bomb_launcher.tick_cooldown(dt)
         spawn_bomb = self._apply_jump_physics(dt)
         self._update_animation(dt, vy_input)
@@ -119,7 +122,15 @@ class Player:
     def _any_pressed(cls, keys, key_group):
         return any(cls._pressed(keys, key) for key in key_group)
 
-    def _apply_horizontal_movement(self, keys):
+    def _step_blocked(self, obstacles, new_x, new_y):
+        return blocks(
+            obstacles,
+            feet_rect(self.x, self.y, self.width, self.height),
+            feet_rect(new_x, new_y, self.width, self.height),
+            airborne=not self.on_ground,
+        )
+
+    def _apply_horizontal_movement(self, keys, obstacles=()):
         self.vx = 0
         if self._any_pressed(keys, MOVE_LEFT_KEYS):
             self.vx = -PLAYER_SPEED
@@ -128,17 +139,19 @@ class Player:
         if self.vx != 0:
             self.facing = 1 if self.vx > 0 else -1
 
-        self.x += self.vx
-        self.x = clamp(self.x, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
+        new_x = clamp(self.x + self.vx, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
+        if not self._step_blocked(obstacles, new_x, self.y):
+            self.x = new_x
 
-    def _apply_vertical_movement(self, keys):
+    def _apply_vertical_movement(self, keys, obstacles=()):
         vy_input = 0
         if self._any_pressed(keys, MOVE_UP_KEYS):
             vy_input = -PLAYER_SPEED
         if self._any_pressed(keys, MOVE_DOWN_KEYS):
             vy_input = PLAYER_SPEED
-        self.y += vy_input
-        self.y = clamp(self.y, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
+        new_y = clamp(self.y + vy_input, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
+        if not self._step_blocked(obstacles, self.x, new_y):
+            self.y = new_y
         return vy_input
 
     def _apply_jump_physics(self, dt):

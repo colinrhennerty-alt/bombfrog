@@ -1097,3 +1097,18 @@ def test_draw_tree_puts_the_trunk_base_at_the_trees_ground_point():
     assert rect.centerx == pytest.approx(base_x, abs=1)
     assert rect.top < base_y < rect.bottom
     assert base_y - rect.top > rect.height * 0.6
+
+
+def test_debug_boxes_outline_every_trunk_and_the_frogs_feet(monkeypatch):
+    from game.simulation.obstacles import feet_rect, trunk_obstacle
+    from game.simulation.trees import Tree
+
+    drawn = []
+    monkeypatch.setattr(entities.pygame.draw, "rect", lambda surf, color, rect, width=0: drawn.append(pygame.Rect(rect)))
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    player = _frog_at(1000, 1000)
+    obstacles = [trunk_obstacle(Tree("tree_pine", 1200, 1100)), trunk_obstacle(Tree("stump", 1300, 1150))]
+    entities.draw_debug_boxes(pygame.Surface((WIDTH, HEIGHT)), player, [], [], [], camera, obstacles=obstacles)
+    for obstacle in obstacles:
+        assert camera.apply_rect(obstacle.rect) in drawn
+    assert camera.apply_rect(feet_rect(player.x, player.y, player.width, player.height)) in drawn
