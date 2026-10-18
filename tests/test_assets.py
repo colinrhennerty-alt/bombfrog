@@ -1,6 +1,6 @@
 import pygame
 
-from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames
+from game.rendering.assets import get_frog_frames, get_bomb_explosion_frames, get_critter_frames
 from game.config import FROG_IDLE_FRAME_COUNT
 
 
@@ -32,3 +32,17 @@ def test_get_frog_frames_is_cached_across_calls():
     first = get_frog_frames()
     second = get_frog_frames()
     assert first is second
+
+
+def test_get_critter_frames_has_both_facings_with_each_critters_frame_count():
+    frames = get_critter_frames()
+    expected_counts = {"badger": 9, "boar": 4, "stag": 10}
+    assert set(frames) == set(expected_counts)
+    for critter, count in expected_counts.items():
+        for facing in ("SE", "SW"):
+            assert len(frames[critter][facing]) == count
+            assert all(isinstance(f, pygame.Surface) for f in frames[critter][facing])
+
+
+def test_get_critter_frames_is_cached_across_calls():
+    assert get_critter_frames() is get_critter_frames()

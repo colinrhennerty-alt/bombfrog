@@ -1,4 +1,4 @@
-"""Loads and slices the player spritesheet.
+"""Loads and slices the player, bomb and enemy critter spritesheets.
 
 Loading is lazy (first call to get_frog_frames()) and cached, because
 Surface.convert_alpha() requires an active display mode — it can't run
@@ -13,11 +13,17 @@ from game.paths import resource_path
 
 SHEET_PATH = resource_path("assets/frog_green_spritesheet.png")
 BOMB_EXPLOSION_SHEET_PATH = resource_path("assets/bomb_explosion.png")
+CRITTERS_DIR = "assets/critters"
+CRITTER_FACINGS = ("SE", "SW")
+BADGER_FRAME_WIDTH = 42
+STAG_FRAME_WIDTH = 32
+BOAR_RUN_FRAME_COUNT = 4
 CELL = 32
 SPRITE_SIZE = 64
 
 _frames_cache = None
 _bomb_explosion_frames_cache = None
+_critter_frames_cache = None
 
 
 def _slice_frame(sheet, col, row):
@@ -39,6 +45,42 @@ def _load_bomb_explosion_frames():
     return [sheet.subsurface(pygame.Rect(col * CELL, 0, CELL, CELL)) for col in range(4)]
 
 
+def _slice_strip(sheet, frame_width):
+    """Cuts a single-row horizontal strip into equal-width frames."""
+    height = sheet.get_height()
+    return [
+        sheet.subsurface(pygame.Rect(col * frame_width, 0, frame_width, height))
+        for col in range(sheet.get_width() // frame_width)
+    ]
+
+
+def _load_strip(relative_path, frame_width):
+    sheet = pygame.image.load(resource_path(f"{CRITTERS_DIR}/{relative_path}")).convert_alpha()
+    return _slice_strip(sheet, frame_width)
+
+
+def _load_boar_run(facing):
+    # The boar ships one PNG per frame rather than a strip.
+    return [
+        pygame.image.load(resource_path(f"{CRITTERS_DIR}/boar/boar_{facing}_run_{i}.png")).convert_alpha()
+        for i in range(BOAR_RUN_FRAME_COUNT)
+    ]
+
+
+def _load_critter_frames():
+    return {
+        "badger": {
+            facing: _load_strip(f"badger/critter_badger_{facing}_walk.png", BADGER_FRAME_WIDTH)
+            for facing in CRITTER_FACINGS
+        },
+        "boar": {facing: _load_boar_run(facing) for facing in CRITTER_FACINGS},
+        "stag": {
+            facing: _load_strip(f"stag/critter_stag_{facing}_run.png", STAG_FRAME_WIDTH)
+            for facing in CRITTER_FACINGS
+        },
+    }
+
+
 def get_frog_frames():
     global _frames_cache
     if _frames_cache is None:
@@ -55,3 +97,10 @@ def get_bomb_explosion_frames():
 
 def get_bomb_sprite():
     return get_bomb_explosion_frames()[0]
+
+
+def get_critter_frames():
+    global _critter_frames_cache
+    if _critter_frames_cache is None:
+        _critter_frames_cache = _load_critter_frames()
+    return _critter_frames_cache
