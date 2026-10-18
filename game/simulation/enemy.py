@@ -1,7 +1,7 @@
 import math
 import random
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
 from game.simulation.hitbox import sync_rect
@@ -45,6 +45,8 @@ class Enemy:
         self.dead = False
         self.max_hp = ENEMY_TYPES[self.type].max_hp
         self.hp = self.max_hp
+        self.anim_timer = 0
+        self.anim_index = 0
         self._sync_rect()
 
     def _sync_rect(self):
@@ -74,7 +76,16 @@ class Enemy:
         elif self.x + self.width >= WORLD_WIDTH - WORLD_BORDER:
             self.x = WORLD_WIDTH - WORLD_BORDER - self.width
             self.vx *= -1
+        self._update_animation(dt)
         self._sync_rect()
+
+    def _update_animation(self, dt):
+        # anim_index counts up without wrapping; the renderer wraps it by
+        # each critter's own frame count, which the sim doesn't know.
+        self.anim_timer += dt
+        if self.anim_timer >= ENEMY_ANIM_MS:
+            self.anim_timer = 0
+            self.anim_index += 1
 
     def killed_by_explosion(self, origin_x, origin_y, radius):
         dx = self.rect.centerx - origin_x
@@ -104,6 +115,8 @@ class Enemy:
         enemy.dead = data["dead"]
         enemy.max_hp = ENEMY_TYPES[enemy.type].max_hp
         enemy.hp = data.get("hp", enemy.max_hp)
+        enemy.anim_timer = 0
+        enemy.anim_index = 0
         return enemy
 
     def to_dict(self):

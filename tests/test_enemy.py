@@ -1,6 +1,6 @@
 import random
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, ENEMY_ANIM_MS
 from game.simulation.camera import Camera
 from game.simulation.enemy import Enemy
 
@@ -197,3 +197,20 @@ def test_enemy_to_dict_round_trips_through_from_dict():
     assert restored.type == original.type
     assert restored.dead == original.dead
     assert restored.hp == original.hp
+
+
+def test_enemy_animation_advances_one_frame_per_enemy_anim_ms():
+    enemy = Enemy("left", 500, 500, rng=random.Random(0))
+    enemy.vx = 2.2
+    assert enemy.anim_index == 0
+    enemy.update(dt=ENEMY_ANIM_MS)
+    assert enemy.anim_index == 1
+    enemy.update(dt=ENEMY_ANIM_MS - 1)
+    assert enemy.anim_index == 1
+
+
+def test_enemy_loaded_from_dict_starts_at_animation_frame_zero_and_can_update():
+    enemy = Enemy.from_dict({"x": 500, "y": 500, "vx": 2.2, "type": "grunt", "dead": False})
+    assert enemy.anim_index == 0
+    enemy.update(dt=ENEMY_ANIM_MS)
+    assert enemy.anim_index == 1
