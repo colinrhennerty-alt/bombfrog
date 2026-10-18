@@ -46,3 +46,21 @@ def test_get_critter_frames_has_both_facings_with_each_critters_frame_count():
 
 def test_get_critter_frames_is_cached_across_calls():
     assert get_critter_frames() is get_critter_frames()
+
+
+def test_critter_frames_have_no_empty_rows_below_the_art():
+    # Regression: the source frames carry transparent padding under the
+    # critter's feet (6-8px of 32 on the badger), and draw_enemy scales the
+    # whole frame into the hitbox — so the art floated above rect.bottom.
+    # The lowest opaque row across a facing's frames must be its last row.
+    for critter, facings in get_critter_frames().items():
+        for facing, frames in facings.items():
+            lowest = max(f.get_bounding_rect(min_alpha=1).bottom for f in frames)
+            assert lowest == frames[0].get_height(), (critter, facing)
+
+
+def test_critter_frames_within_a_facing_share_one_size():
+    # A shared crop (not per-frame) keeps the art from jittering between frames.
+    for critter, facings in get_critter_frames().items():
+        for facing, frames in facings.items():
+            assert len({f.get_size() for f in frames}) == 1, (critter, facing)

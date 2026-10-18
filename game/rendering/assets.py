@@ -67,8 +67,20 @@ def _load_boar_run(facing):
     ]
 
 
+def _crop_to_shared_bounds(frames):
+    """Trims transparent padding so the art's lowest pixel sits on the
+    frame's bottom edge — draw_enemy scales the frame into the hitbox, so
+    leftover padding would float the critter above the ground. One crop
+    (the union of every frame's opaque area) for the whole set, so the
+    art doesn't jitter from frame to frame."""
+    bounds = frames[0].get_bounding_rect(min_alpha=1).unionall(
+        [f.get_bounding_rect(min_alpha=1) for f in frames[1:]]
+    )
+    return [f.subsurface(bounds) for f in frames]
+
+
 def _load_critter_frames():
-    return {
+    raw = {
         "badger": {
             facing: _load_strip(f"badger/critter_badger_{facing}_walk.png", BADGER_FRAME_WIDTH)
             for facing in CRITTER_FACINGS
@@ -78,6 +90,10 @@ def _load_critter_frames():
             facing: _load_strip(f"stag/critter_stag_{facing}_run.png", STAG_FRAME_WIDTH)
             for facing in CRITTER_FACINGS
         },
+    }
+    return {
+        critter: {facing: _crop_to_shared_bounds(frames) for facing, frames in facings.items()}
+        for critter, facings in raw.items()
     }
 
 
