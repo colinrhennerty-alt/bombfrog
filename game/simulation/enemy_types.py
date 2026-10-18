@@ -28,8 +28,11 @@ def _cone(count, speed_multiplier, color, spread) -> Callable[[float], List[Shar
 
 # How big an enemy may be next to the frog, by height. Stylized rather than
 # realistic (a real stag is ~100 frogs tall); the frog must still be able
-# to jump over every enemy (tests/test_jump_clearance.py).
-HEIGHT_VS_FROG_RANGE = (0.5, 3.0)
+# to jump over every enemy (tests/test_jump_clearance.py). Ratios are tuned
+# by how big each critter *reads*, not by height alone — the stag is mostly
+# legs and antlers, so it needs much more height than the solid boar to
+# read biggest (tests/test_visual_size.py).
+HEIGHT_VS_FROG_RANGE = (0.5, 4.0)
 
 
 @dataclass(frozen=True)
@@ -54,14 +57,14 @@ class EnemyType:
 ENEMY_TYPES = {
     "grunt": EnemyType(
         "grunt", (190, 80, 80), max_hp=1, spawn_weight=0.55, shrapnel_pattern=_ring(6, 1.1),
-        sprite="badger", height_vs_frog=1.25, art_aspect=26 / 20,
+        sprite="badger", height_vs_frog=1.5, art_aspect=26 / 20,
     ),
     "heavy": EnemyType(
         "heavy", (170, 130, 80), max_hp=2, spawn_weight=0.30, shrapnel_pattern=_cone(5, 1.3, (220, 140, 80), 0.3),
-        sprite="boar", height_vs_frog=1.75, art_aspect=34 / 24,
+        sprite="boar", height_vs_frog=1.6, art_aspect=34 / 24,
     ),
     "elite": EnemyType(
         "elite", (150, 95, 185), max_hp=3, spawn_weight=0.15, shrapnel_pattern=_ring(8, 0.9, (200, 140, 240)),
-        sprite="stag", height_vs_frog=2.5, art_aspect=27 / 40,
+        sprite="stag", height_vs_frog=3.5, art_aspect=27 / 40,
     ),
 }

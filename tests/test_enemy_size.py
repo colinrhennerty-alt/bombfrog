@@ -10,7 +10,7 @@ from game.simulation.enemy import Enemy
 from game.simulation.enemy_types import ENEMY_TYPES, HEIGHT_VS_FROG_RANGE
 from game.simulation.player import Player
 
-EXPECTED_HEIGHT_VS_FROG = {"grunt": 1.25, "heavy": 1.75, "elite": 2.5}
+EXPECTED_HEIGHT_VS_FROG = {"grunt": 1.5, "heavy": 1.6, "elite": 3.5}
 
 
 def _enemy_of_type(enemy_type):
