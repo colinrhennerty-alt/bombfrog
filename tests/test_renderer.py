@@ -857,6 +857,40 @@ def test_draw_hud(surface, fonts):
     hud.draw_hud(surface, font, small_font, score=10, high_score=20, bombs_left=2, lives=3, bomb_cooldown=0)
 
 
+def test_draw_hud_with_no_bombs_mid_cooldown_and_one_life(surface, fonts):
+    font, small_font = fonts
+    hud.draw_hud(surface, font, small_font, score=0, high_score=0, bombs_left=0, lives=1, bomb_cooldown=600)
+
+
+def _brightness(color):
+    return sum(color[:3]) / 3
+
+
+BRIGHT_GROUND = (235, 235, 235)
+
+
+def test_draw_hud_puts_the_stats_on_a_dark_panel(surface, fonts):
+    # Readability: the stats must sit on their own dark backing, not
+    # straight on top of the (bright, busy) grass.
+    font, small_font = fonts
+    surface.fill(BRIGHT_GROUND)
+    panel = hud.draw_hud(surface, font, small_font, score=10, high_score=20, bombs_left=2, lives=3, bomb_cooldown=0)
+
+    # Left padding, vertically centered: inside the panel but clear of text.
+    assert _brightness(surface.get_at((panel.x + 3, panel.centery))) < 100
+    assert _brightness(surface.get_at((panel.right + 5, panel.centery))) == _brightness(BRIGHT_GROUND)
+
+
+def test_draw_hud_puts_the_controls_hint_on_a_full_width_bottom_strip(surface, fonts):
+    font, small_font = fonts
+    surface.fill(BRIGHT_GROUND)
+    hud.draw_hud(surface, font, small_font, score=10, high_score=20, bombs_left=2, lives=3, bomb_cooldown=0)
+
+    for x in (2, WIDTH // 2, WIDTH - 3):
+        assert _brightness(surface.get_at((x, HEIGHT - 2))) < 100
+    assert _brightness(surface.get_at((WIDTH // 2, HEIGHT // 2))) == _brightness(BRIGHT_GROUND)
+
+
 def test_draw_menu(surface, fonts):
     font, small_font = fonts
     hud.draw_menu(surface, font, small_font, ["Start Game", "Load Game", "Quit"], selected=0)

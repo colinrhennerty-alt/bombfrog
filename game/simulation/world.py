@@ -12,7 +12,7 @@ game.scene.game_app.GameApp), the menu, and drawing (game.rendering).
 import math
 import random
 
-from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED
+from game.config import WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, MAX_ENEMIES, ENEMY_SPAWN_MS, SHARD_SPEED, STARTING_LIVES
 from game.simulation.player import Player
 from game.simulation.bomb import Bomb
 from game.simulation.shard import Shard
@@ -45,7 +45,7 @@ class World:
         """Start a brand new round: clears the arena and zeroes score/lives."""
         self._respawn(now)
         self.score = 0
-        self.lives = 3
+        self.lives = STARTING_LIVES
 
     def _respawn(self, now=0):
         """Clear the arena and place a fresh player, leaving score/lives as-is."""
@@ -68,7 +68,7 @@ class World:
         world.player = Player.from_dict(data["player"])
         world.bombs, world.shards, world.enemies = _load_bombs_shards_enemies(data)
         world.score = data.get("score", 0)
-        world.lives = data.get("lives", 3)
+        world.lives = data.get("lives", STARTING_LIVES)
         world.last_spawn = data.get("last_spawn", now)
         world.effects = []
         world.game_over = False

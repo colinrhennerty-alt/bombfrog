@@ -5,7 +5,7 @@ enemy/shard collisions, life loss vs. game-over, and spawn timing.
 
 import pygame
 
-from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER, BOMB_CONTACT_GRACE_MS
+from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER, BOMB_CONTACT_GRACE_MS, STARTING_LIVES
 from game.simulation.bomb import Bomb
 from game.simulation.enemy import Enemy
 from game.simulation.shard import Shard
@@ -28,7 +28,7 @@ def _new_enemy(x=500, y=500):
 
 def test_world_starts_with_full_lives_and_zero_score():
     world = World(now=0)
-    assert world.lives == 3
+    assert world.lives == STARTING_LIVES
     assert world.score == 0
     assert world.game_over is False
     assert world.bombs == [] and world.enemies == [] and world.shards == []
@@ -144,7 +144,7 @@ def test_jumping_over_an_enemy_avoids_the_collision():
 
     world.update(NO_KEYS, dt=16, now=1000)
 
-    assert world.lives == 3
+    assert world.lives == STARTING_LIVES
     assert world.game_over is False
     assert world.enemies == [enemy]  # enemy survives too — no collision happened at all
 
@@ -178,7 +178,7 @@ def test_jumping_over_shrapnel_avoids_the_collision():
 
     world.update(NO_KEYS, dt=16, now=1000)
 
-    assert world.lives == 3
+    assert world.lives == STARTING_LIVES
     assert world.game_over is False
 
 
