@@ -40,6 +40,12 @@ SHARD_LIFETIME = 1500
 BOMB_COOLDOWN_MS = 1200
 BOMB_FALL_SPEED = 40
 ENEMY_SPAWN_MS = 1800
+ENEMY_SPEED = 2.2
+# Center-to-center distances. The first time the frog comes within
+# ENEMY_NOTICE_RADIUS an enemy rolls its type's follow_chance once; a
+# follower gives up past ENEMY_GIVE_UP_RADIUS (wider, so it doesn't flicker).
+ENEMY_NOTICE_RADIUS = PLAYER_SIZE[0] * 5
+ENEMY_GIVE_UP_RADIUS = ENEMY_NOTICE_RADIUS * 2.5
 MAX_ENEMIES = 5
 SAVE_FILE = user_data_path("savegame.json")
 LEVEL_FILE = user_data_path("levels/level.json")

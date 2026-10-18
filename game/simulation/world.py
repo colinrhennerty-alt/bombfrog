@@ -121,7 +121,7 @@ class World:
         if len(self.enemies) < MAX_ENEMIES and now - self.last_spawn >= ENEMY_SPAWN_MS:
             side = self.rng.choice(["left", "right"])
             self.enemies.append(
-                Enemy(side, self.player.centerx, self.player.centery, camera=self.camera)
+                Enemy(side, self.player.centerx, self.player.centery, camera=self.camera, rng=self.rng)
             )
             self.last_spawn = now
 
@@ -188,7 +188,7 @@ class World:
 
     def _advance_enemy(self, enemy, dt):
         """Movement, shard damage, and death for one enemy this tick."""
-        enemy.update(dt)
+        enemy.update(dt, target=(self.player.centerx, self.player.centery))
         if not enemy.dead:
             self._damage_enemy_with_touching_shard(enemy)
         if enemy.dead:

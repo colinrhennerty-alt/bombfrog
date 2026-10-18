@@ -3,6 +3,8 @@ inside main.py's event loop: bomb explosions (fuse and contact-triggered),
 enemy/shard collisions, life loss vs. game-over, and spawn timing.
 """
 
+import random
+
 import pygame
 
 from game.config import BOMB_FUSE_MS, MAX_ENEMIES, ENEMY_SPAWN_MS, WORLD_BORDER, BOMB_CONTACT_GRACE_MS, STARTING_LIVES
@@ -244,12 +246,13 @@ def test_enemy_spawn_capped_at_max_enemies():
     assert len(world.enemies) == MAX_ENEMIES
 
 
-class _FakeRng:
-    """Duck-typed stand-in for the `random` module: returns a fixed,
-    caller-chosen side instead of an actual random draw and records what
-    World asked of it."""
+class _FakeRng(random.Random):
+    """Seeded rng whose choice() returns a fixed, caller-chosen side
+    instead of an actual random draw and records what World asked of it.
+    Everything else (the spawned Enemy's type/y rolls) stays real."""
 
     def __init__(self, choice_result):
+        super().__init__(0)
         self.choice_result = choice_result
         self.choice_calls = []
 
@@ -483,3 +486,22 @@ def test_logs_shard_hitting_the_player(capsys):
     out = capsys.readouterr().out
     assert "[debug]" in out
     assert "shard" in out.lower() and "player" in out.lower()
+
+
+class _AlwaysFollowRng(random.Random):
+    def random(self):
+        return 0.0
+
+
+def test_spawned_enemies_roll_with_the_worlds_rng_and_chase_the_frog():
+    world = World(now=0, rng=_AlwaysFollowRng(0))
+    world.update(NO_KEYS, dt=16, now=ENEMY_SPAWN_MS)
+    enemy = world.enemies[0]
+    enemy.x = world.player.centerx + 100 - enemy.width / 2
+    enemy.y = world.player.centery - enemy.height / 2
+    enemy._sync_rect()
+
+    world.update(NO_KEYS, dt=16, now=ENEMY_SPAWN_MS + 16)
+
+    assert enemy.following is True
+    assert enemy.rect.centerx < world.player.centerx + 100

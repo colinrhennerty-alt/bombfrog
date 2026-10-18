@@ -67,3 +67,15 @@ def test_each_types_art_aspect_matches_its_cropped_critter_art():
         for facing_frames in frames[enemy_type.sprite].values():
             width, height = facing_frames[0].get_size()
             assert enemy_type.art_aspect == pytest.approx(width / height, rel=0.05)
+
+
+def test_every_type_has_a_follow_chance_between_zero_and_one():
+    for enemy_type in ENEMY_TYPES.values():
+        assert 0 <= enemy_type.follow_chance <= 1
+
+
+def test_follow_chance_outside_zero_to_one_is_rejected():
+    from dataclasses import replace
+
+    with pytest.raises(ValueError):
+        replace(ENEMY_TYPES["grunt"], follow_chance=1.5)

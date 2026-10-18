@@ -1,6 +1,10 @@
 """A critter: spawns just off-screen on one side, walks back and forth
 across the arena, and bursts into its type's shrapnel when its HP runs out.
 
+The first time the frog comes within ENEMY_NOTICE_RADIUS, the critter rolls
+its type's follow_chance once. On a hit it chases the frog until the frog
+gets beyond ENEMY_GIVE_UP_RADIUS, then goes back to walking side to side.
+
 Per-type stats (HP, size, spawn weight, shrapnel pattern) come from
 game.simulation.enemy_types.ENEMY_TYPES.
 """
@@ -10,6 +14,7 @@ import random
 
 from game.config import (
     WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT, WORLD_BORDER, SHARD_SPEED, ENEMY_ANIM_MS, PLAYER_SIZE,
+    ENEMY_SPEED, ENEMY_NOTICE_RADIUS, ENEMY_GIVE_UP_RADIUS,
 )
 from game.utils import clamp
 from game.simulation.enemy_types import ENEMY_TYPES
@@ -46,10 +51,10 @@ class Enemy:
             spawn_side = "left"
         if spawn_side == "left":
             self.x = viewport_left - self.width - 20
-            self.vx = 2.2
+            self.vx = ENEMY_SPEED
         else:
             self.x = viewport_right + 20
-            self.vx = -2.2
+            self.vx = -ENEMY_SPEED
         self.x = clamp(self.x, WORLD_BORDER, WORLD_WIDTH - WORLD_BORDER - self.width)
         self.y = clamp(
             center_y + rng.uniform(-HEIGHT / 3, HEIGHT / 3),
@@ -63,6 +68,10 @@ class Enemy:
         self.hp = self.max_hp
         self.anim_timer = 0
         self.anim_index = 0
+        self.vy = 0.0
+        self.follow_rolled = False
+        self.following = False
+        self.rng = rng
         self._sync_rect()
 
     def _sync_rect(self):
@@ -84,8 +93,13 @@ class Enemy:
     def shadow_height_offset(self):
         return 0
 
-    def update(self, dt):
+    def update(self, dt, target=None):
+        """`target` is the frog's (centerx, centery); without one the
+        critter just walks side to side."""
+        if target is not None:
+            self._steer_toward(target)
         self.x += self.vx
+        self.y = clamp(self.y + self.vy, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)
         if self.x <= WORLD_BORDER:
             self.x = WORLD_BORDER
             self.vx *= -1
@@ -94,6 +108,22 @@ class Enemy:
             self.vx *= -1
         self._update_animation(dt)
         self._sync_rect()
+
+    def _steer_toward(self, target):
+        dx = target[0] - self.rect.centerx
+        dy = target[1] - self.rect.centery
+        distance = math.hypot(dx, dy)
+        if not self.follow_rolled and distance <= ENEMY_NOTICE_RADIUS:
+            self.follow_rolled = True
+            self.following = self.rng.random() < ENEMY_TYPES[self.type].follow_chance
+        if self.following and distance > ENEMY_GIVE_UP_RADIUS:
+            self.following = False
+            self.vy = 0.0
+            heading = self.vx if self.vx != 0 else dx
+            self.vx = math.copysign(ENEMY_SPEED, heading)
+        if self.following and distance > 0:
+            self.vx = ENEMY_SPEED * dx / distance
+            self.vy = ENEMY_SPEED * dy / distance
 
     def _update_animation(self, dt):
         # anim_index counts up without wrapping; the renderer wraps it by
@@ -132,6 +162,10 @@ class Enemy:
         enemy.hp = data.get("hp", enemy.max_hp)
         enemy.anim_timer = 0
         enemy.anim_index = 0
+        enemy.vy = data.get("vy", 0.0)
+        enemy.follow_rolled = data.get("follow_rolled", False)
+        enemy.following = data.get("following", False)
+        enemy.rng = random
         return enemy
 
     def to_dict(self):
@@ -142,6 +176,9 @@ class Enemy:
             "type": self.type,
             "dead": self.dead,
             "hp": self.hp,
+            "vy": self.vy,
+            "follow_rolled": self.follow_rolled,
+            "following": self.following,
         }
 
     def get_death_shrapnel(self):

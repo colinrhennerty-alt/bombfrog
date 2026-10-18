@@ -25,11 +25,15 @@ What the game does today (code pointers in parentheses).
 - **Airborne = safe.** Enemies and shards only hurt a grounded frog, so timing the jump
   is the core dodge.
 - **The shrapnel layer.** Each enemy type has its own death pattern (`enemy_types.py`):
-  | Enemy (sprite) | HP | Death shrapnel |
-  |---|---|---|
-  | grunt (badger) | 1 | ring of 6 |
-  | heavy (boar) | 2 | 5-shard cone in the direction it faced |
-  | elite (stag) | 3 | slower ring of 8 |
+  | Enemy (sprite) | HP | Death shrapnel | Follow chance |
+  |---|---|---|---|
+  | grunt (badger) | 1 | ring of 6 | 30% |
+  | heavy (boar) | 2 | 5-shard cone in the direction it faced | 20% |
+  | elite (stag) | 3 | slower ring of 8 | 50% |
+- **Some enemies chase.** Enemies walk side to side until the frog first comes within
+  `ENEMY_NOTICE_RADIUS`. Then each one rolls its type's `follow_chance` once. A winner
+  chases at walking speed until the frog is past `ENEMY_GIVE_UP_RADIUS`, then goes back
+  to walking side to side for good (`Enemy._steer_toward`).
 - **Shrapnel hurts enemies too**, so kill order and chain reactions matter.
 - **Lives, not chip damage.** Any hit costs one of 3 lives and respawns the frog; score
   and lives carry over. Score is +1 per frame survived and +100 per kill.
