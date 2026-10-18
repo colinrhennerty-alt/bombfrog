@@ -129,6 +129,11 @@ _ENTITY_DRAW_SPECS = {
 }
 
 
+# Sprites whose art already has a shadow baked in; a generated ellipse on
+# top of it doubles the shadow and makes the entity look like it hovers.
+_ENTITIES_WITH_BAKED_SHADOWS = (Enemy,)
+
+
 def _collect_entities(player, bombs, shards, enemies):
     """Every drawable entity for one frame, player last so it renders
     (and debug-outlines) on top of the cast around it."""
@@ -152,6 +157,8 @@ def draw_scene(surface, player, bombs, shards, enemies, effects, camera):
     drawables.sort(key=lambda entity: entity.y)
 
     for entity in drawables:
+        if isinstance(entity, _ENTITIES_WITH_BAKED_SHADOWS):
+            continue
         sx, sy = camera.apply(*entity.shadow_anchor)
         draw_shadow(surface, sx, sy, entity.shadow_radius, entity.shadow_height_offset)
 

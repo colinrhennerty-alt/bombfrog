@@ -326,6 +326,25 @@ def test_draw_scene_draws_the_players_shadow_at_its_feet_not_its_topleft(monkeyp
     assert captured_positions[0] == expected
 
 
+def test_draw_scene_skips_the_generated_shadow_for_enemies_whose_art_has_one(monkeypatch):
+    # The critter sprites carry a shadow baked into the art; drawing the
+    # generated ellipse at rect.midbottom too left a second shadow under
+    # the baked one, which read as the enemy hovering off the ground.
+    player = Player()
+    player.x, player.y = 500, 500
+    player._sync_rect()
+    enemy = Enemy("left", 500, 500)
+
+    shadow_calls = []
+    monkeypatch.setattr(rendering, "draw_shadow", lambda *args, **kwargs: shadow_calls.append(args))
+    camera = Camera(WIDTH, HEIGHT, WORLD_WIDTH, WORLD_HEIGHT)
+    rendering.draw_scene(
+        pygame.Surface((WIDTH, HEIGHT)), player=player, bombs=[], shards=[], enemies=[enemy], effects=[], camera=camera
+    )
+
+    assert len(shadow_calls) == 1  # the player's only
+
+
 def test_draw_scene_draws_a_bombs_shadow_at_its_center(monkeypatch):
     # Bomb/Shard are circular with no "feet" — their rect.center is
     # already the correct shadow anchor, unlike rect-based entities.
