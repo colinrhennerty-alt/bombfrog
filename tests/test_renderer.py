@@ -13,6 +13,7 @@ from game.simulation.shard import Shard
 from game.simulation.enemy import Enemy
 from game.simulation.explosion_effect import ExplosionEffect
 from game.rendering import renderer as rendering
+from game.rendering.assets import get_frog_frames
 
 
 @pytest.fixture
@@ -98,15 +99,22 @@ class _BlitRecordingSurface:
         self.source = source
 
 
-def test_draw_player_blits_sprite_sized_and_positioned_to_match_the_collision_rect(camera):
+def test_draw_player_blits_the_frog_unstretched_with_its_feet_on_the_hitbox_bottom(camera):
+    # The frog frame is drawn at one uniform pixel scale (no stretching),
+    # as wide as the hitbox, with its bottom-center on the hitbox's
+    # midbottom — the hitbox is the grounded body; the jump pose's extra
+    # height just extends upward past it.
     player = Player()
     fake_surface = _BlitRecordingSurface()
 
     rendering.draw_player(fake_surface, player, camera)
 
-    size, topleft = fake_surface.captured
-    assert size == player.rect.size
-    assert topleft == camera.apply_rect(player.rect).topleft
+    (width, height), topleft = fake_surface.captured
+    native_w, native_h = get_frog_frames()["idle"][0].get_size()
+    assert width == player.rect.size[0]
+    assert height == round(native_h * width / native_w)
+    screen_rect = camera.apply_rect(player.rect)
+    assert (topleft[0] + width // 2, topleft[1] + height) == screen_rect.midbottom
 
 
 def test_draw_player_moves_up_the_screen_while_airborne(camera):
@@ -120,9 +128,12 @@ def test_draw_player_moves_up_the_screen_while_airborne(camera):
 
     rendering.draw_player(fake_surface, player, camera)
 
-    _, topleft = fake_surface.captured
-    grounded_y = camera.apply_rect(player.rect).topleft[1]
-    assert topleft[1] < grounded_y
+    _, airborne_topleft = fake_surface.captured
+    player.on_ground = True
+    player.jump_offset = 0
+    rendering.draw_player(fake_surface, player, camera)
+    _, grounded_topleft = fake_surface.captured
+    assert airborne_topleft[1] == grounded_topleft[1] - 50
 
 
 def test_draw_enemy_blits_sprite_sized_and_positioned_to_match_the_collision_rect(camera):

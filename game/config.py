@@ -9,7 +9,9 @@ WORLD_BORDER = 180
 # Every entity (and the sprite drawn into its hitbox) is its base pixel
 # size times ENTITY_SCALE — one knob to grow/shrink all characters at once.
 ENTITY_SCALE = 2
-PLAYER_BASE_SIZE = (52, 40)
+# The frog's grounded body: its cropped art is 18 px wide and ~13 px tall
+# when sitting, at 1.5 base px per art px.
+PLAYER_BASE_SIZE = (27, 20)
 ENEMY_BASE_SIZE = (40, 34)
 SHARD_BASE_RADIUS = 4
 FROG_ANIM_MS = 220

@@ -19,13 +19,23 @@ def test_get_frog_frames_returns_the_expected_frame_set():
     assert isinstance(frames["land"], pygame.Surface)
 
 
-def test_frog_frames_are_scaled_to_sprite_size():
-    from game.rendering.assets import SPRITE_SIZE
-
+def _all_frog_frames():
     frames = get_frog_frames()
-    assert frames["idle"][0].get_size() == (SPRITE_SIZE, SPRITE_SIZE)
-    assert frames["jump"].get_size() == (SPRITE_SIZE, SPRITE_SIZE)
-    assert frames["land"].get_size() == (SPRITE_SIZE, SPRITE_SIZE)
+    return [*frames["idle"], frames["jump"], frames["land"]]
+
+
+def test_frog_frames_share_one_size_cropped_to_the_art():
+    # Same shared-crop rule as the critters: the cell's transparent padding
+    # used to be scaled into the hitbox, making the frog look half its size.
+    frames = _all_frog_frames()
+    assert len({f.get_size() for f in frames}) == 1
+    union = frames[0].get_bounding_rect(min_alpha=1).unionall([f.get_bounding_rect(min_alpha=1) for f in frames])
+    assert union == frames[0].get_rect()
+
+
+def test_frog_idle_frames_stand_on_the_frames_bottom_row():
+    for frame in get_frog_frames()["idle"]:
+        assert frame.get_bounding_rect(min_alpha=1).bottom == frame.get_height()
 
 
 def test_get_frog_frames_is_cached_across_calls():

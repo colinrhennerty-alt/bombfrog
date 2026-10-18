@@ -62,13 +62,15 @@ def draw_player(surface, player, camera):
     if player.facing > 0:
         frame = pygame.transform.flip(frame, True, False)
 
-    # Scale to the collision rect's own size, not the spritesheet's native
-    # cell size, so the drawn sprite and the hitbox always match exactly.
-    # Use regular scale instead of smoothing for crisp pixel-art edges.
-    frame = pygame.transform.scale(frame, player.rect.size)
-    screen_rect = camera.apply_rect(player.rect)
-    screen_rect.y += int(player.jump_offset)
-    surface.blit(frame, screen_rect.topleft)
+    # One uniform pixel scale, sized so the frame is as wide as the hitbox:
+    # the frog is never stretched, and the hitbox covers its grounded body
+    # while taller poses (the jump) extend upward past it. Feet go on the
+    # hitbox's midbottom. Regular (not smooth) scale keeps pixel art crisp.
+    width = player.rect.size[0]
+    height = round(frame.get_height() * width / frame.get_width())
+    frame = pygame.transform.scale(frame, (width, height))
+    mid_x, bottom_y = camera.apply_rect(player.rect).midbottom
+    surface.blit(frame, (mid_x - width // 2, bottom_y - height + int(player.jump_offset)))
 
 
 def depth_scale_for(screen_y):

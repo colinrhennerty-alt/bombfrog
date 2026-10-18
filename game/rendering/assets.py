@@ -19,7 +19,6 @@ BADGER_FRAME_WIDTH = 42
 STAG_FRAME_WIDTH = 32
 BOAR_RUN_FRAME_COUNT = 4
 CELL = 32
-SPRITE_SIZE = 64
 
 _frames_cache = None
 _bomb_explosion_frames_cache = None
@@ -27,17 +26,16 @@ _critter_frames_cache = None
 
 
 def _slice_frame(sheet, col, row):
-    cell = sheet.subsurface(pygame.Rect(col * CELL, row * CELL, CELL, CELL))
-    return pygame.transform.scale(cell, (SPRITE_SIZE, SPRITE_SIZE))
+    return sheet.subsurface(pygame.Rect(col * CELL, row * CELL, CELL, CELL))
 
 
 def _load_frames():
+    """Native-resolution frog frames, all cropped to one shared box; the
+    renderer scales them uniformly so the frog is never stretched."""
     sheet = pygame.image.load(SHEET_PATH).convert_alpha()
-    return {
-        "idle": [_slice_frame(sheet, col, 0) for col in range(FROG_IDLE_FRAME_COUNT)],
-        "jump": _slice_frame(sheet, 3, 1),
-        "land": _slice_frame(sheet, 4, 3),
-    }
+    idle = [_slice_frame(sheet, col, 0) for col in range(FROG_IDLE_FRAME_COUNT)]
+    *idle, jump, land = _crop_to_shared_bounds([*idle, _slice_frame(sheet, 3, 1), _slice_frame(sheet, 4, 3)])
+    return {"idle": idle, "jump": jump, "land": land}
 
 
 def _load_bomb_explosion_frames():
