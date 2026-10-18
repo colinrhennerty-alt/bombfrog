@@ -6,8 +6,6 @@ its tests) never need a display surface.
 
 import math
 
-import pygame
-
 from game.config import (
     WORLD_WIDTH,
     WORLD_HEIGHT,
@@ -20,6 +18,7 @@ from game.config import (
     PLAYER_SIZE,
 )
 from game.utils import clamp
+from game.input.key_mapping import MOVE_LEFT_KEYS, MOVE_RIGHT_KEYS, MOVE_UP_KEYS, MOVE_DOWN_KEYS
 from game.simulation.position import Position
 from game.simulation.rect import Rect
 from game.simulation.hitbox import sync_rect
@@ -116,11 +115,15 @@ class Player:
         except (KeyError, TypeError):
             return False
 
+    @classmethod
+    def _any_pressed(cls, keys, key_group):
+        return any(cls._pressed(keys, key) for key in key_group)
+
     def _apply_horizontal_movement(self, keys):
         self.vx = 0
-        if self._pressed(keys, pygame.K_LEFT) or self._pressed(keys, pygame.K_a):
+        if self._any_pressed(keys, MOVE_LEFT_KEYS):
             self.vx = -PLAYER_SPEED
-        if self._pressed(keys, pygame.K_RIGHT) or self._pressed(keys, pygame.K_d):
+        if self._any_pressed(keys, MOVE_RIGHT_KEYS):
             self.vx = PLAYER_SPEED
         if self.vx != 0:
             self.facing = 1 if self.vx > 0 else -1
@@ -130,9 +133,9 @@ class Player:
 
     def _apply_vertical_movement(self, keys):
         vy_input = 0
-        if self._pressed(keys, pygame.K_UP) or self._pressed(keys, pygame.K_w):
+        if self._any_pressed(keys, MOVE_UP_KEYS):
             vy_input = -PLAYER_SPEED
-        if self._pressed(keys, pygame.K_DOWN) or self._pressed(keys, pygame.K_s):
+        if self._any_pressed(keys, MOVE_DOWN_KEYS):
             vy_input = PLAYER_SPEED
         self.y += vy_input
         self.y = clamp(self.y, WORLD_BORDER, WORLD_HEIGHT - WORLD_BORDER - self.height)

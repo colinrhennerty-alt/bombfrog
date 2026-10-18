@@ -10,6 +10,15 @@ import pygame
 from game.input.actions import Action, SELECT_TILE_ACTIONS
 from game.scene.modes import Mode
 
+# Held-key movement in play, read every frame by Player rather than
+# dispatched as KEYDOWN actions — so no PLAYING_KEY_ACTIONS key may
+# overlap these (tests/test_key_mapping.py enforces it).
+MOVE_LEFT_KEYS = (pygame.K_LEFT, pygame.K_a)
+MOVE_RIGHT_KEYS = (pygame.K_RIGHT, pygame.K_d)
+MOVE_UP_KEYS = (pygame.K_UP, pygame.K_w)
+MOVE_DOWN_KEYS = (pygame.K_DOWN, pygame.K_s)
+MOVEMENT_KEYS = MOVE_LEFT_KEYS + MOVE_RIGHT_KEYS + MOVE_UP_KEYS + MOVE_DOWN_KEYS
+
 MENU_KEY_ACTIONS = {
     pygame.K_UP: Action.MENU_UP,
     pygame.K_DOWN: Action.MENU_DOWN,
