@@ -4,7 +4,7 @@ import random
 import pytest
 
 from game.config import TILE_WIDTH, TILE_FOOTPRINT_HEIGHT
-from game.paths import resource_path
+from game.rendering.isometric_assets import TILE_DIR
 from game.simulation.terrain import (
     GROUND_KINDS, MEADOW, cell_center_px, generate_ground, grid_size, neighbors,
 )
@@ -110,9 +110,8 @@ def test_patch_interiors_use_interior_tiles(grounds):
 
 
 def test_every_ground_tile_id_has_art():
-    tile_dir = resource_path("assets/isometric tileset/separated images")
     for tile_id in KIND_BY_TILE:
-        assert os.path.exists(os.path.join(tile_dir, f"{tile_id}.png")), tile_id
+        assert os.path.exists(os.path.join(TILE_DIR, f"{tile_id}.png")), tile_id
 
 
 def test_cell_centers_follow_the_staggered_brick_grid():

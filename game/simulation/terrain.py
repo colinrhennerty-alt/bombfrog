@@ -20,8 +20,9 @@ from game.simulation.tilemap import TileMap
 ROW_HEIGHT = TILE_FOOTPRINT_HEIGHT / 2
 
 
-def _tiles(*numbers):
-    return tuple(f"tile_{n:03d}" for n in numbers)
+def _floors(material):
+    """The three Gridwright floor variants of one material."""
+    return tuple(f"floor_{material}_{n:02d}" for n in (1, 2, 3))
 
 
 @dataclass(frozen=True)
@@ -34,17 +35,13 @@ class GroundKind:
     edge_tile_ids: Tuple[str, ...] = ()
 
 
-MEADOW = GroundKind("meadow", _tiles(22, 23, 24, 37, 38, 39))
+MEADOW = GroundKind("meadow", _floors("grass"))
 
 # Paint order: later kinds paint over earlier ones where patches overlap.
 GROUND_KINDS = [
-    GroundKind("lush", _tiles(27, 28, 29, 30, 31, 32), patch_count=(14, 18), radius_px=(140, 260)),
-    GroundKind("dark", _tiles(33, 34, 35, 36, 40), patch_count=(7, 10), radius_px=(90, 180)),
-    GroundKind(
-        "dirt", _tiles(*range(0, 11)), patch_count=(8, 12), radius_px=(70, 150),
-        edge_tile_ids=_tiles(19, 20),
-    ),
-    GroundKind("tilled", _tiles(11, 12, 13, 14, 15, 16, 25), patch_count=(1, 2), radius_px=(120, 200)),
+    GroundKind("autumn", _floors("autumn"), patch_count=(7, 10), radius_px=(110, 220)),
+    GroundKind("dirt", _floors("dirt"), patch_count=(8, 12), radius_px=(70, 150)),
+    GroundKind("tilled", _floors("soil"), patch_count=(1, 2), radius_px=(120, 200)),
 ]
 
 CIRCLES_PER_PATCH = (3, 6)
